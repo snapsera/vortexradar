@@ -2,11 +2,12 @@
   "name": "stormtrack-pro",
   "version": "1.0.0",
   "productName": "StormTrack Pro",
-  "main": "server.js",
+  "main": "main.js",
   "scripts": {
     "build": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
     "start": "node server.js",
     "start:desktop": "electron .",
+    "dev:browser": "npm run build && node server.js",
     "generate:icon": "node scripts/generate_app_icon.js",
     "serve": "watchify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js -v",
     "dev": "node scripts/build_css.js && npm run build && concurrently -k -n BUNDLE,ELECTRON \"npm run serve\" \"electron .\"",

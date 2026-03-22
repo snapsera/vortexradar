@@ -214,7 +214,7 @@ function get_mesoscale_enabled() {
         const v = localStorage.getItem(MD_STORAGE_KEY);
         if (v !== null) return v === 'true';
     } catch (_) {}
-    return true;
+    return false;
 }
 function set_mesoscale_enabled(enabled) {
     try { localStorage.setItem(MD_STORAGE_KEY, String(!!enabled)); } catch (_) {}

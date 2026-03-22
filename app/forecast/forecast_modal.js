@@ -3,13 +3,70 @@ var _body = null;
 var _searchInput = null;
 var _spinner = null;
 var _suggestions = null;
+var _tabBar = null;
 var _debounceTimer = null;
 var _currentLat = null;
 var _currentLon = null;
+var _currentName = null;
+var _cachedData = null;
+var _activeTab = 'overview';
 
 var NWS_UA = '(StormTrack Pro, https://stormtrack-pro.local)';
+var STORAGE_KEY_HISTORY = 'stormTrackPro_forecastHistory';
+var STORAGE_KEY_FAVORITES = 'stormTrackPro_forecastFavorites';
+var MAX_HISTORY = 15;
 
-// ── Sunrise / sunset (simplified solar calc) ──
+// ── Persistence helpers ──
+
+function _loadList(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || []; }
+    catch (e) { return []; }
+}
+function _saveList(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) {}
+}
+
+function _addHistory(name, lat, lon) {
+    var list = _loadList(STORAGE_KEY_HISTORY);
+    list = list.filter(function(h) { return !(h.lat === lat && h.lon === lon); });
+    list.unshift({ name: name, lat: lat, lon: lon, ts: Date.now() });
+    if (list.length > MAX_HISTORY) list = list.slice(0, MAX_HISTORY);
+    _saveList(STORAGE_KEY_HISTORY, list);
+}
+
+function _isFavorite(lat, lon) {
+    var list = _loadList(STORAGE_KEY_FAVORITES);
+    return list.some(function(f) { return f.lat === lat && f.lon === lon; });
+}
+
+function _toggleFavorite(name, lat, lon) {
+    var list = _loadList(STORAGE_KEY_FAVORITES);
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) {
+        if (list[i].lat === lat && list[i].lon === lon) { idx = i; break; }
+    }
+    if (idx >= 0) {
+        list.splice(idx, 1);
+    } else {
+        list.unshift({ name: name, lat: lat, lon: lon });
+    }
+    _saveList(STORAGE_KEY_FAVORITES, list);
+    return idx < 0;
+}
+
+function _removeFavorite(lat, lon) {
+    var list = _loadList(STORAGE_KEY_FAVORITES);
+    list = list.filter(function(f) { return !(f.lat === lat && f.lon === lon); });
+    _saveList(STORAGE_KEY_FAVORITES, list);
+}
+
+function _removeHistory(lat, lon) {
+    var list = _loadList(STORAGE_KEY_HISTORY);
+    list = list.filter(function(h) { return !(h.lat === lat && h.lon === lon); });
+    _saveList(STORAGE_KEY_HISTORY, list);
+}
+
+// ── Sunrise / sunset ──
 
 function _julianDay(year, month, day) {
     if (month <= 2) { year--; month += 12; }
@@ -20,7 +77,7 @@ function _julianDay(year, month, day) {
 
 function _sunTimes(lat, lon, date) {
     var jd = _julianDay(date.getFullYear(), date.getMonth() + 1, date.getDate());
-    var n = jd - 2451545.0 + 0.0008;
+    var n = Math.ceil(jd - 2451545.0 + 0.0008);
     var Jstar = n - (lon / 360);
     var M = (357.5291 + 0.98560028 * Jstar) % 360;
     var Mrad = M * Math.PI / 180;
@@ -36,49 +93,48 @@ function _sunTimes(lat, lon, date) {
     var H = Math.acos(cosH) * 180 / Math.PI;
     var Jrise = Jtransit - (H / 360);
     var Jset = Jtransit + (H / 360);
-
-    function jdToDate(jdVal) {
-        var millis = (jdVal - 2440587.5) * 86400000;
-        return new Date(millis);
-    }
+    function jdToDate(jdVal) { return new Date((jdVal - 2440587.5) * 86400000); }
     return { sunrise: jdToDate(Jrise), sunset: jdToDate(Jset) };
 }
 
 function _formatTime(d) {
     if (!d) return '--';
-    var h = d.getHours();
-    var m = d.getMinutes();
+    var h = d.getHours(), m = d.getMinutes();
     var ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
     return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
 }
 
+function _daylightDuration(sun) {
+    if (!sun) return '--';
+    var ms = sun.sunset.getTime() - sun.sunrise.getTime();
+    var hrs = Math.floor(ms / 3600000);
+    var mins = Math.round((ms % 3600000) / 60000);
+    return hrs + 'h ' + mins + 'm';
+}
+
 // ── Moon phase ──
 
 function _moonPhase(date) {
-    var year = date.getFullYear();
-    var month = date.getMonth() + 1;
-    var day = date.getDate();
+    var year = date.getFullYear(), month = date.getMonth() + 1, day = date.getDate();
     if (month < 3) { year--; month += 12; }
-    var A = Math.floor(year / 100);
-    var B = Math.floor(A / 4);
-    var C = 2 - A + B;
-    var E = Math.floor(365.25 * (year + 4716));
-    var F = Math.floor(30.6001 * (month + 1));
+    var A = Math.floor(year / 100), B = Math.floor(A / 4), C = 2 - A + B;
+    var E = Math.floor(365.25 * (year + 4716)), F = Math.floor(30.6001 * (month + 1));
     var jd = C + day + E + F - 1524.5;
     var daysSinceNew = (jd - 2451550.1) % 29.530588853;
     if (daysSinceNew < 0) daysSinceNew += 29.530588853;
     var phase = daysSinceNew / 29.530588853;
+    var illum = Math.round((1 - Math.cos(phase * 2 * Math.PI)) / 2 * 100);
 
-    if (phase < 0.0625) return { name: 'New Moon', icon: 'fa-moon' };
-    if (phase < 0.1875) return { name: 'Waxing Crescent', icon: 'fa-moon' };
-    if (phase < 0.3125) return { name: 'First Quarter', icon: 'fa-circle-half-stroke' };
-    if (phase < 0.4375) return { name: 'Waxing Gibbous', icon: 'fa-moon' };
-    if (phase < 0.5625) return { name: 'Full Moon', icon: 'fa-circle' };
-    if (phase < 0.6875) return { name: 'Waning Gibbous', icon: 'fa-moon' };
-    if (phase < 0.8125) return { name: 'Last Quarter', icon: 'fa-circle-half-stroke' };
-    if (phase < 0.9375) return { name: 'Waning Crescent', icon: 'fa-moon' };
-    return { name: 'New Moon', icon: 'fa-moon' };
+    if (phase < 0.0625) return { name: 'New Moon', icon: 'fa-moon', illum: illum };
+    if (phase < 0.1875) return { name: 'Waxing Crescent', icon: 'fa-moon', illum: illum };
+    if (phase < 0.3125) return { name: 'First Quarter', icon: 'fa-circle-half-stroke', illum: illum };
+    if (phase < 0.4375) return { name: 'Waxing Gibbous', icon: 'fa-moon', illum: illum };
+    if (phase < 0.5625) return { name: 'Full Moon', icon: 'fa-circle', illum: illum };
+    if (phase < 0.6875) return { name: 'Waning Gibbous', icon: 'fa-moon', illum: illum };
+    if (phase < 0.8125) return { name: 'Last Quarter', icon: 'fa-circle-half-stroke', illum: illum };
+    if (phase < 0.9375) return { name: 'Waning Crescent', icon: 'fa-moon', illum: illum };
+    return { name: 'New Moon', icon: 'fa-moon', illum: illum };
 }
 
 // ── Weather icon mapping ──
@@ -99,8 +155,6 @@ function _weatherIcon(shortForecast, isDaytime) {
     return isDaytime ? 'fa-sun' : 'fa-moon';
 }
 
-// ── Color for temperature ──
-
 function _tempColor(f) {
     if (f == null) return 'var(--color-text-primary)';
     if (f <= 0) return '#a5b4fc';
@@ -113,7 +167,18 @@ function _tempColor(f) {
     return '#ef4444';
 }
 
-// ── Geocoding via Nominatim ──
+function _cToF(c) { return c != null ? Math.round(c * 9 / 5 + 32) : null; }
+function _kmhToMph(k) { return k != null ? Math.round(k * 0.621371) : null; }
+function _paToInHg(pa) { return pa != null ? (pa * 0.00029530).toFixed(2) : null; }
+function _mToMi(m) { return m != null ? (m * 0.000621371).toFixed(1) : null; }
+
+function _degreesToCardinal(deg) {
+    if (deg == null) return '';
+    var dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return dirs[Math.round(deg / 22.5) % 16];
+}
+
+// ── Geocoding ──
 
 function _geocode(query, cb) {
     var url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(query) +
@@ -133,14 +198,14 @@ function _buildDisplayName(item) {
     return item.display_name || 'Unknown';
 }
 
-// ── NWS fetch helpers ──
+// ── NWS fetch ──
 
 function _nwsFetch(url) {
     var headers = new Headers();
     headers.append('User-Agent', NWS_UA);
     headers.append('Accept', 'application/geo+json');
     return fetch(url, { headers: headers }).then(function(r) {
-        if (!r.ok) throw new Error('NWS request failed: ' + r.status);
+        if (!r.ok) throw new Error('NWS ' + r.status);
         return r.json();
     });
 }
@@ -151,129 +216,193 @@ function _fetchAllData(lat, lon, cb) {
     _nwsFetch(pointsUrl).then(function(points) {
         var props = points.properties;
         var forecastUrl = props.forecast;
+        var hourlyUrl = props.forecastHourly;
         var stationsUrl = props.observationStations;
         var alertsUrl = 'https://api.weather.gov/alerts/active?point=' + lat.toFixed(4) + ',' + lon.toFixed(4);
         var locationName = (props.relativeLocation && props.relativeLocation.properties)
             ? props.relativeLocation.properties.city + ', ' + props.relativeLocation.properties.state
             : '';
+        var gridId = props.gridId || '';
+        var gridX = props.gridX;
+        var gridY = props.gridY;
 
         Promise.all([
             _nwsFetch(forecastUrl),
+            _nwsFetch(hourlyUrl).catch(function() { return null; }),
             _nwsFetch(stationsUrl).then(function(s) {
                 var first = s.features && s.features[0];
                 if (!first) return null;
                 var stationId = first.properties.stationIdentifier;
-                return _nwsFetch('https://api.weather.gov/stations/' + stationId + '/observations/latest');
+                var stationName = first.properties.name || stationId;
+                return _nwsFetch('https://api.weather.gov/stations/' + stationId + '/observations/latest')
+                    .then(function(obs) { obs._stationName = stationName; obs._stationId = stationId; return obs; });
             }).catch(function() { return null; }),
             _nwsFetch(alertsUrl).catch(function() { return { features: [] }; })
         ]).then(function(results) {
             cb(null, {
                 forecast: results[0],
-                observation: results[1],
-                alerts: results[2],
-                locationName: locationName
+                hourly: results[1],
+                observation: results[2],
+                alerts: results[3],
+                locationName: locationName,
+                gridId: gridId,
+                gridX: gridX,
+                gridY: gridY
             });
         }).catch(function(err) { cb(err, null); });
     }).catch(function(err) { cb(err, null); });
 }
 
-// ── Render helpers ──
-
-function _renderCurrentConditions(observation, lat, lon) {
-    var obs = (observation && observation.properties) || {};
-    var tempC = obs.temperature && obs.temperature.value;
-    var tempF = tempC != null ? Math.round(tempC * 9 / 5 + 32) : null;
-    var windSpeedKmh = obs.windSpeed && obs.windSpeed.value;
-    var windMph = windSpeedKmh != null ? Math.round(windSpeedKmh * 0.621371) : null;
-    var windDir = obs.windDirection && obs.windDirection.value;
-    var windCardinal = _degreesToCardinal(windDir);
-    var humidity = obs.relativeHumidity && obs.relativeHumidity.value;
-    var humidityStr = humidity != null ? Math.round(humidity) + '%' : '--';
-    var description = obs.textDescription || '--';
-    var heatIdxC = obs.heatIndex && obs.heatIndex.value;
-    var windChillC = obs.windChill && obs.windChill.value;
-    var feelsLikeC = heatIdxC != null ? heatIdxC : (windChillC != null ? windChillC : tempC);
-    var feelsLikeF = feelsLikeC != null ? Math.round(feelsLikeC * 9 / 5 + 32) : null;
-
-    var now = new Date();
-    var sun = _sunTimes(lat, lon, now);
-    var moon = _moonPhase(now);
-
-    var html = '<div class="forecastCurrent">';
-    html += '<div class="forecastSectionLabel">Current Conditions</div>';
-    html += '<div class="forecastCurrentGrid">';
-
-    html += '<div class="forecastCard">' +
-        '<span class="forecastCardLabel">Temperature</span>' +
-        '<span class="forecastCardTemp" style="color:' + _tempColor(tempF) + '">' + (tempF != null ? tempF + '°F' : '--') + '</span>' +
-        (feelsLikeF != null ? '<span class="forecastCardSub">Feels like ' + feelsLikeF + '°F</span>' : '') +
-        '</div>';
-
-    html += '<div class="forecastCard">' +
-        '<span class="forecastCardLabel"><i class="fa-solid ' + _weatherIcon(description, true) + ' forecastCardIcon"></i> Condition</span>' +
-        '<span class="forecastCardValue">' + description + '</span>' +
-        '</div>';
-
-    html += '<div class="forecastCard">' +
-        '<span class="forecastCardLabel"><i class="fa-solid fa-wind forecastCardIcon"></i> Wind</span>' +
-        '<span class="forecastCardValue">' + (windMph != null ? windMph + ' mph' : '--') + '</span>' +
-        (windCardinal ? '<span class="forecastCardSub">' + windCardinal + '</span>' : '') +
-        '</div>';
-
-    html += '<div class="forecastCard">' +
-        '<span class="forecastCardLabel"><i class="fa-solid fa-droplet forecastCardIcon"></i> Humidity</span>' +
-        '<span class="forecastCardValue">' + humidityStr + '</span>' +
-        '</div>';
-
-    html += '<div class="forecastCard">' +
-        '<span class="forecastCardLabel"><i class="fa-solid fa-sun forecastCardIcon"></i> Sunrise</span>' +
-        '<span class="forecastCardValue">' + (sun ? _formatTime(sun.sunrise) : '--') + '</span>' +
-        '</div>';
-
-    html += '<div class="forecastCard">' +
-        '<span class="forecastCardLabel"><i class="fa-solid fa-moon forecastCardIcon"></i> Sunset</span>' +
-        '<span class="forecastCardValue">' + (sun ? _formatTime(sun.sunset) : '--') + '</span>' +
-        '</div>';
-
-    html += '<div class="forecastCard">' +
-        '<span class="forecastCardLabel"><i class="fa-solid ' + moon.icon + ' forecastCardIcon"></i> Moon</span>' +
-        '<span class="forecastCardValue">' + moon.name + '</span>' +
-        '</div>';
-
-    html += '</div></div>';
-    return html;
-}
-
-function _degreesToCardinal(deg) {
-    if (deg == null) return '';
-    var dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-    return dirs[Math.round(deg / 22.5) % 16];
-}
+// ── Render: Alerts ──
 
 function _renderAlerts(alertsData) {
     var features = (alertsData && alertsData.features) || [];
-    if (!features.length) return '';
-    var html = '<div class="forecastAlertBanner"><i class="fa-solid fa-triangle-exclamation"></i><div class="forecastAlertBannerList">';
-    for (var i = 0; i < features.length; i++) {
-        var event = features[i].properties.event || 'Unknown Alert';
-        html += '<div class="forecastAlertBannerItem">' + event + '</div>';
+
+    if (!features.length) {
+        return '<div class="forecastAlertBannerClear">' +
+            '<div class="forecastAlertBannerHeader forecastAlertBannerHeader-clear">' +
+            '<i class="fa-solid fa-circle-check"></i> Active Alerts in This Area</div>' +
+            '<div class="forecastAlertNone">No active weather alerts for this location.</div>' +
+            '</div>';
     }
-    html += '</div></div>';
+
+    var html = '<div class="forecastAlertBanner">';
+    html += '<div class="forecastAlertBannerHeader"><i class="fa-solid fa-triangle-exclamation"></i> Active Alerts in This Area (' + features.length + ')</div>';
+
+    for (var i = 0; i < features.length; i++) {
+        var a = features[i].properties;
+        var event = a.event || 'Unknown Alert';
+        var severity = a.severity || '';
+        var headline = a.headline || '';
+        var sender = a.senderName || '';
+        var onset = a.onset ? new Date(a.onset) : null;
+        var expires = a.expires ? new Date(a.expires) : null;
+        var description = a.description || '';
+        var instruction = a.instruction || '';
+        var areaDesc = a.areaDesc || '';
+
+        html += '<div class="forecastAlertItem">';
+        html += '<div class="forecastAlertItemTop">';
+        html += '<div class="forecastAlertItemInfo">';
+        html += '<div class="forecastAlertItemTitle">' + event + '</div>';
+        if (headline) html += '<div class="forecastAlertItemHeadline">' + headline + '</div>';
+        html += '<div class="forecastAlertItemMeta">';
+        if (severity) html += '<span><i class="fa-solid fa-shield-halved"></i> ' + severity + '</span>';
+        if (onset) html += '<span><i class="fa-solid fa-clock"></i> ' + onset.toLocaleString() + '</span>';
+        if (expires) html += '<span><i class="fa-solid fa-hourglass-end"></i> Expires ' + expires.toLocaleString() + '</span>';
+        if (sender) html += '<span><i class="fa-solid fa-building"></i> ' + sender + '</span>';
+        html += '</div></div>';
+        html += '<button class="forecastAlertDetailsBtn" data-alert-idx="' + i + '"><i class="fa-solid fa-chevron-down"></i> View Details</button>';
+        html += '</div>';
+
+        html += '<div class="forecastAlertDetailPanel" data-alert-detail="' + i + '">';
+        if (areaDesc) html += '<div class="forecastAlertDetailSection"><span class="forecastAlertDetailLabel">Affected Areas</span><span class="forecastAlertDetailText">' + areaDesc + '</span></div>';
+        if (description) html += '<div class="forecastAlertDetailSection"><span class="forecastAlertDetailLabel">Description</span><span class="forecastAlertDetailText">' + description.replace(/\n/g, '<br>') + '</span></div>';
+        if (instruction) html += '<div class="forecastAlertDetailSection"><span class="forecastAlertDetailLabel">Instructions</span><span class="forecastAlertDetailText">' + instruction.replace(/\n/g, '<br>') + '</span></div>';
+        html += '</div>';
+
+        html += '</div>';
+    }
+
+    html += '</div>';
     return html;
 }
 
-function _renderForecast(forecastData) {
+// ── Render: Overview tab — hero + conditions + 7-day ──
+
+function _renderOverview(data) {
+    var obs = (data.observation && data.observation.properties) || {};
+    var lat = _currentLat, lon = _currentLon;
+    var html = '';
+
+    // Hero
+    var tempC = obs.temperature && obs.temperature.value;
+    var tempF = _cToF(tempC);
+    var desc = obs.textDescription || 'N/A';
+    var heatC = obs.heatIndex && obs.heatIndex.value;
+    var chillC = obs.windChill && obs.windChill.value;
+    var feelsC = heatC != null ? heatC : (chillC != null ? chillC : tempC);
+    var feelsF = _cToF(feelsC);
+    var stationName = data.observation ? (data.observation._stationName || '') : '';
+
+    html += '<div class="forecastHero">';
+    html += '<span class="forecastHeroTemp" style="color:' + _tempColor(tempF) + '">' + (tempF != null ? tempF + '°' : '--') + '</span>';
+    html += '<div class="forecastHeroInfo">';
+    html += '<div class="forecastHeroCondition"><i class="fa-solid ' + _weatherIcon(desc, true) + ' forecastHeroConditionIcon"></i> ' + desc + '</div>';
+    if (feelsF != null && feelsF !== tempF) html += '<div class="forecastHeroFeels">Feels like ' + feelsF + '°F</div>';
+    if (stationName) html += '<div class="forecastHeroStation">Observed at ' + stationName + '</div>';
+    html += '</div></div>';
+
+    // Alerts
+    html += _renderAlerts(data.alerts);
+
+    // Conditions grid
+    var windKmh = obs.windSpeed && obs.windSpeed.value;
+    var windMph = _kmhToMph(windKmh);
+    var windDir = obs.windDirection && obs.windDirection.value;
+    var gustKmh = obs.windGust && obs.windGust.value;
+    var gustMph = _kmhToMph(gustKmh);
+    var humidity = obs.relativeHumidity && obs.relativeHumidity.value;
+    var dewC = obs.dewpoint && obs.dewpoint.value;
+    var dewF = _cToF(dewC);
+    var pressurePa = obs.barometricPressure && obs.barometricPressure.value;
+    var pressureInHg = _paToInHg(pressurePa);
+    var visM = obs.visibility && obs.visibility.value;
+    var visMi = _mToMi(visM);
+
+    var sun = _sunTimes(lat, lon, new Date());
+    var moon = _moonPhase(new Date());
+
+    html += '<div class="forecastCurrent">';
+    html += '<div class="forecastSectionLabel">Current Conditions</div>';
+    html += '<div class="forecastCurrentGrid">';
+
+    html += _card('fa-wind', 'Wind', (windMph != null ? windMph + ' mph ' + _degreesToCardinal(windDir) : '--'),
+        gustMph ? 'Gusts ' + gustMph + ' mph' : null);
+    html += _card('fa-droplet', 'Humidity', (humidity != null ? Math.round(humidity) + '%' : '--'), null);
+    html += _card('fa-temperature-half', 'Dew Point', (dewF != null ? dewF + '°F' : '--'), null);
+    html += _card('fa-gauge-high', 'Pressure', (pressureInHg != null ? pressureInHg + ' inHg' : '--'), null);
+    html += _card('fa-eye', 'Visibility', (visMi != null ? visMi + ' mi' : '--'), null);
+    html += _card('fa-sun', 'Sunrise', (sun ? _formatTime(sun.sunrise) : '--'), sun ? 'Daylight: ' + _daylightDuration(sun) : null);
+    html += _card('fa-moon', 'Sunset', (sun ? _formatTime(sun.sunset) : '--'), null);
+    html += _card(moon.icon, 'Moon Phase', moon.name, moon.illum + '% illumination');
+
+    html += '</div></div>';
+
+    // 7-day forecast
+    html += _render7Day(data.forecast);
+
+    return html;
+}
+
+function _card(icon, label, value, sub) {
+    var h = '<div class="forecastCard">';
+    h += '<span class="forecastCardLabel"><i class="fa-solid ' + icon + ' forecastCardIcon"></i> ' + label + '</span>';
+    h += '<span class="forecastCardValue">' + value + '</span>';
+    if (sub) h += '<span class="forecastCardSub">' + sub + '</span>';
+    h += '</div>';
+    return h;
+}
+
+// ── Render: 7-day forecast ──
+
+function _render7Day(forecastData) {
     var periods = (forecastData && forecastData.properties && forecastData.properties.periods) || [];
     if (!periods.length) return '';
 
     var days = [];
+    var allTemps = [];
     for (var i = 0; i < periods.length; i++) {
         var p = periods[i];
+        allTemps.push(p.temperature);
         if (p.isDaytime) {
             var night = (i + 1 < periods.length && !periods[i + 1].isDaytime) ? periods[i + 1] : null;
             days.push({ day: p, night: night });
         }
     }
+    var minTemp = Math.min.apply(null, allTemps);
+    var maxTemp = Math.max.apply(null, allTemps);
+    var tempRange = maxTemp - minTemp || 1;
 
     var html = '<div class="forecastDays">';
     html += '<div class="forecastSectionLabel">7 Day Forecast</div>';
@@ -285,61 +414,287 @@ function _renderForecast(forecastData) {
         var nightP = entry.night;
         var dt = new Date(dayP.startTime);
         var dayName = d === 0 ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short' });
+        var dateStr = (dt.getMonth() + 1) + '/' + dt.getDate();
         var icon = _weatherIcon(dayP.shortForecast, true);
         var high = dayP.temperature;
-        var low = nightP ? nightP.temperature : '--';
+        var low = nightP ? nightP.temperature : null;
         var precip = dayP.probabilityOfPrecipitation && dayP.probabilityOfPrecipitation.value;
         var precipStr = precip != null && precip > 0 ? precip + '%' : '';
+        var wind = dayP.windSpeed || '';
 
-        html += '<div class="forecastDayRow">' +
-            '<span class="forecastDayName">' + dayName + '</span>' +
-            '<span class="forecastDayIcon" style="color:' + _tempColor(high) + '"><i class="fa-solid ' + icon + '"></i></span>' +
-            '<span class="forecastDayTemps"><span class="forecastDayHigh" style="color:' + _tempColor(high) + '">' + high + '°</span><span class="forecastDayLow">' + low + '°</span></span>' +
-            '<span class="forecastDayDesc">' + dayP.shortForecast + '</span>' +
-            (precipStr ? '<span class="forecastDayPrecip"><i class="fa-solid fa-droplet"></i> ' + precipStr + '</span>' : '<span class="forecastDayPrecip"></span>') +
-            '</div>';
+        var barLeft = ((low != null ? low : high) - minTemp) / tempRange * 100;
+        var barRight = (high - minTemp) / tempRange * 100;
+
+        html += '<div class="forecastDayRow" data-day-idx="' + d + '">';
+        html += '<span class="forecastDayName">' + dayName + '</span>';
+        html += '<span class="forecastDayDate">' + dateStr + '</span>';
+        html += '<span class="forecastDayIcon" style="color:' + _tempColor(high) + '"><i class="fa-solid ' + icon + '"></i></span>';
+        html += '<span class="forecastDayTemps"><span class="forecastDayHigh" style="color:' + _tempColor(high) + '">' + high + '°</span><span class="forecastDayLow">' + (low != null ? low + '°' : '') + '</span></span>';
+        html += '<div class="forecastTempBar"><div class="forecastTempBarFill" style="left:' + barLeft + '%;width:' + (barRight - barLeft) + '%;background:linear-gradient(90deg,' + _tempColor(low != null ? low : high) + ',' + _tempColor(high) + ')"></div></div>';
+        html += '<span class="forecastDayDesc">' + dayP.shortForecast + '</span>';
+        html += '<span class="forecastDayMeta">';
+        if (precipStr) html += '<span class="forecastDayPrecip"><i class="fa-solid fa-droplet"></i> ' + precipStr + '</span>';
+        html += '<span class="forecastDayWind"><i class="fa-solid fa-wind"></i> ' + wind + '</span>';
+        html += '</span>';
+        html += '<i class="fa-solid fa-chevron-right forecastDayChevron"></i>';
+        html += '</div>';
+
+        // Detail panel
+        html += '<div class="forecastDayDetail" data-day-detail="' + d + '">';
+        html += '<div class="forecastDayDetailGrid">';
+        html += _detailItem('High', high + '°F');
+        html += _detailItem('Low', low != null ? low + '°F' : '--');
+        html += _detailItem('Wind', wind);
+        html += _detailItem('Precip', precipStr || '0%');
+        if (dayP.windDirection) html += _detailItem('Wind Dir', dayP.windDirection);
+        html += '</div>';
+        html += '<div class="forecastDayDetailText">' + dayP.detailedForecast + '</div>';
+
+        if (nightP) {
+            html += '<div class="forecastDayDetailNight">';
+            html += '<div class="forecastDayDetailNightLabel"><i class="fa-solid fa-moon"></i> ' + nightP.name + '</div>';
+            html += '<div class="forecastDayDetailGrid">';
+            html += _detailItem('Low', nightP.temperature + '°F');
+            html += _detailItem('Wind', nightP.windSpeed || '--');
+            var nightPrecip = nightP.probabilityOfPrecipitation && nightP.probabilityOfPrecipitation.value;
+            html += _detailItem('Precip', (nightPrecip != null && nightPrecip > 0) ? nightPrecip + '%' : '0%');
+            html += '</div>';
+            html += '<div class="forecastDayDetailText">' + nightP.detailedForecast + '</div>';
+            html += '</div>';
+        }
+        html += '</div>';
     }
 
     html += '</div></div>';
     return html;
 }
 
-// ── Load location data ──
+function _detailItem(label, value) {
+    return '<div class="forecastDayDetailItem"><span class="forecastDayDetailLabel">' + label + '</span><span class="forecastDayDetailValue">' + value + '</span></div>';
+}
+
+// ── Render: Hourly tab ──
+
+function _renderHourly(hourlyData) {
+    var periods = (hourlyData && hourlyData.properties && hourlyData.properties.periods) || [];
+    if (!periods.length) return '<div class="forecastEmpty"><div class="forecastEmptyText">Hourly data unavailable.</div></div>';
+
+    var limit = Math.min(periods.length, 72);
+    var html = '<div class="forecastHourlyWrap">';
+    html += '<div class="forecastSectionLabel">Hourly Forecast — Next 72 Hours</div>';
+    html += '<div class="forecastHourlyList">';
+
+    html += '<div class="forecastHourlyColHeader">';
+    html += '<span style="width:65px">Time</span>';
+    html += '<span style="width:22px"></span>';
+    html += '<span style="width:44px">Temp</span>';
+    html += '<span style="flex:1">Conditions</span>';
+    html += '<span style="width:40px">Precip</span>';
+    html += '<span style="width:40px">Humid</span>';
+    html += '<span style="width:70px">Wind</span>';
+    html += '</div>';
+
+    var lastDay = '';
+    for (var i = 0; i < limit; i++) {
+        var p = periods[i];
+        var dt = new Date(p.startTime);
+        var dayLabel = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+        if (dayLabel !== lastDay) {
+            html += '<div class="forecastHourlyDaySep">' + dayLabel + '</div>';
+            lastDay = dayLabel;
+        }
+
+        var timeStr = _formatTime(dt);
+        var icon = _weatherIcon(p.shortForecast, p.isDaytime);
+        var temp = p.temperature;
+        var precip = p.probabilityOfPrecipitation && p.probabilityOfPrecipitation.value;
+        var precipStr = (precip != null && precip > 0) ? precip + '%' : '';
+        var humidity = p.relativeHumidity && p.relativeHumidity.value;
+        var humidStr = humidity != null ? Math.round(humidity) + '%' : '';
+        var wind = p.windSpeed || '';
+
+        html += '<div class="forecastHourlyRow">';
+        html += '<span class="forecastHourlyTime">' + timeStr + '</span>';
+        html += '<span class="forecastHourlyIcon" style="color:' + _tempColor(temp) + '"><i class="fa-solid ' + icon + '"></i></span>';
+        html += '<span class="forecastHourlyTemp" style="color:' + _tempColor(temp) + '">' + temp + '°</span>';
+        html += '<span class="forecastHourlyDesc">' + p.shortForecast + '</span>';
+        html += '<span class="forecastHourlyPrecip">' + precipStr + '</span>';
+        html += '<span class="forecastHourlyHumidity">' + humidStr + '</span>';
+        html += '<span class="forecastHourlyWind">' + wind + '</span>';
+        html += '</div>';
+    }
+
+    html += '</div></div>';
+    return html;
+}
+
+// ── Render: Details tab ──
+
+function _renderDetails(data) {
+    var obs = (data.observation && data.observation.properties) || {};
+    var lat = _currentLat, lon = _currentLon;
+    var html = '<div class="forecastDetailsWrap">';
+
+    // Observation details
+    var tempC = obs.temperature && obs.temperature.value;
+    var tempF = _cToF(tempC);
+    var dewC = obs.dewpoint && obs.dewpoint.value;
+    var dewF = _cToF(dewC);
+    var humidity = obs.relativeHumidity && obs.relativeHumidity.value;
+    var windKmh = obs.windSpeed && obs.windSpeed.value;
+    var windMph = _kmhToMph(windKmh);
+    var windDir = obs.windDirection && obs.windDirection.value;
+    var gustKmh = obs.windGust && obs.windGust.value;
+    var gustMph = _kmhToMph(gustKmh);
+    var pressurePa = obs.barometricPressure && obs.barometricPressure.value;
+    var pressureInHg = _paToInHg(pressurePa);
+    var visM = obs.visibility && obs.visibility.value;
+    var visMi = _mToMi(visM);
+    var heatC = obs.heatIndex && obs.heatIndex.value;
+    var heatF = _cToF(heatC);
+    var chillC = obs.windChill && obs.windChill.value;
+    var chillF = _cToF(chillC);
+    var cloudLayers = obs.cloudLayers || [];
+    var rawDesc = obs.rawMessage || '';
+    var observedAt = obs.timestamp ? new Date(obs.timestamp) : null;
+
+    var sun = _sunTimes(lat, lon, new Date());
+    var moon = _moonPhase(new Date());
+
+    html += '<div class="forecastDetailSection">';
+    html += '<div class="forecastSectionLabel">Observation Details</div>';
+    html += _dRow('fa-temperature-half', 'Temperature', tempF != null ? tempF + '°F (' + (tempC != null ? tempC.toFixed(1) : '--') + '°C)' : '--');
+    html += _dRow('fa-temperature-half', 'Dew Point', dewF != null ? dewF + '°F (' + (dewC != null ? dewC.toFixed(1) : '--') + '°C)' : '--');
+    html += _dRow('fa-droplet', 'Humidity', humidity != null ? Math.round(humidity) + '%' : '--');
+    html += _dRow('fa-wind', 'Wind', windMph != null ? windMph + ' mph ' + _degreesToCardinal(windDir) + ' (' + (windDir != null ? windDir + '°' : '') + ')' : '--');
+    html += _dRow('fa-wind', 'Gusts', gustMph != null ? gustMph + ' mph' : 'None');
+    html += _dRow('fa-gauge-high', 'Barometric Pressure', pressureInHg != null ? pressureInHg + ' inHg (' + (pressurePa != null ? Math.round(pressurePa / 100) + ' hPa' : '') + ')' : '--');
+    html += _dRow('fa-eye', 'Visibility', visMi != null ? visMi + ' mi' : '--');
+    if (heatF != null) html += _dRow('fa-temperature-arrow-up', 'Heat Index', heatF + '°F');
+    if (chillF != null) html += _dRow('fa-temperature-arrow-down', 'Wind Chill', chillF + '°F');
+
+    if (cloudLayers.length) {
+        var cloudStr = cloudLayers.map(function(l) {
+            var base = l.base && l.base.value != null ? Math.round(l.base.value * 3.28084) + ' ft' : '';
+            return (l.amount || '') + (base ? ' at ' + base : '');
+        }).join(', ');
+        html += _dRow('fa-cloud', 'Cloud Cover', cloudStr);
+    }
+
+    if (observedAt) html += _dRow('fa-clock', 'Observed', observedAt.toLocaleString());
+    var stationName = data.observation ? (data.observation._stationName || '') : '';
+    var stationId = data.observation ? (data.observation._stationId || '') : '';
+    if (stationName) html += _dRow('fa-tower-broadcast', 'Station', stationName + (stationId ? ' (' + stationId + ')' : ''));
+    html += '</div>';
+
+    // Sun & Moon
+    html += '<div class="forecastDetailSection">';
+    html += '<div class="forecastSectionLabel">Sun &amp; Moon</div>';
+    html += _dRow('fa-sun', 'Sunrise', sun ? _formatTime(sun.sunrise) : '--');
+    html += _dRow('fa-sun', 'Sunset', sun ? _formatTime(sun.sunset) : '--');
+    html += _dRow('fa-hourglass-half', 'Daylight', _daylightDuration(sun));
+    html += _dRow(moon.icon, 'Moon Phase', moon.name + ' (' + moon.illum + '% illumination)');
+    html += '</div>';
+
+    // Location info
+    html += '<div class="forecastDetailSection">';
+    html += '<div class="forecastSectionLabel">Location</div>';
+    html += _dRow('fa-location-dot', 'Coordinates', lat.toFixed(4) + ', ' + lon.toFixed(4));
+    html += _dRow('fa-map-pin', 'NWS Grid', data.gridId + ' (' + data.gridX + ', ' + data.gridY + ')');
+    html += _dRow('fa-map', 'Forecast Office', data.gridId);
+    html += '</div>';
+
+    // Raw METAR
+    if (rawDesc) {
+        html += '<div class="forecastDetailSection">';
+        html += '<div class="forecastSectionLabel">Raw Observation (METAR)</div>';
+        html += '<div class="forecastDetailTextBlock">' + rawDesc + '</div>';
+        html += '</div>';
+    }
+
+    // Full text forecast
+    var periods = (data.forecast && data.forecast.properties && data.forecast.properties.periods) || [];
+    if (periods.length) {
+        html += '<div class="forecastDetailSection">';
+        html += '<div class="forecastSectionLabel">Full Text Forecast</div>';
+        for (var i = 0; i < periods.length; i++) {
+            var p = periods[i];
+            html += '<div class="forecastDetailTextBlock"><strong>' + p.name + ':</strong> ' + p.detailedForecast + '</div>';
+        }
+        html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function _dRow(icon, label, value) {
+    return '<div class="forecastDetailRow">' +
+        '<span class="forecastDetailRowIcon"><i class="fa-solid ' + icon + '"></i></span>' +
+        '<span class="forecastDetailRowLabel">' + label + '</span>' +
+        '<span class="forecastDetailRowValue">' + value + '</span>' +
+        '</div>';
+}
+
+// ── Tab switching ──
+
+function _switchTab(tab) {
+    _activeTab = tab;
+    _tabBar.find('.forecastTab').removeClass('forecastTab-active');
+    _tabBar.find('[data-tab="' + tab + '"]').addClass('forecastTab-active');
+    _body.find('.forecastTabContent').removeClass('forecastTabContent-active');
+    _body.find('[data-tab-content="' + tab + '"]').addClass('forecastTabContent-active');
+}
+
+// ── Load location ──
 
 function _loadForecast(lat, lon, displayName) {
     _currentLat = lat;
     _currentLon = lon;
+    _currentName = displayName;
+    _cachedData = null;
+    _activeTab = 'overview';
 
+    _tabBar.hide();
     _body.html(
         '<div class="forecastLoading">' +
         '<div class="forecastLoadingSpinner"></div>' +
-        '<div class="forecastLoadingText">Loading forecast...</div>' +
+        '<div class="forecastLoadingText">Loading forecast data...</div>' +
         '</div>'
     );
 
     _fetchAllData(lat, lon, function(err, data) {
         if (err) {
-            _body.html(
-                '<div class="forecastError"><i class="fa-solid fa-circle-exclamation"></i> ' +
-                'Failed to load forecast. Please try another location.</div>'
-            );
+            _body.html('<div class="forecastTabContent forecastTabContent-active" style="padding:var(--space-4) var(--space-5)">' +
+                '<div class="forecastError"><i class="fa-solid fa-circle-exclamation"></i> Failed to load forecast. Please try another location.</div></div>');
             return;
         }
 
+        _cachedData = data;
         var name = displayName || data.locationName || 'Unknown Location';
-        var html = '';
+        _currentName = name;
+        _addHistory(name, lat, lon);
 
-        html += '<div class="forecastLocation">' +
+        var favActive = _isFavorite(lat, lon);
+        var locationHtml = '<div class="forecastLocation">' +
             '<i class="fa-solid fa-location-dot forecastLocationIcon"></i>' +
             '<span class="forecastLocationName">' + name + '</span>' +
-            '<span class="forecastLocationCoords">' + lat.toFixed(2) + ', ' + lon.toFixed(2) + '</span>' +
-            '</div>';
+            '<button class="forecastFavBtn' + (favActive ? ' forecastFavBtn-active' : '') + '" id="forecastFavBtn" title="' + (favActive ? 'Remove from favorites' : 'Add to favorites') + '"><i class="fa-' + (favActive ? 'solid' : 'regular') + ' fa-star"></i></button>' +
+            '<span class="forecastLocationSub"><span>' + lat.toFixed(4) + ', ' + lon.toFixed(4) + '</span>' +
+            (data.gridId ? '<span>NWS: ' + data.gridId + '</span>' : '') +
+            '</span></div>';
 
-        html += _renderAlerts(data.alerts);
-        html += _renderCurrentConditions(data.observation, lat, lon);
-        html += _renderForecast(data.forecast);
+        var html = '';
+        html += '<div class="forecastTabContent forecastTabContent-active" data-tab-content="overview">' + locationHtml + _renderOverview(data) + '</div>';
+        html += '<div class="forecastTabContent" data-tab-content="hourly">' + locationHtml + _renderHourly(data.hourly) + '</div>';
+        html += '<div class="forecastTabContent" data-tab-content="details">' + locationHtml + _renderDetails(data) + '</div>';
 
         _body.html(html);
+        _tabBar.show();
+
+        _tabBar.find('.forecastTab').removeClass('forecastTab-active');
+        _tabBar.find('[data-tab="overview"]').addClass('forecastTab-active');
     });
 }
 
@@ -348,14 +703,11 @@ function _loadForecast(lat, lon, displayName) {
 function _onSearchInput() {
     var q = _searchInput.val().trim();
     if (_debounceTimer) clearTimeout(_debounceTimer);
-
     if (q.length < 2) {
         _suggestions.removeClass('forecastSuggestions-visible');
         return;
     }
-
     _spinner.addClass('forecastSearchSpinner-active');
-
     _debounceTimer = setTimeout(function() {
         _geocode(q, function(err, results) {
             _spinner.removeClass('forecastSearchSpinner-active');
@@ -377,12 +729,9 @@ function _onSearchInput() {
 function _onSuggestionClick(e) {
     var $item = $(e.target).closest('.forecastSuggestionItem');
     if (!$item.length) return;
-    var lat = parseFloat($item.attr('data-lat'));
-    var lon = parseFloat($item.attr('data-lon'));
-    var name = $item.attr('data-name');
-    _searchInput.val(name);
+    _searchInput.val($item.attr('data-name'));
     _suggestions.removeClass('forecastSuggestions-visible');
-    _loadForecast(lat, lon, name);
+    _loadForecast(parseFloat($item.attr('data-lat')), parseFloat($item.attr('data-lon')), $item.attr('data-name'));
 }
 
 function _onSearchKeydown(e) {
@@ -395,7 +744,8 @@ function _onSearchKeydown(e) {
         _geocode(q, function(err, results) {
             _spinner.removeClass('forecastSearchSpinner-active');
             if (!results || !results.length) {
-                _body.html('<div class="forecastError"><i class="fa-solid fa-circle-exclamation"></i> No results found. Try a different search.</div>');
+                _body.html('<div class="forecastTabContent forecastTabContent-active" style="padding:var(--space-4) var(--space-5)">' +
+                    '<div class="forecastError"><i class="fa-solid fa-circle-exclamation"></i> No results found. Try a different search.</div></div>');
                 return;
             }
             var r = results[0];
@@ -406,18 +756,87 @@ function _onSearchKeydown(e) {
     }
 }
 
+// ── Landing page (Favorites + History) ──
+
+function _renderLanding() {
+    var favorites = _loadList(STORAGE_KEY_FAVORITES);
+    var history = _loadList(STORAGE_KEY_HISTORY);
+
+    var html = '<div class="forecastLanding">';
+
+    // Landing tabs
+    html += '<div class="forecastLandingTabs">';
+    html += '<button class="forecastLandingTab forecastLandingTab-active" data-landing-tab="favorites"><i class="fa-solid fa-star forecastTabIcon"></i> Favorites</button>';
+    html += '<button class="forecastLandingTab" data-landing-tab="recents"><i class="fa-solid fa-clock-rotate-left forecastTabIcon"></i> Recent Searches</button>';
+    html += '</div>';
+
+    // Favorites panel
+    html += '<div class="forecastLandingPanel forecastLandingPanel-active" data-landing-panel="favorites">';
+    if (favorites.length) {
+        html += '<div class="forecastSavedList">';
+        for (var f = 0; f < favorites.length; f++) {
+            var fav = favorites[f];
+            html += '<div class="forecastSavedRow" data-lat="' + fav.lat + '" data-lon="' + fav.lon + '" data-name="' + (fav.name || '').replace(/"/g, '&quot;') + '">';
+            html += '<i class="fa-solid fa-star forecastSavedIcon forecastSavedIcon-fav"></i>';
+            html += '<span class="forecastSavedName">' + fav.name + '</span>';
+            html += '<span class="forecastSavedCoords">' + parseFloat(fav.lat).toFixed(2) + ', ' + parseFloat(fav.lon).toFixed(2) + '</span>';
+            html += '<button class="forecastSavedRemove forecastSavedRemoveFav" data-lat="' + fav.lat + '" data-lon="' + fav.lon + '" title="Remove"><i class="fa-solid fa-xmark"></i></button>';
+            html += '</div>';
+        }
+        html += '</div>';
+    } else {
+        html += '<div class="forecastLandingEmpty"><i class="fa-regular fa-star forecastLandingEmptyIcon"></i>';
+        html += '<div class="forecastLandingEmptyText">No favorites yet.<br>Search for a location and tap the star to save it.</div></div>';
+    }
+    html += '</div>';
+
+    // History panel
+    html += '<div class="forecastLandingPanel" data-landing-panel="recents">';
+    if (history.length) {
+        html += '<div class="forecastSavedList">';
+        for (var h = 0; h < history.length; h++) {
+            var item = history[h];
+            var ago = _timeAgo(item.ts);
+            html += '<div class="forecastSavedRow" data-lat="' + item.lat + '" data-lon="' + item.lon + '" data-name="' + (item.name || '').replace(/"/g, '&quot;') + '">';
+            html += '<i class="fa-solid fa-clock-rotate-left forecastSavedIcon"></i>';
+            html += '<span class="forecastSavedName">' + item.name + '</span>';
+            html += '<span class="forecastSavedAgo">' + ago + '</span>';
+            html += '<button class="forecastSavedRemove forecastSavedRemoveHistory" data-lat="' + item.lat + '" data-lon="' + item.lon + '" title="Remove"><i class="fa-solid fa-xmark"></i></button>';
+            html += '</div>';
+        }
+        html += '</div>';
+    } else {
+        html += '<div class="forecastLandingEmpty"><i class="fa-solid fa-clock-rotate-left forecastLandingEmptyIcon"></i>';
+        html += '<div class="forecastLandingEmptyText">No recent searches.</div></div>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+}
+
+function _timeAgo(ts) {
+    if (!ts) return '';
+    var diff = Date.now() - ts;
+    var mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + 'm ago';
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    var days = Math.floor(hrs / 24);
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return days + 'd ago';
+    return new Date(ts).toLocaleDateString();
+}
+
 // ── Open / close ──
 
 function _open() {
     _overlay.addClass('forecastOverlay-visible');
     _searchInput.val('');
     _suggestions.removeClass('forecastSuggestions-visible');
-    _body.html(
-        '<div class="forecastEmpty">' +
-        '<i class="fa-solid fa-cloud-sun forecastEmptyIcon"></i>' +
-        '<div class="forecastEmptyText">Search for a city, state, or zip code<br>to view the 7 day forecast.</div>' +
-        '</div>'
-    );
+    _tabBar.hide();
+    _body.html(_renderLanding());
     setTimeout(function() { _searchInput.focus(); }, 100);
 }
 
@@ -446,6 +865,11 @@ function _buildOverlay() {
                     '</div>' +
                     '<div class="forecastSearchSpinner" id="forecastSearchSpinner"></div>' +
                 '</div>' +
+                '<div class="forecastTabs" id="forecastTabs" style="display:none">' +
+                    '<button class="forecastTab forecastTab-active" data-tab="overview"><i class="fa-solid fa-cloud-sun forecastTabIcon"></i> Overview</button>' +
+                    '<button class="forecastTab" data-tab="hourly"><i class="fa-solid fa-clock forecastTabIcon"></i> Hourly</button>' +
+                    '<button class="forecastTab" data-tab="details"><i class="fa-solid fa-list forecastTabIcon"></i> Details</button>' +
+                '</div>' +
                 '<div class="forecastBody" id="forecastBody"></div>' +
             '</div>' +
         '</div>';
@@ -456,6 +880,7 @@ function _buildOverlay() {
     _searchInput = $('#forecastSearchInput');
     _spinner = $('#forecastSearchSpinner');
     _suggestions = $('#forecastSuggestions');
+    _tabBar = $('#forecastTabs');
 
     $('#forecastCloseBtn').on('click', _close);
     _overlay.on('click', function(e) {
@@ -464,6 +889,99 @@ function _buildOverlay() {
     _searchInput.on('input', _onSearchInput);
     _searchInput.on('keydown', _onSearchKeydown);
     _suggestions.on('click', _onSuggestionClick);
+
+    _tabBar.on('click', '.forecastTab', function() {
+        _switchTab($(this).attr('data-tab'));
+    });
+
+    // Day row expand/collapse (delegated — registered once)
+    _body.on('click', '.forecastDayRow', function() {
+        var idx = $(this).attr('data-day-idx');
+        $(this).toggleClass('forecastDayRow-expanded');
+        _body.find('[data-day-detail="' + idx + '"]').toggleClass('forecastDayDetail-visible');
+    });
+
+    // Alert detail expand/collapse (delegated — registered once)
+    _body.on('click', '.forecastAlertDetailsBtn', function(e) {
+        e.stopPropagation();
+        var idx = $(this).attr('data-alert-idx');
+        var panel = _body.find('[data-alert-detail="' + idx + '"]');
+        var isOpen = panel.hasClass('forecastAlertDetailPanel-visible');
+        panel.toggleClass('forecastAlertDetailPanel-visible');
+        if (isOpen) {
+            $(this).html('<i class="fa-solid fa-chevron-down"></i> View Details');
+        } else {
+            $(this).html('<i class="fa-solid fa-chevron-up"></i> Hide Details');
+        }
+    });
+
+    // Favorite star button in forecast view
+    _body.on('click', '#forecastFavBtn, .forecastFavBtn', function(e) {
+        e.stopPropagation();
+        if (_currentLat == null || _currentLon == null) return;
+        var isNowFav = _toggleFavorite(_currentName, _currentLat, _currentLon);
+        _body.find('#forecastFavBtn, .forecastFavBtn').each(function() {
+            if (isNowFav) {
+                $(this).addClass('forecastFavBtn-active').attr('title', 'Remove from favorites');
+                $(this).find('i').removeClass('fa-regular').addClass('fa-solid');
+            } else {
+                $(this).removeClass('forecastFavBtn-active').attr('title', 'Add to favorites');
+                $(this).find('i').removeClass('fa-solid').addClass('fa-regular');
+            }
+        });
+    });
+
+    // Landing tab switching
+    _body.on('click', '.forecastLandingTab', function() {
+        var tab = $(this).attr('data-landing-tab');
+        _body.find('.forecastLandingTab').removeClass('forecastLandingTab-active');
+        $(this).addClass('forecastLandingTab-active');
+        _body.find('.forecastLandingPanel').removeClass('forecastLandingPanel-active');
+        _body.find('[data-landing-panel="' + tab + '"]').addClass('forecastLandingPanel-active');
+    });
+
+    // Click saved row to load forecast
+    _body.on('click', '.forecastSavedRow', function() {
+        var lat = parseFloat($(this).attr('data-lat'));
+        var lon = parseFloat($(this).attr('data-lon'));
+        var name = $(this).attr('data-name');
+        _searchInput.val(name);
+        _loadForecast(lat, lon, name);
+    });
+
+    // Remove favorite from landing
+    _body.on('click', '.forecastSavedRemoveFav', function(e) {
+        e.stopPropagation();
+        var lat = parseFloat($(this).attr('data-lat'));
+        var lon = parseFloat($(this).attr('data-lon'));
+        _removeFavorite(lat, lon);
+        $(this).closest('.forecastSavedRow').fadeOut(150, function() {
+            $(this).remove();
+            if (!_body.find('[data-landing-panel="favorites"] .forecastSavedRow').length) {
+                _body.find('[data-landing-panel="favorites"]').html(
+                    '<div class="forecastLandingEmpty"><i class="fa-regular fa-star forecastLandingEmptyIcon"></i>' +
+                    '<div class="forecastLandingEmptyText">No favorites yet.<br>Search for a location and tap the star to save it.</div></div>'
+                );
+            }
+        });
+    });
+
+    // Remove history item from landing
+    _body.on('click', '.forecastSavedRemoveHistory', function(e) {
+        e.stopPropagation();
+        var lat = parseFloat($(this).attr('data-lat'));
+        var lon = parseFloat($(this).attr('data-lon'));
+        _removeHistory(lat, lon);
+        $(this).closest('.forecastSavedRow').fadeOut(150, function() {
+            $(this).remove();
+            if (!_body.find('[data-landing-panel="recents"] .forecastSavedRow').length) {
+                _body.find('[data-landing-panel="recents"]').html(
+                    '<div class="forecastLandingEmpty"><i class="fa-solid fa-clock-rotate-left forecastLandingEmptyIcon"></i>' +
+                    '<div class="forecastLandingEmptyText">No recent searches.</div></div>'
+                );
+            }
+        });
+    });
 
     $(document).on('click', function(e) {
         if (!$(e.target).closest('.forecastSearchWrap').length) {
@@ -476,9 +994,7 @@ function _buildOverlay() {
 
 function init() {
     _buildOverlay();
-    $('#armrForecastBtn').on('click', function() {
-        _open();
-    });
+    $('#armrForecastBtn').on('click', function() { _open(); });
 }
 
 module.exports = { init: init };

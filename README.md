@@ -15,6 +15,7 @@ A desktop weather toolkit built on Electron. It pulls live data from NWS and oth
 - **Radio** — NWR (NOAA Weather Radio) and scanner audio streams.
 - **Drawing tools** — Freehand annotation on the map for analysis or presentation.
 - **Screenshots** — Capture any region of the map and save it to disk.
+- **7 Day Forecast** — Search by city, state, or zip code to view a full 7-day forecast powered by the NWS API. Includes current conditions (temperature, wind, humidity, dew point, pressure, visibility), sunrise/sunset times, moon phase, hourly forecast (72 hours), severe weather alerts with full details, and expandable day-by-day text forecasts. Supports favorites and recent search history.
 - **Timezones** — Display and switch between local time and the radar site's time zone.
 
 ## Project layout
@@ -25,6 +26,7 @@ app/                Application source (modules organized by feature)
   core/             App shell, map setup, menus, popups, clock, entry point
   devtools/         Internal developer/testing tools
   draw/             Map drawing/annotation tools
+  forecast/         7-day forecast modal (NWS API, geocoding, sun/moon calculations)
   hurricanes/       NHC tropical cyclone tracks
   lightning/        Lightning strike data
   metars/           METAR parsing and station model plotting

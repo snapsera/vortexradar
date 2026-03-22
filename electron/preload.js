@@ -20,5 +20,14 @@ contextBridge.exposeInMainWorld('stormTrackProDesktop', {
     },
     openAlertEditor() {
         return ipcRenderer.invoke('dev:open-alert-editor');
+    },
+    captureScreenshot(rect) {
+        return ipcRenderer.invoke('screenshot:capture', rect);
+    },
+    saveScreenshotFile(base64Data) {
+        return ipcRenderer.invoke('screenshot:save-file', base64Data);
+    },
+    openScreenshotFolder() {
+        return ipcRenderer.invoke('screenshot:open-folder');
     }
 });

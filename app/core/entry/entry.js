@@ -30,12 +30,14 @@ function load() {
     require('../../timezones/menu_item');
     require('../about/about_screen');
     require('../../devtools/test_alerts');
+    require('../../screenshot/menu_item');
     require('../../draw/menu_item');
     require('../attribution/attribution');
     require('../../radar/colormaps/menu');
     require('../../radar/updater/radar_loop_ui').init();
     require('../notifications/notification_bubble').init();
     require('../header_clock').init();
+    require('../cursor_coords');
     require('../../ui/alertTicker').init();
     require('../../ui/alert_voice').init();
     require('../../ui/audible_alerts').init();

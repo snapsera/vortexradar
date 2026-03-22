@@ -122,6 +122,43 @@ ipcMain.handle('dev:get-auto-update-mode', () => ({
     mode: devAutoUpdateMode
 }));
 
+ipcMain.handle('screenshot:capture', async (_event, rect) => {
+    try {
+        const nativeRect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        const image = await mainWindow.webContents.capturePage(nativeRect);
+        return { ok: true, base64: image.toPNG().toString('base64') };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+});
+
+ipcMain.handle('screenshot:save-file', async (_event, base64Data) => {
+    try {
+        const picturesDir = app.getPath('pictures');
+        const saveDir = path.join(picturesDir, 'StormTrackPro');
+        if (!fs.existsSync(saveDir)) {
+            fs.mkdirSync(saveDir, { recursive: true });
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+        const filename = `StormTrackPro_${timestamp}.png`;
+        const filePath = path.join(saveDir, filename);
+        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+        return { ok: true, path: filePath };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+});
+
+ipcMain.handle('screenshot:open-folder', () => {
+    const picturesDir = app.getPath('pictures');
+    const saveDir = path.join(picturesDir, 'StormTrackPro');
+    if (!fs.existsSync(saveDir)) {
+        fs.mkdirSync(saveDir, { recursive: true });
+    }
+    shell.openPath(saveDir);
+    return { ok: true };
+});
+
 ipcMain.handle('shell:open-external', (_event, url) => {
     if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
         shell.openExternal(url);

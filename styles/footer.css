@@ -157,3 +157,20 @@
     justify-content: center;
   }
 }
+#cursorCoords {
+  position: absolute;
+  z-index: var(--z-controls);
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+#cursorCoords.cursorCoords-visible {
+  opacity: 1;
+}

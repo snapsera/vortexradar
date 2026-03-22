@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const order = [
-    'variables', 'base', 'layout', 'header', 'toolbar', 'menu',
+    'variables', 'base', 'layout', 'header', 'toolbar', 'screenshot', 'menu',
     'alerts', 'footer', 'dialog', 'product-menu', 'forms', 'devtools', 'auto-coverage', 'misc'
 ];
 

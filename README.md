@@ -15,7 +15,6 @@ A desktop weather toolkit built on Electron. It pulls live data from NWS and oth
 - **Radio** — NWR (NOAA Weather Radio) and scanner audio streams.
 - **Drawing tools** — Freehand annotation on the map for analysis or presentation.
 - **Screenshots** — Capture any region of the map and save it to disk.
-- **File upload** — Load your own NEXRAD Level 2/3 files from disk.
 - **Timezones** — Display and switch between local time and the radar site's time zone.
 
 ## Project layout

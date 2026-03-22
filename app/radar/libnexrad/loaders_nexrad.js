@@ -454,7 +454,19 @@ function quick_level_3_plot(station, product, callback = null) {
  */
 function quick_storm_relative_velocity_plot(station, product, callback = null) {
     if (callback == null) { callback = function () { } }
+    if (!window.stormTrackData) window.stormTrackData = {};
+
+    if (window.stormTrackData.current_radar_load_controller) {
+        window.stormTrackData.current_radar_load_controller.abort();
+    }
+
+    const load_controller = new AbortController();
+    window.stormTrackData.current_radar_load_controller = load_controller;
+
     create_super_res_storm_relative_velocity(station, product, (combinedFactory) => {
+        if (load_controller.signal.aborted) return;
+        if (window.stormTrackData.current_radar_load_controller !== load_controller) return;
+
         if (window?.stormTrackData?.current_RadarUpdater !== undefined) {
             window.stormTrackData.current_RadarUpdater.disable();
         }
@@ -465,7 +477,8 @@ function quick_storm_relative_velocity_plot(station, product, callback = null) {
             detail: {
                 station: combinedFactory.station,
                 product: combinedFactory.product_abbv,
-                factory: combinedFactory
+                factory: combinedFactory,
+                isStormRelative: true
             }
         }));
         callback(combinedFactory);

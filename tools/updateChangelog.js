@@ -118,7 +118,7 @@ if (mode == 'rename') {
         logRows.unshift(`* ${descriptions[i]}`);
     }
 
-    logRows.unshift(`\`${formattedCommit.string}\`<!-- ${formattedCommit.timestamp} --><br />[${shortCommitID}](https://github.com/stormtrackpro/stormtrack-pro/commit/${commitID})`);
+    logRows.unshift(`\`${formattedCommit.string}\`<!-- ${formattedCommit.timestamp} --><br />[${shortCommitID}](https://github.com/snapsera/stormtrackpro/commit/${commitID})`);
     logRows.unshift(`**v${version}**\\`);
     fs.writeFileSync('CHANGELOG.md', logRows.join('\n'));
 

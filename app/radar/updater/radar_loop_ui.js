@@ -120,7 +120,9 @@ function init() {
 
     window.addEventListener('radarBaseFactoryLoaded', (event) => {
         const detail = event.detail || {};
-        controller.on_base_radar_changed(detail.station, detail.product, detail.factory);
+        controller.on_base_radar_changed(detail.station, detail.product, detail.factory, {
+            isStormRelative: !!detail.isStormRelative
+        });
     });
     window.addEventListener('radarBaseSelectionRequested', () => {
         controller._resume_after_switch = controller.state.playing || controller.state.preloading;

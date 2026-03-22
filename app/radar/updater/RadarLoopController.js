@@ -48,12 +48,13 @@ class RadarLoopController {
         return true;
     }
 
-    on_base_radar_changed(station, product, base_factory = null) {
+    on_base_radar_changed(station, product, base_factory = null, options = {}) {
         this._cancel_preload();
         this.state = _ensure_state();
         this.current_station = station;
         this.current_product = product;
-        this.state.supported = this.is_supported_loop_product(product, base_factory);
+        const is_storm_relative = !!(options.isStormRelative || base_factory?.isStormRelative);
+        this.state.supported = this.is_supported_loop_product(product, base_factory) && !is_storm_relative;
         this._trim_caches();
 
         if (!this.state.supported) {

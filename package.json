@@ -2,14 +2,13 @@
   "name": "stormtrack-pro",
   "version": "1.0.0",
   "productName": "StormTrack Pro",
-  "main": "main.js",
+  "main": "server.js",
   "scripts": {
     "build": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
-    "build:web": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
-    "start:web": "node server.js",
+    "start": "node server.js",
+    "start:desktop": "electron .",
     "generate:icon": "node scripts/generate_app_icon.js",
     "serve": "watchify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js -v",
-    "start": "electron .",
     "dev": "node scripts/build_css.js && npm run build && concurrently -k -n BUNDLE,ELECTRON \"npm run serve\" \"electron .\"",
     "package:win": "npm run build && npm run generate:icon && electron-packager . \"StormTrack Pro\" --platform=win32 --arch=x64 --icon=images/STP_icon.ico --out=release --overwrite",
     "release": "npm run build && npm run generate:icon && electron-builder --win"

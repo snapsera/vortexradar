@@ -1,0 +1,89 @@
+:root {
+  /* Slate palette */
+  --color-bg-primary: #0c0e14;
+  --color-bg-secondary: #13161e;
+  --color-bg-tertiary: #1a1e28;
+  --color-bg-elevated: #222736;
+  --color-bg-surface: #2c3244;
+
+  /* Text */
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #0c0e14;
+
+  /* Accent – teal/cyan */
+  --color-accent: #0ea5e9;
+  --color-accent-hover: #38bdf8;
+  --color-accent-muted: rgba(14, 165, 233, 0.12);
+
+  /* Status */
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-danger: #ef4444;
+
+  /* Borders */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Glass surfaces */
+  --color-surface-glass: rgba(19, 22, 30, 0.82);
+  --backdrop-blur: blur(16px);
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+  --font-size-xs: 10px;
+  --font-size-sm: 11.5px;
+  --font-size-md: 13px;
+  --font-size-lg: 15px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 26px;
+  --font-size-3xl: 32px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Spacing */
+  --space-0: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radii */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-pill: 9999px;
+
+  /* Shadows – subtle */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  /* Z-index */
+  --z-map: 0;
+  --z-controls: 100;
+  --z-colorscale: 150;
+  --z-panel: 200;
+  --z-header: 300;
+  --z-menu: 400;
+  --z-dialog: 500;
+  --z-overlay: 600;
+  --z-loading: 700;
+
+  /* Layout */
+  --header-height: 50px;
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+}

@@ -1,0 +1,25 @@
+appId: com.stormtrackpro.app
+productName: StormTrack Pro
+
+directories:
+  output: release-build
+
+files:
+  # Include the full app project so new runtime assets/directories are always packaged.
+  - "**/*"
+  # Exclude build outputs to avoid recursive packaging and stale artifacts.
+  - "!release-build/**"
+  - "!release/**"
+
+asar: true
+
+win:
+  target: nsis
+  icon: images/STP_icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  artifactName: "StormTrack Pro Setup.${ext}"

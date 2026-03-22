@@ -1,0 +1,183 @@
+#productSelectionMenu {
+  position: absolute;
+  z-index: 997;
+  bottom: 56px;
+  left: 0;
+  height: auto;
+  max-height: 200px;
+  width: auto;
+  background: var(--color-surface-glass);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-strong);
+  padding: var(--space-2) var(--space-4);
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(20px);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#productSelectionMenu.psm-open {
+  transform: translateY(0);
+  opacity: 1;
+}
+.psmRow {
+  cursor: pointer;
+  color: var(--color-text-primary);
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-left: calc(-1 * var(--space-4));
+  margin-right: calc(-1 * var(--space-4));
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  transition: background var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+.psmRow:hover { background: rgba(14, 165, 233, 0.08); }
+.psmRowDisabled {
+  pointer-events: none;
+  color: var(--color-text-muted) !important;
+}
+.psmSectionBreak {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-2) calc(-1 * var(--space-4));
+}
+.psmSectionTitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+.psmRowTiltSelect {
+  color: var(--color-accent);
+  margin-left: var(--space-4);
+  font-size: var(--font-size-sm);
+}
+.psmRowTiltSelect:hover {
+  filter: brightness(85%);
+  text-decoration: underline;
+}
+#psmTiltDropdown {
+  position: absolute;
+  z-index: 999;
+  height: fit-content;
+  width: fit-content;
+  padding: 3px 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+#psmTiltDropdownBackdrop {
+  position: absolute;
+  z-index: 998;
+  inset: 0;
+  background: transparent;
+}
+.psmTiltDropdownRow {
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  margin: var(--space-1) var(--space-2);
+  transition: background var(--transition-fast);
+}
+.psmTiltDropdownRow:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+#l2ElevationButtons {
+  padding-left: 0;
+  padding-right: 0;
+}
+.l2ElevationBtn {
+  padding: 2px;
+  background-color: var(--color-bg-surface);
+  cursor: pointer;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-text-primary);
+  transition: filter var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+.l2ElevationBtn:hover { filter: brightness(90%); }
+.l2ElevationBtn:active { filter: brightness(80%); }
+.l2ElevationBtnSelected {
+  color: #042f2e !important;
+  background-color: #2dd4bf !important;
+  border-color: #14b8a6 !important;
+}
+.l2ElevationBtnDisabled {
+  pointer-events: none;
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-text-muted) !important;
+}
+#l2ElevButtons {
+  margin: auto;
+  width: 90%;
+}
+.l2ElevBtn {
+  padding: 2px;
+  background-color: var(--color-bg-surface);
+  cursor: pointer;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-text-primary);
+}
+#l2ElevButtonsExpander {
+  height: auto;
+  margin: auto;
+  width: 90%;
+  padding: var(--space-1);
+  background-color: var(--color-bg-surface);
+  cursor: pointer;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+#l2ElevButtonsExpander:hover { filter: brightness(90%); }
+.l2ElevButtonsExpanderSelected {
+  color: #0c4a6e !important;
+  background-color: #0ea5e9 !important;
+  border-color: #0284c7 !important;
+}
+.l2ElevBtnSelected {
+  color: #042f2e !important;
+  background-color: #14b8a6 !important;
+  border-color: #0d9488 !important;
+}
+.dealiasBtnSelected {
+  color: #ecfdf5 !important;
+  background-color: #059669 !important;
+  border-color: #047857 !important;
+}
+.dealiasBtnDeSelected {
+  color: #fef2f2 !important;
+  background-color: #dc2626 !important;
+  border-color: #b91c1c !important;
+}
+#completeDealiasBtnContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#dealiasToggleSwitchContainer {
+  width: calc(100% - 20px - 12px - 0.25rem);
+}
+#dealiasSettingsIcon {
+  position: absolute;
+  right: 20px;
+  padding: 6px;
+}

@@ -1,0 +1,8 @@
+.devtools-action-row {
+    cursor: pointer;
+}
+.devtools-action-row .armrIconArrowRight {
+    margin-left: auto;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+}

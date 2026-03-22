@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>StormTrack Pro</title>
+    <meta name="description" content="A clean, simple, but powerful weather toolkit for the web browser. NEXRAD radar, doppler velocity dealiasing, weather alerts, lightning, METAR data, and more.">
+    <link rel="icon" href="images/STP_icon.svg">
+    <link rel="apple-touch-icon" href="images/STP_icon.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@500;700&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
+
+    <meta http-equiv="cache-control" content="max-age=0" />
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
+    <meta http-equiv="pragma" content="no-cache" />
+
+    <script>
+        //var isMobile = ('ontouchstart' in document.documentElement && /mobi/i.test(navigator.userAgent));
+        //if (window.location.hash != '#reload') {
+        //    window.location.hash += '#reload';
+        //}
+    </script>
+
+    <!-- 
+        THIS IS JUST CSS THAT NEEDS TO BE LOADED BEFORE THE MAIN CSS FILE
+    -->
+    <style>
+        :root {
+            --bs-font-sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --bs-font-monospace: 'JetBrains Mono', 'Consolas', monospace;
+            --bs-body-font-family: var(--bs-font-sans-serif);
+            --bs-body-font-size: 13px;
+            --bs-body-font-weight: 400;
+            --bs-body-line-height: 1.5;
+            --bs-body-color: #e2e8f0;
+            --bs-gutter-x: 1.5rem;
+            --bs-gutter-y: 0;
+        }
+        html { overflow: hidden; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0c0e14;
+        }
+        /* ── loading screen: cinematic atmosphere ── */
+        #loadingLibrariesDiv {
+            position: fixed; inset: 0; z-index: 500000;
+            background: #08060e;
+            cursor: default; user-select: none; -webkit-user-select: none;
+            overflow: hidden;
+            opacity: 1; transition: opacity 0.7s cubic-bezier(.4,0,.2,1);
+        }
+        #loadingLibrariesDiv.ld-fade-out { opacity: 0; pointer-events: none; }
+
+        #ldBgVideo {
+            position: absolute; z-index: 0;
+            top: -3%; left: -2%; width: 104%; height: 106%;
+            object-fit: cover; object-position: center top;
+            pointer-events: none;
+            opacity: 0.55;
+        }
+        #ldBgScrim {
+            position: absolute; inset: 0; z-index: 1;
+            top: auto; height: 120px;
+            background: linear-gradient(to bottom, transparent 0%, rgba(8,6,14,0.6) 35%, rgba(8,6,14,0.95) 70%, #08060e 100%);
+            pointer-events: none;
+        }
+
+        #loadingLogo {
+            width: 28px; height: 28px; object-fit: contain;
+            margin-right: 10px; flex-shrink: 0;
+        }
+
+        /* center tip area */
+        #ldCenterTip {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 14px; max-width: 520px; width: 90%;
+            text-align: center;
+            opacity: 0; transition: opacity 0.5s ease;
+        }
+        #ldCenterTip.visible { opacity: 1; }
+        #ldTagline {
+            font-size: 15px; font-weight: 600;
+            color: rgba(255,255,255,0.85);
+            letter-spacing: 0.06em;
+        }
+        #ldTipText {
+            font-size: 13px; color: rgba(255,255,255,0.5);
+            font-family: var(--bs-font-monospace);
+            letter-spacing: 0.02em; line-height: 1.6;
+            min-height: 22px;
+            border-right: 2px solid rgba(167,139,250,0.6);
+            padding-right: 2px;
+            white-space: nowrap; overflow: hidden;
+        }
+
+        /* bottom HUD strip */
+        #ldHud {
+            position: absolute; bottom: 52px; left: 40px; right: 40px;
+            z-index: 3;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            opacity: 0; transition: opacity 0.4s ease 0.15s;
+        }
+        #ldHud.visible { opacity: 1; }
+
+        #ldHudLeft {
+            display: flex; align-items: center; gap: 0;
+        }
+        #ldHudLeftText { display: flex; flex-direction: column; gap: 2px; }
+        #ldTitle {
+            font-size: 22px; font-weight: 800; letter-spacing: 0.2em;
+            color: #f1f5f9; text-transform: uppercase; line-height: 1;
+        }
+        #ldSub {
+            font-size: 10px; color: #475569; letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        #ldHudRight {
+            display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+        }
+        #ldStatus {
+            font-size: 11px; color: #94a3b8; letter-spacing: 0.03em;
+            font-weight: 500; font-family: var(--bs-font-monospace);
+            text-align: right; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; max-width: 340px;
+        }
+        #ldPct {
+            font-size: 13px; font-weight: 700; color: #a78bfa;
+            letter-spacing: 0.1em;
+            font-family: var(--bs-font-monospace);
+        }
+
+        /* progress bar — full width at bottom */
+        #ldBarWrap {
+            position: absolute; bottom: 38px; left: 40px; right: 40px;
+            height: 3px; border-radius: 2px;
+            background: rgba(255,255,255,0.04);
+            z-index: 3; overflow: visible;
+        }
+        #ldBar {
+            position: absolute; top: 0; bottom: 0; left: 0;
+            width: 0%; border-radius: 2px;
+            background: linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 12px rgba(167,139,250,0.35);
+        }
+
+        /* task dots — row below bar */
+        #ldDots {
+            position: absolute; bottom: 14px; left: 40px;
+            z-index: 3;
+            display: flex; gap: 18px; align-items: center;
+            opacity: 0; transition: opacity 0.4s ease 0.25s;
+        }
+        #ldDots.visible { opacity: 1; }
+
+        .ldDot {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 9px; color: #334155; letter-spacing: 0.04em;
+            text-transform: uppercase; font-weight: 600;
+            transition: color 0.3s;
+        }
+        .ldDot::before {
+            content: ''; display: block;
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #1e293b;
+            transition: all 0.3s; flex-shrink: 0;
+        }
+        .ldDot.ld-active { color: #94a3b8; }
+        .ldDot.ld-active::before {
+            background: #a78bfa;
+            box-shadow: 0 0 8px rgba(167,139,250,0.6);
+            animation: ldDotPulse 1.2s ease-in-out infinite;
+        }
+        .ldDot.ld-done { color: #64748b; }
+        .ldDot.ld-done::before {
+            background: #22c55e;
+            box-shadow: 0 0 4px rgba(34,197,94,0.3);
+            animation: none;
+        }
+        @keyframes ldDotPulse {
+            0%,100% { box-shadow: 0 0 4px rgba(167,139,250,0.3); }
+            50%     { box-shadow: 0 0 12px rgba(167,139,250,0.7); }
+        }
+        .progress_bar {
+            position: absolute;
+            height: 2px;
+            bottom: 18%;
+            left: 15vw;
+            right: 15vw;
+            max-width: 360px;
+            margin: 0 auto;
+            z-index: 500000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+        .progress_bar_inner {
+            position: absolute;
+            top: 0; bottom: 0; left: 0;
+            width: 0;
+            background: #0ea5e9;
+            border-radius: 1px;
+            transition: width 0.2s ease;
+        }
+        .progress_bar_text {
+            position: relative;
+            z-index: 500001;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loadingLibrariesDiv" oncontextmenu="return false;">
+        <img id="ldBgVideo" src="images/stpload.gif" alt="" draggable="false" aria-hidden="true">
+        <div id="ldBgScrim" aria-hidden="true"></div>
+
+        <div id="ldCenterTip">
+            <div id="ldTagline">Keeping you aware since 2025.</div>
+            <div id="ldTipText"></div>
+        </div>
+
+        <div id="ldHud">
+            <div id="ldHudLeft">
+                <img id="loadingLogo" src="images/STP_icon.svg" alt="StormTrack Pro" draggable="false" oncontextmenu="return false;">
+                <div id="ldHudLeftText">
+                    <div id="ldTitle">StormTrack Pro</div>
+                    <div id="ldSub">Weather Intelligence Platform</div>
+                </div>
+            </div>
+            <div id="ldHudRight">
+                <div id="ldStatus">Preparing startup...</div>
+                <div id="ldPct">0%</div>
+            </div>
+        </div>
+
+        <div id="ldBarWrap"><div id="ldBar"></div></div>
+
+        <div id="ldDots">
+            <div class="ldDot ld-active" id="ldD-libs"><span>Libraries</span></div>
+            <div class="ldDot" id="ldD-map"><span>Map</span></div>
+            <div class="ldDot" id="ldD-alerts"><span>Alerts</span></div>
+            <div class="ldDot" id="ldD-radar"><span>Radar</span></div>
+            <div class="ldDot" id="ldD-app"><span>Ready</span></div>
+        </div>
+    </div>
+    <div id="stormTrackShutdownOverlay" class="stormTrackShutdownOverlay" style="display: none;">
+        <div class="stormTrackShutdownCard">
+            <div class="stormTrackShutdownIconWrap">
+                <div id="stormTrackShutdownSpinner" class="stormTrackShutdownSpinner"></div>
+                <svg id="stormTrackShutdownCheck" class="stormTrackShutdownIcon stormTrackShutdownIcon--hidden" viewBox="0 0 24 24" width="36" height="36"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>
+                <svg id="stormTrackShutdownWarn" class="stormTrackShutdownIcon stormTrackShutdownIcon--hidden" viewBox="0 0 24 24" width="36" height="36"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="currentColor"/></svg>
+            </div>
+            <div class="stormTrackShutdownTitle">StormTrack Pro</div>
+            <div id="stormTrackShutdownStatus" class="stormTrackShutdownStatus">Shutting down...</div>
+            <div id="stormTrackShutdownDetails" class="stormTrackShutdownDetails"></div>
+            <button type="button" id="stormTrackShutdownQuitBtn" class="stormTrackShutdownQuitBtn stormTrackShutdownQuitBtn--hidden" disabled>Retry</button>
+        </div>
+    </div>
+
+    <div id="bodyDiv">
+
+    <div id="progress_bar_screen_background">
+        <div id="mainProgressBar" class="progress_bar" style="bottom: calc(50% - 15px); box-shadow: 0px 0px 20px 8px rgb(25, 25, 25);">
+            <span id="mainProgressBarText" class="progress_bar_text"></span>
+            <div id="mainProgressBarInner" class="progress_bar_inner"></div>
+        </div>
+    </div>
+
+    <!-- <input type="text" id="gateRes" value="500" style="position: absolute; z-index: 1237109230; left: 200px">
+    <br>
+    <input type="text" id="multiplier" value="2" style="position: absolute; z-index: 1237109230; left: 200px"> -->
+    <!--
+        LEFT SIDE PANEL (footer buttons)
+    -->
+    <!-- Floating warning counter overlay (top-right, below header) -->
+    <div id="warningCounterOverlay" class="warningCounterOverlay" style="display: none;">
+        <div class="warningCounterRow warningCounterRow-svr">
+            <span class="warningCounterLabel">SEVERE<br>WARNINGS</span>
+            <span class="warningCounterCount" id="warningCounterSvr">0</span>
+        </div>
+        <div class="warningCounterRow warningCounterRow-tor">
+            <span class="warningCounterLabel">TORNADO<br>WARNINGS</span>
+            <span class="warningCounterCount" id="warningCounterTor">0</span>
+        </div>
+        <div class="warningCounterRow warningCounterRow-spc" id="warningCounterSpcRow">
+            <span class="warningCounterSpcLeft">
+                <span class="warningCounterSpcTitle">Risk Level</span>
+                <span class="warningCounterSpcName" id="warningCounterSpcName">None</span>
+            </span>
+            <span class="warningCounterCount" id="warningCounterSpcLevel">0/5</span>
+        </div>
+    </div>
+
+    <!-- Floating circular buttons above footer (Station, Alert, Color, Draw) -->
+    <div id="floatingToolbar" class="floatingToolbar">
+        <div id="stationMenuItemDiv" class="floatingToolBtn" title="Radar Stations">
+            <span id="stationMenuItemIcon" class="fa fa-satellite-dish icon-grey menu_item_not_selected"></span>
+        </div>
+        <div id="alertMenuItemDiv" class="floatingToolBtn" title="Alerts">
+            <span id="alertMenuItemIcon" class="fa fa-circle-exclamation icon-grey menu_item_not_selected"></span>
+        </div>
+        <div id="colorPickerItemDiv" class="floatingToolBtn" title="Radar Inspector">
+            <span id="colorPickerItemClass" class="fa fa-crosshairs icon-grey menu_item_not_selected"></span>
+        </div>
+        <div id="drawMenuItemDiv" class="floatingToolBtn" title="Draw">
+            <span id="drawMenuItemIcon" class="fa fa-pencil icon-grey menu_item_not_selected"></span>
+        </div>
+    </div>
+
+    <!-- Left-side focus new alerts panel (shown when Focus New Alerts is on and new alerts arrive) -->
+    <div id="focusNewAlertsPanel" class="focusNewAlertsPanel">
+        <button type="button" class="focusNewAlertsClose" aria-label="Close"><span class="fa fa-xmark"></span></button>
+        <div class="focusNewAlertsTitle">New Alert</div>
+        <div class="focusNewAlertsContent"></div>
+    </div>
+
+    <!-- Right-side alerts panel (RadarOmega-style) -->
+    <div id="alertsPanel" class="alertsPanel alertsPanel-closed">
+        <button type="button" id="alertsPanelClose" class="alertsPanelClose" aria-label="Close alerts"><span class="fa fa-xmark"></span></button>
+        <div class="alertsPanelHeader">
+            <div class="alertsPanelHeaderTop">
+                <span class="alertsPanelTitle">Active Weather Alerts</span>
+                <div class="alertsPanelHeaderBtns">
+                    <button type="button" id="alertsOverviewBtn" class="alertsHeaderBtn alertsHeaderBtn-active" data-mode="overview">Overview</button>
+                    <button type="button" id="alertsUsaBtn" class="alertsHeaderBtn" data-mode="usa">US / USA</button>
+                </div>
+            </div>
+            <div class="alertsPanelSummary">
+                <div class="alertsPanelSummaryCard">
+                    <span class="alertsPanelSummaryLabel">Total Active</span>
+                    <span id="alertsPanelTotalCount" class="alertsPanelSummaryValue">0</span>
+                </div>
+                <div class="alertsPanelSummaryCard">
+                    <span class="alertsPanelSummaryLabel">Highest Threat</span>
+                    <span id="alertsPanelHighestThreat" class="alertsPanelSummaryValue alertsPanelSummaryThreat">None</span>
+                </div>
+            </div>
+        </div>
+        <div class="alertsPanelFilters">
+            <button type="button" class="alertsFilterBtn alertsFilterBtn-active" data-filter="all">All (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="severe">Severe (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="tropical">Tropical (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="winter">Winter (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="flood">Flood (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="fire">Fire (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="marine">Marine (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="watches">Watches (<span class="alertsFilterCount">0</span>)</button>
+            <button type="button" class="alertsFilterBtn" data-filter="other">Other (<span class="alertsFilterCount">0</span>)</button>
+        </div>
+        <div id="alertsPanelList" class="alertsPanelList"></div>
+    </div>
+
+    <!-- METAR button (disabled, hidden in floating toolbar) -->
+    <div id="metarStationMenuItemDiv" class="floatingToolBtn floatingToolBtn-disabled" title="Temperature (disabled)" style="display: none">
+        <span id="metarStationMenuItemIcon" class="fa fa-temperature-half icon-grey menu_item_not_selected"></span>
+    </div>
+
+    <div id="leftPanel" class="leftPanel leftPanel-closed">
+        <button type="button" id="leftPanelToggle" class="leftPanelToggle" aria-label="Toggle menu"><span class="leftPanelToggleInner"><span class="leftPanelToggleLabel">Menu</span><span class="fa fa-chevron-right leftPanelToggleIcon"></span></span></button>
+        <div id="leftPanelContent" class="leftPanelContent"></div>
+    </div>
+
+    <!-- Product bar at bottom (Products, Date/Time) -->
+    <div id="productMapFooter" style="display: none">
+        <div id="productsDropdownTrigger" class="noselect pdt"><div id="productsDropdownTriggerText" class="icon-blue pdt">Products</div>
+            <div id="extraProductInfo" class="noselect" style="display: none">Info</div>
+        </div>
+        <div id="radarLoopPanel" class="noselect">
+            <div class="radarLoopGlassCard">
+                <div class="radarLoopTransport">
+                    <button type="button" id="radarLoopBackBtn" class="radarLoopBtn" title="Previous frame"><i class="fa fa-backward-step"></i></button>
+                    <button type="button" id="radarLoopPlayBtn" class="radarLoopBtn radarLoopBtn-main" title="Play / Stop"><i class="fa fa-play"></i></button>
+                    <button type="button" id="radarLoopForwardBtn" class="radarLoopBtn" title="Next frame"><i class="fa fa-forward-step"></i></button>
+                </div>
+                <div class="radarLoopControlGroup">
+                    <span class="radarLoopLabel">Speed</span>
+                    <select id="radarLoopSpeedSelect">
+                        <option value="1">1x</option>
+                        <option value="2">2x</option>
+                        <option value="3">3x</option>
+                        <option value="4">4x</option>
+                        <option value="5" selected>5x</option>
+                        <option value="6">6x</option>
+                        <option value="8">8x</option>
+                        <option value="10">10x</option>
+                    </select>
+                </div>
+                <div class="radarLoopControlGroup">
+                    <span class="radarLoopLabel">Frames</span>
+                    <select id="radarLoopFrameCountSelect">
+                        <option value="7">7</option>
+                        <option value="14" selected>14</option>
+                        <option value="21">21</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="75">75</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div id="radarLoopStatus">--/--</div>
+            </div>
+        </div>
+        <div id="radarDateTime" class="noselect" style="display: none">Date & Time</div>
+    </div>
+
+    <!-- Bottom alert ticker -->
+    <div id="alertTicker" class="alertTicker">
+        <div class="alertTickerTrack">
+            <span class="alertTickerText"></span>
+        </div>
+    </div>
+
+    <!--
+        MAP HEADER
+    -->
+    <div id="radarHeader" class="radarHeader">
+        <div id="top-left">
+            <span id="radarInfoSpan" style="display: none">
+                <div style="font-size: 15px"><b class="icon-blue" id="radarStation" style="cursor: pointer">KLWX</b> <span id="radarLocation"></span> <span id="radarStationStatus" class="radarStationStatus"></span></div>
+                <div style="font-size: 13px; color: rgb(161, 161, 161)"><span id="radarVCP"></span></div>
+            </span>
+        </div>
+        <div id="top-right" style="font-weight: bold">
+            <div id="headerClock" class="headerClock">
+                <div class="headerClockLine"><span class="headerClockLabel">Local Clock:</span> <span id="headerClockLocal">--:--:--</span></div>
+                <div class="headerClockLine"><span class="headerClockLabel">Radar Site:</span> <span id="headerClockSite">--:--:--</span></div>
+            </div>
+            <button type="button" id="alertsCountBtn" class="alertsCountBtn" title="View alerts">
+                <span class="alertsCountBtnText">
+                    <span class="alertsCountBtnNumber">0</span>
+                    <span class="alertsCountBtnLabel">Alerts</span>
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Playback preload progress bar (below header) -->
+    <div id="playbackPreloadBar" class="playbackPreloadBar" style="display: none;">
+        <div id="playbackPreloadBarInner" class="playbackPreloadBarInner"></div>
+    </div>
+
+    <!-- Notification bubble (slides down below header/colorscale/preload bar) -->
+    <div id="notificationBubble" class="notificationBubble">
+        <span id="notificationBubbleIcon" class="notificationBubbleIcon"></span>
+        <span id="notificationBubbleText" class="notificationBubbleText"></span>
+    </div>
+
+    <!--
+        THIS IS THE HTML FOR THE NEW MODAL (DIALOG) (i wrote it myself)
+    -->
+    <div id="appDialog" style="display: none">
+        <div id="appDialogContainer">
+            <div id="appDialogHeader">
+                <div id="appDialogHeaderInner">
+                    <span id="appDialogHeaderText">header</span>
+                    <span id="appDialogHeaderSub">National Weather Service</span>
+                </div>
+                <button type="button" id="appDialogClose" class="appDialogCloseBtn" aria-label="Close"><i class="fa fa-xmark"></i></button>
+            </div>
+            <div id="appDialogBody">body</div>
+        </div>
+    </div>
+
+    <div id="colortablesModal" class="colortablesModal" style="display: none">
+        <div class="colortablesModalCard">
+            <div class="colortablesModalHeader">
+                <div class="colortablesModalHeaderLeft">
+                    <span class="colortablesModalTitle">Colortables</span>
+                    <span class="colortablesModalBeta">BETA</span>
+                </div>
+                <button type="button" class="colortablesModalClose" id="colortablesModalClose" aria-label="Close"><i class="fa fa-xmark"></i></button>
+            </div>
+            <div class="colortablesModalBody" id="colortablesModalBody">
+                <div class="ctableSection">
+                    <div class="ctableSectionHeader">Reflectivity <i name="REF" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableGrid" id="REF_ctable_options">
+                        <div class="ctableOption ctableOption-selected" id="armrREF1ColortableBtn" name="REF1">
+                            <div class="ctablePreview" id="REF1_colortable_preview"></div>
+                            <span class="ctableLabel">Default</span>
+                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                        </div>
+                        <div class="ctableOption" id="armrREF2ColortableBtn" name="REF2">
+                            <div class="ctablePreview" id="REF2_colortable_preview"></div>
+                            <span class="ctableLabel">RadarScope</span>
+                        </div>
+                        <div class="ctableOption" id="armrREF3ColortableBtn" name="REF3">
+                            <div class="ctablePreview" id="REF3_colortable_preview"></div>
+                            <span class="ctableLabel">NWS Default</span>
+                        </div>
+                        <div class="ctableOption" id="armrREF4ColortableBtn" name="REF4">
+                            <div class="ctablePreview" id="REF4_colortable_preview"></div>
+                            <span class="ctableLabel">GR2Analyst</span>
+                        </div>
+                        <div class="ctableOption" id="armrREF5ColortableBtn" name="REF5">
+                            <div class="ctablePreview" id="REF5_colortable_preview"></div>
+                            <span class="ctableLabel">RadarOmega</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ctableSection">
+                    <div class="ctableSectionHeader">Velocity <i name="VEL" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableGrid" id="VEL_ctable_options">
+                        <div class="ctableOption ctableOption-selected" id="armrVEL1ColortableBtn" name="VEL1">
+                            <div class="ctablePreview" id="VEL1_colortable_preview"></div>
+                            <span class="ctableLabel">Default</span>
+                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                        </div>
+                        <div class="ctableOption" id="armrVEL2ColortableBtn" name="VEL2">
+                            <div class="ctablePreview" id="VEL2_colortable_preview"></div>
+                            <span class="ctableLabel">Balance</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ctableSection">
+                    <div class="ctableSectionHeader">Correlation Coefficient <i name="RHO" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableGrid" id="RHO_ctable_options">
+                        <div class="ctableOption ctableOption-selected" id="armrRHO1ColortableBtn" name="RHO1">
+                            <div class="ctablePreview" id="RHO1_colortable_preview"></div>
+                            <span class="ctableLabel">Default</span>
+                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ctableSection">
+                    <div class="ctableSectionHeader">Differential Reflectivity <i name="ZDR" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableGrid" id="ZDR_ctable_options">
+                        <div class="ctableOption ctableOption-selected" id="armrZDR1ColortableBtn" name="ZDR1">
+                            <div class="ctablePreview" id="ZDR1_colortable_preview"></div>
+                            <span class="ctableLabel">Default</span>
+                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ctableSection">
+                    <div class="ctableSectionHeader">Specific Differential Phase <i name="KDP" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableGrid" id="KDP_ctable_options">
+                        <div class="ctableOption ctableOption-selected" id="armrKDP1ColortableBtn" name="KDP1">
+                            <div class="ctablePreview" id="KDP1_colortable_preview"></div>
+                            <span class="ctableLabel">Default</span>
+                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ctableSection">
+                    <div class="ctableSectionHeader">Vertically Integrated Liquid <i name="DVL" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableGrid" id="DVL_ctable_options">
+                        <div class="ctableOption ctableOption-selected" id="armrDVL1ColortableBtn" name="DVL1">
+                            <div class="ctablePreview" id="DVL1_colortable_preview"></div>
+                            <span class="ctableLabel">Default</span>
+                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <input type="file" id="hidden_colortable_file_uploader" style="display: none">
+        </div>
+    </div>
+
+    <div id="spcLegendDiv" style="display: none"></div>
+
+    <div id="hurricaneLegendDiv" style="display: none">
+        <span class="hurricaneLegendCircle TD"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Tropical Depression</span>
+        <br>
+        <span class="hurricaneLegendCircle TS"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Tropical Storm</span>
+        <br>
+        <span class="hurricaneLegendCircle C1"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Category 1</span>
+        <br>
+        <span class="hurricaneLegendCircle C2"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Category 2</span>
+        <br>
+        <span class="hurricaneLegendCircle C3"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Category 3</span>
+        <br>
+        <span class="hurricaneLegendCircle C4"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Category 4</span>
+        <br>
+        <span class="hurricaneLegendCircle C5"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Category 5</span>
+        <br>
+        <span class="hurricaneLegendCircle NONTROPICAL"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Non-Tropical</span>
+        <br>
+        <span style="display: none" class="hurricaneLegendCircle OTHER"><span class="hurricaneLegendCircleInner">X</span></span>
+        <!-- <span>Other</span>
+        <br> -->
+        <span class="hurricaneLegendCircle UNKNOWN"><span class="hurricaneLegendCircleInner">X</span></span>
+        <span>Unknown</span>
+    </div>
+
+    <div id="attributionDiv" class="noselect">
+        <b id="attributionDivContent">
+            <span class="attributionDivText">StormTrack Pro</span>
+        </b>
+        <span id="top-right-date" class="attributionDivScanAge"></span>
+    </div>
+
+    <div id="colorScalePicker"></div>
+
+    <div id="appMenu" style="display: none">
+        <div id="appMenuContainer">
+            <div id="appMenuBody">
+                <div id="appMenuMainScreen" class="armScreen">
+                    <div class="armsHeader"><img class="armsMenuLogo" src="images/STP_full.svg" alt="StormTrack Pro" draggable="false" oncontextmenu="return false;"></div>
+
+                    <div class="menu-category" id="menuCategoryOverlays">
+                        <div class="menu-category-header">
+                            <span class="menu-category-title">Overlays</span>
+                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                        </div>
+                        <div class="menu-category-body" style="display: none;">
+                            <div class="menu-row armrTop" id="armrSPCOutlooksBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-cloud-bolt"></i>
+                                SPC Outlooks
+                                <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrSettingsBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-sliders"></i>
+                                Radar Settings
+                                <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrRadarVisMainBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-tower-broadcast"></i>
+                                Radar
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarVisBtnSwitchElem" checked>
+                                </div>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrLightningVisMainBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-bolt"></i>
+                                Lightning
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrLightningVisBtnSwitchElem">
+                                </div>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrSTVisMainBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-route"></i>
+                                Storm Tracker
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrSTVisBtnSwitchElem" checked>
+                                </div>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrSurfaceFrontsBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-wind"></i>
+                                Surface Fronts
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrSurfaceFrontsBtnSwitchElem">
+                                </div>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrWeatherRadioBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-radio"></i>
+                                NOAA Weather Radio
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrWeatherRadioBtnSwitchElem">
+                                </div>
+                            </div>
+                            <div class="menu-row armrBottom" id="armrTimezonesBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-clock"></i>
+                                Timezones
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrTimezonesBtnSwitchElem">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-category" id="menuCategoryAlerts">
+                        <div class="menu-category-header">
+                            <span class="menu-category-title">Alerts</span>
+                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                        </div>
+                        <div class="menu-category-body" style="display: none;">
+                            <div class="menu-row armrTop" id="armrAlertsDisplayBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-triangle-exclamation"></i>
+                                Alerts Display
+                                <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrWarningCounterMainBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-display"></i>
+                                Warning Counter
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrWarningCounterBtnSwitchElem">
+                                </div>
+                            </div>
+                            <div class="menu-row armrBottom" id="armrFocusNewAlertsMainBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-bell"></i>
+                                Focus New Alerts
+                                <span class="betaTag">BETA</span>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrFocusNewAlertsBtnSwitchElem">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-category" id="menuCategoryTheme">
+                        <div class="menu-category-header">
+                            <span class="menu-category-title">Theme (Map Style)</span>
+                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                        </div>
+                        <div class="menu-category-body" style="display: none;">
+                            <div class="menu-row armrTop" id="armrLightMapBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-sun"></i>
+                                Light
+                                <div class="form-check form-switch">
+                                    <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrLightMapBtnSwitchElem">
+                                </div>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrDarkMapBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-moon"></i>
+                                Dark
+                                <div class="form-check form-switch">
+                                    <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrDarkMapBtnSwitchElem" checked>
+                                </div>
+                            </div>
+                            <div class="menu-row armrBottom" id="armrSatelliteMapBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-earth-americas"></i>
+                                Satellite
+                                <div class="form-check form-switch">
+                                    <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrSatelliteMapBtnSwitchElem">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-category" id="menuCategoryDeveloper">
+                        <div class="menu-category-header">
+                            <span class="menu-category-title">Developer</span>
+                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                        </div>
+                        <div class="menu-category-body" style="display: none;">
+                            <div class="menu-row" id="armrDevToolsBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-code"></i>
+                                Developer Tools
+                                <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-row menu-about-btn" id="armrAboutBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-circle-info"></i>
+                        About
+                        <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                    </div>
+                </div>
+                <div id="appMenuSettingsScreen" class="armScreen" style="display: none">
+                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsSettingsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Radar Settings<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">RADAR</div>
+                    <div class="menu-row armrTop armrWide menu-row-slider" id="armrRadarOpacityBtn">
+                        Radar Opacity
+                        <div class="slider-container">
+                            <input type="range" min="10" max="100" value="85" step="5" class="opacity-slider" id="armrRadarOpacitySlider">
+                            <span class="slider-value" id="armrRadarOpacityValue">85%</span>
+                        </div>
+                    </div>
+                    <div class="menu-row armrMiddle armrWide" id="armrRadarSiteLegacyStyleBtn">
+                        Detailed Radar Sites
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarSiteLegacyStyleBtnSwitchElem">
+                        </div>
+                    </div>
+                    <div class="menu-row armrMiddle armrWide" id="armrRadarSweepBtn">
+                        Radar Sweep
+                        <span class="betaTag">BETA</span>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarSweepBtnSwitchElem" checked>
+                        </div>
+                    </div>
+                    <div class="menu-row armrBottom armrWide" id="armrRadarRadiusBtn">
+                        Radar Radius
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarRadiusBtnSwitchElem">
+                        </div>
+                    </div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">ALERT POLYGONS</div>
+                    <div class="menu-row armrTop armrWide menu-row-slider">
+                        Fill Opacity
+                        <div class="slider-container">
+                            <input type="range" min="0" max="100" value="10" step="5" class="opacity-slider" id="alertFillOpacitySlider">
+                            <span class="slider-value" id="alertFillOpacityValue">10%</span>
+                        </div>
+                    </div>
+                    <div class="menu-row armrMiddle armrWide menu-row-slider">
+                        Border Thickness
+                        <div class="slider-container">
+                            <input type="range" min="50" max="300" value="75" step="25" class="opacity-slider" id="alertBorderScaleSlider">
+                            <span class="slider-value" id="alertBorderScaleValue">75%</span>
+                        </div>
+                    </div>
+                    <div class="menu-row armrMiddle armrWide">
+                        Blink Color
+                        <div class="color-picker-container">
+                            <input type="color" value="#000000" id="alertBlinkColorPicker" class="color-picker-input">
+                        </div>
+                    </div>
+                    <div class="menu-row armrMiddle armrWide">
+                        Blink New Alerts
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="alertBlinkEnabledSwitchElem" checked>
+                        </div>
+                    </div>
+                    <div class="menu-row armrBottom armrWide">
+                        Blink Duration
+                        <select id="alertBlinkDurationSelect" class="armrModeSelect">
+                            <option value="5">5 seconds</option>
+                            <option value="15">15 seconds</option>
+                            <option value="30" selected>30 seconds</option>
+                            <option value="60">60 seconds</option>
+                        </select>
+                    </div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">DATA FILTERING</div>
+                    <div class="menu-row armrWide gate-filter-section">
+                        <div class="gate-filter-title">Reflectivity Gate Filter <span class="betaTag">BETA</span></div>
+                        <div class="gate-filter-subtitle">Use the slider to declutter low reflectivity values.</div>
+                        <div class="dual-range-wrap">
+                            <div class="dual-range-track" id="gateFilterTrack"></div>
+                            <input type="range" min="-10" max="85" value="10" step="1" class="dual-range-input dual-range-min" id="gateFilterMinSlider">
+                            <input type="range" min="-10" max="85" value="85" step="1" class="dual-range-input dual-range-max" id="gateFilterMaxSlider">
+                        </div>
+                        <div class="dual-range-labels">
+                            <span class="dual-range-value" id="gateFilterMinValue">10</span>
+                            <span class="dual-range-value" id="gateFilterMaxValue">85</span>
+                        </div>
+                        <div class="gate-filter-note" id="gateFilterNote" style="display: none;">We strongly suggest keeping the range between 10 and 85.</div>
+                    </div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">COLORTABLES</div>
+                    <div class="menu-row armrWide" id="armrColortablesBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-palette"></i>
+                        Colortables
+                        <span class="betaTag">BETA</span>
+                        <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                    </div>
+
+                </div>
+                <div id="appMenuDevToolsScreen" class="armScreen" style="display: none">
+                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsDevToolsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Developer Tools<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">AUTO UPDATE</div>
+                    <div class="menu-row armrWide" id="armrDevAutoUpdateModeRow">
+                        Dev Auto Update Mode
+                        <select id="appDevAutoUpdateModeSelect" class="armrModeSelect">
+                            <option value="off">Off</option>
+                            <option value="reloadWindow">Reload Window</option>
+                            <option value="restartApp">Restart App</option>
+                        </select>
+                    </div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">TEST ALERTS</div>
+                    <div class="menu-row armrTop armrWide" id="devTestAlertsRow">
+                        Enable Test Alerts
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="devTestAlertsSwitchElem">
+                        </div>
+                    </div>
+                    <div class="menu-row armrWide devtools-action-row" id="devOpenAlertEditorBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-draw-polygon"></i>
+                        Open Alert Polygon Editor
+                        <span class="betaTag">BETA</span>
+                        <i class="armrIconArrowRight fa-solid fa-arrow-up-right-from-square"></i>
+                    </div>
+                    <div class="menu-row armrBottom armrWide devtools-action-row" id="devTestAlertBannerBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-tv"></i>
+                        Test Alert Banner <span style="color: var(--color-text-muted); font-size: 11px; font-weight: normal; margin-left: 4px;">(Click once to test)</span>
+                    </div>
+                </div>
+                <div id="appMenuSPCScreen" class="armScreen" style="display: none">
+                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsSPCBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>SPC Outlooks<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+
+                    <br>
+                    <div id="spcDataInfo"></div>
+                    <br>
+
+                    <!-- <div style="text-align: center; font-size: 20px; font-weight: bold;">CATEGORICAL</div> -->
+                    <table style="width: 100%" class="spcTable">
+                        <tr>
+                            <th class="spcTable"></th>
+                            <th class="spcTable">Day 1</th>
+                            <th class="spcTable">Day 2</th>
+                            <th class="spcTable">Day 3</th>
+                        </tr>
+                        <tr>
+                            <td class="spcTable">Categorical</td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-categorical-day1_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-categorical-day1_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-categorical-day2_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-categorical-day2_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-categorical-day3_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-categorical-day3_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="spcTable">Probabalistic</td>
+                            <td class="spcTable"></td>
+                            <td class="spcTable"></td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-probabalistic-day3_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-probabalistic-day3_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="spcTable">Tornado</td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-tornado-day1_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-tornado-day1_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-tornado-day2_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-tornado-day2_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"></td>
+                        </tr>
+                        <tr>
+                            <td class="spcTable">Wind</td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-wind-day1_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-wind-day1_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-wind-day2_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-wind-day2_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"></td>
+                        </tr>
+                        <tr>
+                            <td class="spcTable">Hail</td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-hail-day1_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-hail-day1_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_convective-hail-day2_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_convective-hail-day2_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"></td>
+                        </tr>
+                    </table>
+
+                    <!-- <br>
+
+                    <div style="text-align: center; font-size: 20px; font-weight: bold;">FIRE</div>
+                    <table style="width: 100%" class="spcTable">
+                        <tr>
+                            <th class="spcTable"></th>
+                            <th class="spcTable">Day 1</th>
+                            <th class="spcTable">Day 2</th>
+                        </tr>
+                        <tr>
+                            <td class="spcTable">Dry TStorms</td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_fire-dryt-day1_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_fire-dryt-day1_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_fire-dryt-day2_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_fire-dryt-day2_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="spcTable">Wind & RH</td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_fire-windrh-day1_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_fire-windrh-day1_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                            <td class="spcTable"><div class="spcTableCellDiv"><input type="checkbox"
+                                id="armrSPC_fire-windrh-day2_BtnSwitchElem" class="toggleSwitch spcToggleswitchBtn" /><label
+                                for="armrSPC_fire-windrh-day2_BtnSwitchElem" class="toggleSwitchCircle spcToggleswitchCircle">Toggle</label></div>
+                            </td>
+                        </tr>
+                    </table> -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="psmTiltDropdownBackdrop" class="psm psmNoHideElem" style="display: none"></div>
+    <div id="psmTiltDropdown" class="psm psmNoHideElem" style="display: none">
+        <div class="psmTiltDropdownRow psmNoHideElem" value="1">Tilt 1</div>
+        <div class="psmTiltDropdownRow psmNoHideElem" value="2">Tilt 2</div>
+        <div class="psmTiltDropdownRow psmNoHideElem" value="3">Tilt 3</div>
+        <div class="psmTiltDropdownRow psmNoHideElem" value="4">Tilt 4</div>
+    </div>
+    <div id="productSelectionMenu" style="display: none">
+        <div id="wsr88d_psm" class="psm" style="display: none">
+            <div class="psmSectionBreak"></div>
+
+            <div class="psmSectionTitle">Super Resolution</div>
+            <div class="psmRow noselect" value="ref">Super-Res Base Reflectivity<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="vel">Super-Res Base Velocity<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="srvel">Super-Res Storm Relative Velocity<div class="psmRowTiltSelect">Tilt 1</div></div>
+
+            <div class="psmSectionBreak"></div>
+
+            <div class="psmSectionTitle">Digital</div>
+            <div class="psmRow noselect" value="rho">Correlation Coefficient<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="zdr">Differential Reflectivity<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="hyc">Hydrometer Classification<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="hhc">Hybrid Hydrometer Classification<div class="psmRowTiltSelect blankText">Tilt 1</div></div>
+            <div class="psmRow noselect" value="vil">Vertically Integrated Liquid<div class="psmRowTiltSelect blankText">Tilt 1</div></div>
+            <div class="psmRow noselect" value="kdp">Specific Differential Phase<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="lowres-ref">Digital Base Reflectivity<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="lowres-vel">Digital Base Velocity<div class="psmRowTiltSelect">Tilt 1</div></div>
+        </div>
+        <div id="tdwr_psm" class="psm" style="display: none">
+            <div class="psmSectionBreak"></div>
+
+            <div class="psmSectionTitle">TDWR</div>
+            <div class="psmRow noselect" value="sr-ref">Short-Range Reflectivity<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="lr-ref">Long-Range Reflectivity<div class="psmRowTiltSelect">Tilt 1</div></div>
+            <div class="psmRow noselect" value="tdwrVel">Base Velocity<div class="psmRowTiltSelect">Tilt 1</div></div>
+        </div>
+        <div id="level2_psm" class="psm" style="display: none">
+            <div id="completeDealiasBtnContainer" style="display: none">
+                <div id="dealiasToggleSwitchContainer" style="display: flex; justify-content: space-around; align-items: center;">
+                    <div class="l2ElevationBtn dealiasBtnDeSelected l2elev-nonstandard noselect" id="dealiasBtn" style="width: 100%">
+                        <i class="fa-solid fa-xmark"></i>&nbsp;&nbsp;Dealias
+                    </div>
+                </div>
+                <i id="dealiasSettingsIcon" class="fa-solid fa-gear l2ElevationBtn l2elev-nonstandard"></i>
+                <br><br>
+            </div>
+            <!-- <div id="l2ElevButtonsExpander" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Elevations</span>
+                <span id="l2ElevButtonsExpanderIcon" class="fa fa-chevron-right" style="font-size: 18px"></span>
+            </div>
+            <div id="l2ElevButtons" class="l2ElevButtons" class="container" style="display: none"></div> -->
+            <!-- <span class="l2ElevBtn">0.5</span>
+            <span class="l2ElevBtn">1.5</span>
+            <span class="l2ElevBtn">2.5</span> -->
+            <div id="l2ElevationButtons" class="container">
+                <!-- <div class="row gx-1" style="margin-top: 0.25rem">
+                    <div class="col">
+                        <div class="l2ElevationBtn" value="1">0.5°</div>
+                    </div>
+                    <div class="col">
+                        <div class="l2ElevationBtn" value="1">0.5°</div>
+                    </div>
+                    <div class="col">
+                        <div class="l2ElevationBtn" value="1">0.5°</div>
+                    </div>
+                </div> -->
+            </div>
+            <div class="psmSectionBreak"></div>
+
+            <div class="psmSectionTitle">Level II Products</div>
+            <div class="psmRow l2prodSel noselect" value="l2-ref">Reflectivity</div>
+            <div class="psmRow l2prodSel noselect" value="l2-vel">Velocity</div>
+            <div class="psmRow l2prodSel noselect" value="l2-rho">Correlation Coefficient</div>
+            <div class="psmRow l2prodSel noselect" value="l2-zdr">Differential Reflectivity</div>
+            <div class="psmRow l2prodSel noselect" value="l2-sw">Spectrum Width</div>
+            <div class="psmRow l2prodSel noselect" value="l2-phi">Differential Phase Shift</div>
+        </div>
+    </div>
+
+    <!-- <div id="chart_container"></div> -->
+
+    <div id="colorPicker" class="colorPicker colorPickerCircle"></div>
+    <div id="colorPickerBorder" class="colorPicker colorPickerCircle">
+        <div id="verticalLine" class="colorPicker"></div>
+        <div id="horizontalLine" class="colorPicker"></div>
+        <div id="radarCenterLine" class="colorPicker"></div>
+    </div>
+    <div id="colorPickerText" class="colorPicker">
+        <div id="colorPickerTextValue" style="font-weight: bold"></div>
+        <div id="colorPickerTextBeamHeight" style="font-size: 15px; font-style: italic; opacity: 50%">12.3 mi</div>
+    </div>
+
+    <div id='optionsBox' style="display: none">
+        <div id="smallInfo" style="display: none"></div>
+        <div id="mainInfo" style="display: none"></div>
+    </div>
+    <div id="stationInp" style="display: none"></div>
+    <canvas id="theCanvas" style="display: none"></canvas>
+    <canvas id="texturecolorbar" style="display: none" class="texturecolorbar" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Default tooltip" data-bs-animation="false"></canvas>
+    <canvas id="mapColorScale" class="screenshot"></canvas>
+    <!-- <canvas id="mapColorScale"></canvas> -->
+
+    <div id="map" class="screenshot"></div>
+
+    </div>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DFPY4VLRJR"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-DFPY4VLRJR');
+    </script>
+
+    <script>
+        window.longProductNames = {
+            'ref': 'Super-Res Base Reflectivity',
+            'vel': 'Super-Res Base Velocity',
+            'srvel': 'Super-Res Storm Relative Velocity',
+            'rho': 'Correlation Coefficient',
+            'zdr': 'Differential Reflectivity',
+            'hyc': 'Hydrometer Classification',
+            'hhc': 'Hybrid Hydrometer Classification',
+            'sw ': 'Base Spectrum Width',
+            'lowres-ref': 'Digital Base Reflectivity',
+            'lowres-vel': 'Digital Base Velocity',
+            'vil': 'Vertically Integrated Liquid',
+            'kdp': 'Specific Differential Phase',
+            'srv': 'Storm Relative Velocity',
+            'sr-ref': 'Short-Range Reflectivity',
+            'lr-ref': 'Long-Range Reflectivity',
+            'tdwrVel': 'Base Velocity'
+        }
+
+        /* ── helpers ── */
+        function _set_progress(pct) {
+            pct = Math.max(0, Math.min(100, pct));
+            document.getElementById('ldBar').style.width = pct + '%';
+            document.getElementById('ldPct').textContent = Math.round(pct) + '%';
+        }
+        function _set_status(t) { document.getElementById('ldStatus').textContent = t || ''; }
+
+        function _task_active(id) {
+            var el = document.getElementById('ldD-' + id);
+            if (el) { el.classList.add('ld-active'); el.classList.remove('ld-done'); }
+        }
+        function _task_done(id) {
+            var el = document.getElementById('ldD-' + id);
+            if (el) { el.classList.remove('ld-active'); el.classList.add('ld-done'); }
+        }
+
+        (function() {
+            var els = [
+                document.getElementById('ldHud'),
+                document.getElementById('ldDots')
+            ];
+            function _show() { els.forEach(function(e) { if (e) e.classList.add('visible'); }); }
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(_show);
+                setTimeout(_show, 400);
+            } else { _show(); }
+        })();
+
+        /* ── typewriter weather tips ── */
+        (function() {
+            var tips = [
+                "If you hear thunder, you're close enough to be struck by lightning. Move indoors immediately.",
+                "Keep a weather radio in your home for alerts even when the power goes out.",
+                "During a tornado warning, move to the lowest floor and stay away from windows.",
+                "Flash floods kill more people each year than tornadoes, hurricanes, or lightning.",
+                "A watch means conditions are favorable. A warning means take action now.",
+                "Have a family emergency plan and practice it before severe weather season.",
+                "Never drive through flooded roads. Turn around, don't drown.",
+                "If caught outdoors during lightning, avoid open fields, tall trees, and metal objects.",
+                "Stock at least 3 days of water, food, and medications in your emergency kit.",
+                "Hail the size of a quarter can cause significant damage. Seek shelter immediately.",
+                "Mobile homes are not safe during tornadoes. Go to a sturdy building instead.",
+                "Monitor weather conditions before outdoor activities, even if the sky looks clear.",
+                "Heat kills more Americans than any other weather event. Stay hydrated.",
+                "Know the difference: a funnel cloud is aloft, a tornado has touched the ground.",
+                "After a storm passes, watch for downed power lines and report them immediately."
+            ];
+            var el = document.getElementById('ldTipText');
+            var center = document.getElementById('ldCenterTip');
+            if (!el || !center) return;
+            setTimeout(function() { center.classList.add('visible'); }, 500);
+
+            var shuffled = tips.slice().sort(function() { return Math.random() - 0.5; });
+            var idx = 0;
+
+            function typeNext() {
+                var tip = shuffled[idx % shuffled.length];
+                idx++;
+                var i = 0;
+                el.textContent = '';
+                function tick() {
+                    if (i <= tip.length) {
+                        el.textContent = tip.substring(0, i);
+                        i++;
+                        setTimeout(tick, 28);
+                    } else {
+                        setTimeout(typeNext, 4000);
+                    }
+                }
+                tick();
+            }
+            typeNext();
+        })();
+
+        /* ── progress tracking ── */
+        var WEIGHTS = { libs: 0.45, bg: 0.10, data: 0.45 };
+        var PL = {
+            max: 0,
+            libs:  { loaded: 0, total: 1 },
+            bg:    { loaded: 0, total: 1 },
+            data:  { loaded: 0, total: 4 }
+        };
+        function _update_progress() {
+            var w = 0;
+            ['libs','bg','data'].forEach(function(k) {
+                var p = PL[k];
+                if (p && p.total > 0) w += Math.min(1, p.loaded / p.total) * WEIGHTS[k];
+            });
+            PL.max = Math.max(PL.max, Math.round(w * 100));
+            _set_progress(PL.max);
+        }
+
+        /* ── download with progress ── */
+        function _dl(url, label, onProgress, cb, onErr) {
+            _set_status(label || url.split('/').pop());
+            var req = new XMLHttpRequest(), tmp = 0, done = false;
+            req.addEventListener('progress', function(e) {
+                var d = Math.max(0, (e.loaded || 0) - tmp); tmp = e.loaded || 0;
+                if (d > 0 && onProgress) onProgress(d);
+            });
+            req.addEventListener('load', function(e) {
+                if (done) return; done = true; cb(e.target.response, tmp);
+            });
+            req.addEventListener('error', function() {
+                if (done) return; done = true; if (onErr) onErr();
+            });
+            req.addEventListener('abort', function() {
+                if (done) return; done = true; if (onErr) onErr();
+            });
+            req.responseType = 'arraybuffer'; req.open('GET', url); req.send();
+        }
+
+        function _inject(text, type) {
+            var el = document.createElement(type == 'js' ? 'script' : 'style');
+            if (type == 'js') el.type = 'text/javascript';
+            el[type == 'js' ? 'innerHTML' : 'textContent'] = text;
+            document.head.appendChild(el);
+        }
+
+        function _load_asset(type, url, compressed, label, onProgress, cb, onErr) {
+            _dl(url, label, onProgress, function(buf) {
+                var str = new TextDecoder('utf-8').decode(buf);
+                if (compressed) str = pako.inflate(buf, { to: 'string' });
+                if (type == 'css') {
+                    var base = url.substring(0, url.lastIndexOf('/') + 1);
+                    str = str.replace(/url\((?!['"]?(?:https?:|data:))/gi, 'url(' + base);
+                }
+                _inject(str, type); cb();
+            }, onErr);
+        }
+
+        function _queue_bytes(q) { return Math.max(1, q.reduce(function(a,c){ return a+(Number(c[2])||0); }, 0)); }
+
+        function _resolve_sizes(q, cb) {
+            fetch('./tools/size.txt').then(function(r){ return r.json(); })
+                .then(function(j){ cb(j||{}); }).catch(function(){ cb({}); });
+        }
+        function _apply_sizes(q, sz) {
+            q.forEach(function(c) {
+                if (c[1]=='./index.css' && sz['index.css']) c[2]=sz['index.css'];
+                if (c[1]=='./dist/bundle.js' && sz['bundle.js']) c[2]=sz['bundle.js'];
+            });
+        }
+
+        function _run_queue(name, q, cb) {
+            if (!q.length) { cb(); return; }
+            var items = q.slice(), phase = PL[name];
+            phase.total = _queue_bytes(q);
+            function _next() {
+                if (!items.length) { phase.loaded = Math.max(phase.loaded, phase.total); _update_progress(); cb(); return; }
+                var c = items.shift(), exp = Number(c[2])||0, lf = 0;
+                _load_asset(c[0], c[1], c[3], c[4]||c[1].split('/').pop(),
+                    function(d) { lf+=d; phase.loaded+=d; _update_progress(); },
+                    function()  { phase.loaded+=Math.max(0,exp-lf); _update_progress(); _next(); },
+                    function()  { phase.loaded+=Math.max(0,exp-lf); _update_progress(); _next(); }
+                );
+            }
+            _next();
+        }
+
+        /* ── data preload helpers ── */
+        function _get_station() {
+            try {
+                var r = localStorage.getItem('stormTrackPro_settings');
+                if (!r) return 'KLWX';
+                var p = JSON.parse(r);
+                if (p && typeof p.currentStation==='string' && p.currentStation.length===4)
+                    return p.currentStation.toUpperCase();
+            } catch(e){}
+            return 'KLWX';
+        }
+        function _tmo(pr, ms) { return Promise.race([pr, new Promise(function(r){setTimeout(r,ms);})]); }
+        function _ftxt(u) { return fetch(u).then(function(r){return r.ok?r.text():'';}); }
+        function _fbin(u) { return fetch(u).then(function(r){return r.ok?r.arrayBuffer():null;}); }
+        function _warmL3(st, prod) {
+            var d=new Date(), pfx=st.slice(1)+'_'+prod+'_'+d.getUTCFullYear()+'_'+
+                String(d.getUTCMonth()+1).padStart(2,'0')+'_'+String(d.getUTCDate()).padStart(2,'0');
+            return _ftxt('https://unidata-nexrad-level3.s3.amazonaws.com/?prefix='+pfx).then(function(x){
+                if(!x) return null;
+                var k=Array.from(x.matchAll(/<Key>([^<]+)<\/Key>/g));
+                if(!k.length) return null;
+                return _fbin('https://unidata-nexrad-level3.s3.amazonaws.com/'+k[k.length-1][1]);
+            }).catch(function(){return null;});
+        }
+
+        /* ── ready signal system ── */
+        /*
+         * We wait for REAL completion events from the app:
+         *  - stormTrackMapLoaded    : Mapbox map 'load' event (from entry.js)
+         *  - stormTrackModulesLoaded: All require() modules initialized (entry.js)
+         *  - alertsFullyReady       : Alerts fetched + zone dicts loaded + polygons
+         *                             combined + plotted on map (fetch_data.js)
+         *  - radarBaseFactoryLoaded : Initial radar scan fetched, decoded, and
+         *                             rendered on map (loaders_nexrad.js via
+         *                             station_markers.js auto-restore)
+         *
+         * bundle.js is loaded AFTER bodyDiv is visible so the #map container
+         * has real dimensions. Listeners attach BEFORE bundle.js executes.
+         */
+
+        var _sig = { map:false, modules:false, alerts:false, radar:false };
+        var _revealed = false;
+
+        function _signal(name) {
+            if (_sig[name]) return;
+            _sig[name] = true;
+            PL.data.loaded++;
+            _update_progress();
+            console.log('[loader] signal:', name, _sig);
+            if (_sig.map && _sig.modules && _sig.alerts && _sig.radar && !_revealed) {
+                _finish_loading();
+            }
+        }
+
+        function _finish_loading() {
+            if (_revealed) return;
+            _revealed = true;
+            _task_active('app');
+            _set_status('All systems loaded');
+            setTimeout(function() {
+                _task_done('app');
+                _set_progress(100);
+                _set_status('StormTrack Pro');
+                setTimeout(_reveal_app, 400);
+            }, 300);
+        }
+
+        function _reveal_app() {
+            var ov = document.getElementById('loadingLibrariesDiv');
+            ov.classList.add('ld-fade-out');
+            setTimeout(function() { ov.style.display = 'none'; }, 650);
+            window.dispatchEvent(new CustomEvent('appBodyVisible'));
+        }
+
+        /* ── library queues ── */
+        var CRITICAL_LIBS = [
+            ['js',  'https://code.jquery.com/jquery-3.2.1.min.js', 86659, undefined, 'Loading jQuery...'],
+            ['js',  'https://code.jquery.com/ui/1.13.1/jquery-ui.min.js', 255082, undefined, 'Loading UI toolkit...'],
+            ['css', 'https://code.jquery.com/ui/1.13.1/themes/base/jquery-ui.css', 36099, undefined, 'Loading UI theme...'],
+            ['css', 'https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css', 36640, undefined, 'Loading map styles...'],
+            ['js',  'https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js', 971097, undefined, 'Loading Mapbox GL...'],
+            ['css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css', 100782, undefined, 'Loading icons...'],
+            ['js',  'https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js', 33871, undefined, 'Loading datepicker...'],
+            ['css', 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css', 15733, undefined, 'Datepicker styles...'],
+            ['js',  'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js', 46859, undefined, 'Loading pako...'],
+            ['css', './index.css', 0, undefined, 'Loading app styles...'],
+        ];
+        var BUNDLE = ['js', './dist/bundle.js', 0, undefined, 'Loading application bundle...'];
+        var BG_LIBS = [
+            ['js', 'https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js', 311096, undefined, 'Preloading canvas tools...'],
+            ['js', 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 441542, undefined, 'Preloading screenshot...'],
+            ['js', 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js', 97587, undefined, 'Preloading zip...'],
+            ['js', 'https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js', 5978, undefined, 'Preloading GeoJSON...'],
+            ['js', './lib/flot/jquery.event.drag.js', 7061, undefined, 'Preloading chart drag...'],
+            ['js', './lib/flot/jquery.mousewheel.js', 2579, undefined, 'Preloading chart zoom...'],
+            ['js', './lib/flot/flot.combined.js', 354389, undefined, 'Preloading charts...'],
+        ];
+
+        document.getElementById('bodyDiv').style.display = 'none';
+
+        _resolve_sizes(CRITICAL_LIBS.concat([BUNDLE], BG_LIBS), function(sz) {
+            _apply_sizes(CRITICAL_LIBS, sz);
+            _apply_sizes([BUNDLE], sz);
+            _apply_sizes(BG_LIBS, sz);
+
+            PL.libs.total = _queue_bytes(CRITICAL_LIBS.concat([BUNDLE]));
+            PL.bg.total   = _queue_bytes(BG_LIBS);
+
+            _task_active('libs');
+            _set_status('Loading core libraries...');
+
+            /* STEP 1 — load all critical libs EXCEPT bundle.js */
+            _run_queue('libs', CRITICAL_LIBS, function() {
+                _task_done('libs');
+
+                /* STEP 2 — show bodyDiv behind overlay so #map gets real dimensions */
+                document.getElementById('bodyDiv').style.display = 'block';
+
+                /* STEP 3 — attach listeners BEFORE bundle.js executes */
+                _task_active('map');
+                _set_status('Initializing map engine...');
+
+                window.addEventListener('stormTrackMapLoaded', function() {
+                    console.log('[loader] map loaded');
+                    _task_done('map');
+                    _signal('map');
+                });
+
+                window.addEventListener('stormTrackModulesLoaded', function() {
+                    console.log('[loader] modules loaded');
+                    _signal('modules');
+                });
+
+                /* alertsFullyReady fires AFTER: alerts JSON fetched + zone dicts
+                   loaded + data combined + polygons plotted on map */
+                window.addEventListener('alertsFullyReady', function() {
+                    console.log('[loader] alerts + zones + polygons fully ready');
+                    _task_done('alerts');
+                    _signal('alerts');
+                });
+
+                /* radarBaseFactoryLoaded fires AFTER: the initial radar scan is
+                   fetched from S3, decoded, and rendered on the map canvas */
+                window.addEventListener('radarBaseFactoryLoaded', function() {
+                    console.log('[loader] radar scan plotted');
+                    _task_done('radar');
+                    _signal('radar');
+                });
+
+                _task_active('alerts');
+                _task_active('radar');
+
+                /* STEP 4 — load bundle.js: entry.js creates map, inits modules,
+                   triggers alert fetch, auto-restores saved station + radar scan */
+                _set_status('Initializing application...');
+                var bExp = Number(BUNDLE[2])||0, bLoaded = 0;
+                _load_asset(BUNDLE[0], BUNDLE[1], BUNDLE[3], BUNDLE[4],
+                    function(d) { bLoaded+=d; PL.libs.loaded+=d; _update_progress(); },
+                    function()  {
+                        PL.libs.loaded = Math.max(PL.libs.loaded, PL.libs.total);
+                        _update_progress();
+                        /* background libs load in parallel — not blocking */
+                        _run_queue('bg', BG_LIBS, function(){});
+                    },
+                    function()  { PL.libs.loaded=PL.libs.total; _update_progress(); _run_queue('bg', BG_LIBS, function(){}); }
+                );
+
+                /* FAILSAFE — if no saved station (no radar auto-load), or if
+                   any fetch hangs, force reveal after 30s */
+                setTimeout(function() {
+                    if (!_revealed) {
+                        console.warn('[loader] timeout — forcing reveal. signals:', JSON.stringify(_sig));
+                        _finish_loading();
+                    }
+                }, 30000);
+
+                /* If user has no saved station, radar won't auto-load. Handle
+                   that: if modules + map + alerts are done but no radar after 8s
+                   of those being ready, count radar as done anyway. */
+                var _radarGraceTimer = null;
+                var _origSignal = _signal;
+                _signal = function(name) {
+                    _origSignal(name);
+                    if (_sig.map && _sig.modules && _sig.alerts && !_sig.radar && !_radarGraceTimer) {
+                        _radarGraceTimer = setTimeout(function() {
+                            if (!_sig.radar) {
+                                console.log('[loader] no radar auto-load detected, skipping radar wait');
+                                _task_done('radar');
+                                _origSignal('radar');
+                            }
+                        }, 6000);
+                    }
+                };
+            });
+        })
+    </script>
+</body>
+</html>
+</html>

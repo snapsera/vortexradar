@@ -1,0 +1,91 @@
+/* ============================================
+   Bottom Alert Ticker
+   ============================================ */
+.alertTicker {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    box-sizing: border-box;
+    background: rgba(12, 14, 20, 0.92);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    z-index: var(--z-header);
+    transform: translateY(100%);
+    transition: transform 400ms ease;
+    pointer-events: none;
+}
+
+.alertTicker-visible {
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Thin white tracer on top edge */
+.alertTicker::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 120px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 30%, white 100%);
+    transform: translateX(-140px);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.alertTicker-tracer-in::after {
+    animation: tracerSweepIn 0.6s ease-out forwards;
+}
+
+.alertTicker-tracer-out::after {
+    animation: tracerSweepOut 0.6s ease-in forwards;
+}
+
+@keyframes tracerSweepIn {
+    from { transform: translateX(100vw); }
+    to   { transform: translateX(-140px); }
+}
+
+@keyframes tracerSweepOut {
+    from { transform: translateX(-140px); }
+    to   { transform: translateX(100vw); }
+}
+
+/* Scroll track */
+.alertTickerTrack {
+    display: inline-block;
+    white-space: nowrap;
+    padding-left: 100%;
+    line-height: 31px;
+    animation-name: tickerScroll;
+    animation-duration: var(--ticker-duration, 20s);
+    animation-timing-function: linear;
+    animation-iteration-count: var(--ticker-loops, 2);
+    animation-fill-mode: none;
+    animation-play-state: paused;
+}
+
+.alertTicker-scrolling .alertTickerTrack {
+    animation-play-state: running;
+}
+
+.alertTickerText {
+    display: inline-block;
+    padding-right: 80px;
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 31px;
+    vertical-align: middle;
+}
+
+@keyframes tickerScroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}

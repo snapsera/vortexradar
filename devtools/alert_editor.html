@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Alert Polygon Editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet">
+<link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1118; color: #e2e8f0; display: flex; height: 100vh; overflow: hidden; }
+    #map { flex: 1; }
+    #sidebar { width: 360px; background: #13161e; border-left: 1px solid #2a2e3a; display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid #2a2e3a; }
+    .sidebar-header h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .sidebar-header p { font-size: 12px; color: #8892a4; }
+    .sidebar-section { padding: 12px 16px; border-bottom: 1px solid #2a2e3a; }
+    .sidebar-section label { display: block; font-size: 12px; font-weight: 600; color: #8892a4; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+    .sidebar-section select, .sidebar-section input[type="text"], .sidebar-section input[type="datetime-local"] {
+        width: 100%; padding: 8px 10px; background: #1a1e2a; border: 1px solid #2a2e3a; border-radius: 6px;
+        color: #e2e8f0; font-size: 13px; outline: none;
+    }
+    .sidebar-section textarea {
+        width: 100%; padding: 8px 10px; background: #1a1e2a; border: 1px solid #2a2e3a; border-radius: 6px;
+        color: #e2e8f0; font-size: 13px; outline: none; resize: vertical; min-height: 60px; font-family: inherit;
+    }
+    .sidebar-section select:focus, .sidebar-section input:focus, .sidebar-section textarea:focus { border-color: #4a7dff; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4a7dff; }
+    .checkbox-row span { font-size: 13px; }
+    .field-row { margin-top: 8px; }
+    .field-row label { margin-bottom: 4px; }
+    .stp-fields { display: none; }
+    .stp-fields.visible { display: block; }
+    .polygon-list { flex: 1; overflow-y: auto; padding: 8px 16px; }
+    .polygon-list-empty { color: #555a6a; font-size: 13px; text-align: center; padding: 24px 0; }
+    .polygon-item {
+        display: flex; align-items: center; gap: 8px; padding: 10px; margin-bottom: 6px;
+        background: #1a1e2a; border-radius: 8px; border: 1px solid #2a2e3a;
+    }
+    .polygon-color { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; border: 1px solid #555a6a; }
+    .polygon-info { flex: 1; min-width: 0; }
+    .polygon-info .polygon-event { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .polygon-info .polygon-meta { font-size: 11px; color: #8892a4; }
+    .polygon-delete { background: none; border: none; color: #e25555; cursor: pointer; font-size: 14px; padding: 4px; border-radius: 4px; }
+    .polygon-delete:hover { background: rgba(226,85,85,0.15); }
+    .sidebar-actions { padding: 12px 16px; border-top: 1px solid #2a2e3a; display: flex; flex-direction: column; gap: 8px; }
+    .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; }
+    .btn-primary { background: #4a7dff; color: #fff; }
+    .btn-primary:hover { background: #3a6dee; }
+    .btn-danger { background: #2a1a1a; color: #e25555; border: 1px solid #3a2222; }
+    .btn-danger:hover { background: #3a2222; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .status-bar { padding: 8px 16px; background: #0c0e14; font-size: 11px; color: #555a6a; border-top: 1px solid #2a2e3a; }
+    .mode-tabs { display: flex; border-bottom: 1px solid #2a2e3a; }
+    .mode-tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; background: transparent; border: none; color: #8892a4; border-bottom: 2px solid transparent; }
+    .mode-tab:hover { color: #e2e8f0; }
+    .mode-tab.active { color: #4a7dff; border-bottom-color: #4a7dff; }
+    .section-hint { font-size: 11px; color: #555a6a; margin-top: 4px; }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="sidebar">
+    <div class="sidebar-header">
+        <h2>Alert Polygon Editor</h2>
+        <p>Draw polygons on the map then send them as test alerts.</p>
+    </div>
+    <div class="mode-tabs">
+        <button class="mode-tab active" id="tabStandard">Standard Alerts</button>
+        <button class="mode-tab" id="tabSTPWatch">STP Watch</button>
+    </div>
+    <div id="standardFields" class="sidebar-section">
+        <label>Alert Type</label>
+        <select id="alertTypeSelect">
+            <option value="Tornado Warning">Tornado Warning</option>
+            <option value="Severe Thunderstorm Warning" selected>Severe Thunderstorm Warning</option>
+            <option value="Flash Flood Warning">Flash Flood Warning</option>
+            <option value="Flood Warning">Flood Warning</option>
+            <option value="Special Weather Statement">Special Weather Statement</option>
+            <option value="Special Marine Warning">Special Marine Warning</option>
+            <option value="Tornado Watch">Tornado Watch</option>
+            <option value="Severe Thunderstorm Watch">Severe Thunderstorm Watch</option>
+            <option value="Flood Watch">Flood Watch</option>
+            <option value="Winter Storm Warning">Winter Storm Warning</option>
+            <option value="Blizzard Warning">Blizzard Warning</option>
+            <option value="Ice Storm Warning">Ice Storm Warning</option>
+        </select>
+        <div class="checkbox-row">
+            <input type="checkbox" id="blinkingCheckbox">
+            <span>Blinking</span>
+        </div>
+    </div>
+    <div id="stpFields" class="sidebar-section" style="display:none;">
+        <label>STP Watch Headline</label>
+        <input type="text" id="stpHeadline" placeholder="e.g. Severe weather expected this evening">
+        <div class="field-row">
+            <label>Description</label>
+            <textarea id="stpDescription" rows="3" placeholder="Describe the expected conditions..."></textarea>
+        </div>
+        <div class="field-row">
+            <label>Area</label>
+            <input type="text" id="stpArea" placeholder="e.g. Central Oklahoma">
+        </div>
+        <div class="field-row">
+            <label>Expires At</label>
+            <input type="datetime-local" id="stpExpiry">
+            <div class="section-hint">Alert auto-removes from app at this time</div>
+        </div>
+        <div class="checkbox-row">
+            <input type="checkbox" id="stpBlinkingCheckbox">
+            <span>Blinking</span>
+        </div>
+    </div>
+    <div class="sidebar-section" style="padding-bottom:6px;">
+        <label>Drawn Polygons</label>
+    </div>
+    <div class="polygon-list" id="polygonList">
+        <div class="polygon-list-empty">No polygons drawn yet.<br>Use the draw tools on the map.</div>
+    </div>
+    <div class="sidebar-actions">
+        <button class="btn btn-primary" id="sendBtn" disabled>Send to App</button>
+        <button class="btn btn-danger" id="clearBtn" disabled>Clear All</button>
+    </div>
+    <div class="status-bar" id="statusBar">Ready</div>
+</div>
+
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+<script>
+(function() {
+    'use strict';
+
+    var ALERT_COLORS = {
+        'Tornado Warning': 'rgb(233, 51, 35)',
+        'Severe Thunderstorm Warning': 'rgb(244, 185, 65)',
+        'Flash Flood Warning': 'rgb(147, 241, 75)',
+        'Flood Warning': 'rgb(0, 255, 0)',
+        'Special Weather Statement': 'rgb(151, 204, 230)',
+        'Special Marine Warning': 'rgb(197, 155, 249)',
+        'Tornado Watch': 'rgb(117, 20, 12)',
+        'Severe Thunderstorm Watch': 'rgb(128, 128, 38)',
+        'Flood Watch': 'rgb(46, 139, 87)',
+        'Winter Storm Warning': 'rgb(255, 105, 180)',
+        'Blizzard Warning': 'rgb(255, 69, 0)',
+        'Ice Storm Warning': 'rgb(139, 0, 139)',
+        'STP Watch': 'rgb(255, 255, 255)'
+    };
+
+    var TEST_DESCRIPTIONS = [
+        "...THIS IS A TEST ALERT... The National Weather Service in Testville has issued a * [EVENT] for [AREA]. * At [TIME], Doppler radar indicated a dangerous storm capable of producing [HAZARD]. THIS IS ONLY A TEST of the StormTrack Pro alert system. No actual severe weather is occurring. Do not take protective action based on this test message.",
+        "...THIS IS A TEST... [EVENT] remains in effect until [EXPIRY] for [AREA]. At [TIME], a TEST storm was located near Faketown, moving northeast at 35 mph. HAZARD: [HAZARD]. SOURCE: Simulated radar data. THIS IS A TEST - NOT A REAL ALERT. This test alert was generated by StormTrack Pro's Developer Tools.",
+        "[TEST ALERT] The National Weather Service has issued a [EVENT]. WHAT: [HAZARD]. WHERE: [AREA]. WHEN: Until [EXPIRY]. THIS MESSAGE IS A TEST. There is no actual threat to life or property. This alert was created for software testing purposes only.",
+        "...THIS IS A TEST OF THE ALERT SYSTEM... [EVENT] in effect for [AREA]. Simulated radar shows [HAZARD] near Test County. Maximum estimated hail size: 2.75 inches. Maximum estimated wind gusts: 80 mph. THIS IS A TEST POLYGON - NO REAL WEATHER EVENT IS OCCURRING.",
+        "BULLETIN - TEST ALERT - [EVENT]. A dangerous simulated storm was tracked over [AREA] at [TIME]. THIS IS A DEVELOPER TEST. [HAZARD] has been reported by simulated spotters. Storm motion was east at 45 mph. This is NOT a real warning. Generated by StormTrack Pro Developer Tools for testing.",
+        "[TEST] ...A [EVENT] has been issued for [AREA]... At [TIME], automated testing systems detected [HAZARD] in the test environment. This is a fabricated alert for development purposes only. NO ACTUAL SEVERE WEATHER IS OCCURRING. Please disregard.",
+        "TEST TEST TEST - [EVENT] - TEST TEST TEST. Issued for: [AREA]. [HAZARD] has been simulated for testing purposes. Effective until [EXPIRY]. REMEMBER: This is a synthetic test alert created by the StormTrack Pro polygon editor. No protective action is needed.",
+        "...DEVELOPER TEST ALERT... [EVENT] for [AREA]. At [TIME], test radar data showed [HAZARD] developing over the simulated warning area. DO NOT take shelter - this is a software test. All data in this alert is fictitious and for development use only.",
+        "THIS IS A SIMULATED [EVENT] - DO NOT TAKE ACTION. For testing area: [AREA]. Simulated hazard: [HAZARD]. Duration: Until [EXPIRY]. This message was auto-generated by StormTrack Pro's test alert system for polygon rendering validation.",
+        "[TEST MESSAGE] URGENT - [EVENT] issued for [AREA]. Storm producing [HAZARD] was reported at [TIME]. Take NO ACTION - this is a test of the StormTrack Pro alert polygon display. All information is synthetic.",
+        "...TESTING ONLY... The following [EVENT] is NOT REAL. Test coverage area: [AREA]. Simulated conditions: [HAZARD]. Issued by Developer Tools at [TIME]. This alert exists solely to verify polygon rendering, blinking behavior, and alert panel integration.",
+        "SIMULATED [EVENT] - [AREA]. THIS IS A DRILL/TEST. Fake radar signatures show [HAZARD]. Expected to continue until [EXPIRY]. This test alert was drawn using the Alert Polygon Editor. It will be removed when test alerts are disabled.",
+        "[StormTrack Pro TEST] A [EVENT] has been generated for development testing. Area: [AREA]. Conditions: [HAZARD]. This is a fictitious weather scenario. No severe weather is expected. Test polygon ID confirms this is synthetic data."
+    ];
+
+    var HAZARD_OPTIONS = {
+        'Tornado Warning': ['a confirmed tornado', 'a radar-indicated tornado', 'a large and extremely dangerous tornado', 'a potentially devastating tornado'],
+        'Severe Thunderstorm Warning': ['quarter size hail and 60 mph wind gusts', 'baseball size hail and 70 mph winds', 'damaging winds up to 80 mph with penny size hail', 'destructive 90 mph wind gusts and golf ball size hail'],
+        'Flash Flood Warning': ['life-threatening flash flooding', 'rapid rises on creeks and streams', 'significant urban and small stream flooding', 'flash flooding of low-lying and poor drainage areas'],
+        'Flood Warning': ['minor flooding of low-lying areas', 'moderate river flooding', 'continued rises along the main stem river', 'agricultural flooding along tributaries'],
+        'Special Weather Statement': ['strong gusty winds and locally heavy rain', 'frequent lightning and small hail', 'a line of strong thunderstorms approaching the area', 'brief heavy downpours reducing visibility'],
+        'Special Marine Warning': ['waterspouts and high waves', 'thunderstorms producing dangerous marine conditions', 'sudden wind gusts exceeding 50 knots', 'hazardous seas and low visibility'],
+        'Tornado Watch': ['conditions favorable for tornadoes and severe thunderstorms', 'a few tornadoes possible with scattered large hail', 'the possibility of multiple strong tornadoes'],
+        'Severe Thunderstorm Watch': ['scattered severe thunderstorms with large hail and damaging winds', 'widespread severe weather expected', 'supercell thunderstorms with very large hail possible'],
+        'Flood Watch': ['heavy rainfall likely to cause flooding', 'excessive runoff potential', 'saturated soils and additional heavy rain expected'],
+        'Winter Storm Warning': ['heavy snow of 8 to 14 inches expected', 'significant ice accumulation and blowing snow', 'blizzard-like conditions with near-zero visibility'],
+        'Blizzard Warning': ['sustained winds of 35 mph with heavy blowing snow', 'whiteout conditions and dangerous wind chills', 'life-threatening blizzard conditions developing'],
+        'Ice Storm Warning': ['significant ice accumulation of one half to one inch', 'dangerous ice storm with widespread power outages expected', 'severe icing on all surfaces including roadways']
+    };
+
+    var AREA_NAMES = [
+        'portions of central Test County', 'the greater Faketown metropolitan area',
+        'southwestern Simulation Parish', 'northern Demo County and southern Sample County',
+        'the Testville corridor including Example Township', 'eastern Polygon County',
+        'the tri-county area of Dev, QA, and Staging Counties', 'rural areas near Placeholder City',
+        'the Test River Valley', 'Mock County and adjacent areas'
+    ];
+
+    function _random_from(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function _build_description(eventType) {
+        var template = _random_from(TEST_DESCRIPTIONS);
+        var hazards = HAZARD_OPTIONS[eventType] || HAZARD_OPTIONS['Severe Thunderstorm Warning'];
+        var now = new Date();
+        var timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        var expiry = new Date(now.getTime() + 3600000);
+        var expiryStr = expiry.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        return template
+            .replace(/\[EVENT\]/g, eventType)
+            .replace(/\[AREA\]/g, _random_from(AREA_NAMES))
+            .replace(/\[HAZARD\]/g, _random_from(hazards))
+            .replace(/\[TIME\]/g, timeStr)
+            .replace(/\[EXPIRY\]/g, expiryStr);
+    }
+
+    var currentMode = 'standard';
+    var polygonData = {};
+    var _hasSentOnce = false;
+    var channel = new BroadcastChannel('stormtrack-test-alerts');
+
+    // --- Tab switching ---
+    document.getElementById('tabStandard').addEventListener('click', function() {
+        currentMode = 'standard';
+        this.classList.add('active');
+        document.getElementById('tabSTPWatch').classList.remove('active');
+        document.getElementById('standardFields').style.display = '';
+        document.getElementById('stpFields').style.display = 'none';
+    });
+    document.getElementById('tabSTPWatch').addEventListener('click', function() {
+        currentMode = 'stp';
+        this.classList.add('active');
+        document.getElementById('tabStandard').classList.remove('active');
+        document.getElementById('standardFields').style.display = 'none';
+        document.getElementById('stpFields').style.display = '';
+    });
+
+    // --- Default expiry to 2 hours from now ---
+    (function() {
+        var d = new Date(Date.now() + 7200000);
+        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+        var str = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        document.getElementById('stpExpiry').value = str;
+    })();
+
+    mapboxgl.accessToken = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
+    var map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/twalker92/cmd90758s006r01s2df82drgf',
+        zoom: 4.3,
+        center: [-98.5606744, 39.5],
+        maxZoom: 20,
+        preserveDrawingBuffer: true,
+        maxPitch: 0,
+        fadeDuration: 0,
+        attributionControl: false,
+        projection: 'mercator'
+    });
+
+    var draw = new MapboxDraw({
+        displayControlsDefault: false,
+        controls: { polygon: true, trash: true },
+        defaultMode: 'draw_polygon'
+    });
+    map.addControl(draw, 'top-left');
+    map.addControl(new mapboxgl.NavigationControl(), 'top-left');
+
+    var NEXRAD_TILE_URL = 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?' + Date.now();
+
+    map.on('load', function() {
+        map.addSource('nexrad-radar', {
+            type: 'raster',
+            tiles: [NEXRAD_TILE_URL],
+            tileSize: 256,
+            attribution: 'Iowa Environmental Mesonet'
+        });
+        map.addLayer({
+            id: 'nexrad-radar-layer',
+            type: 'raster',
+            source: 'nexrad-radar',
+            paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 }
+        });
+    });
+
+    function _update_status(msg) {
+        document.getElementById('statusBar').textContent = msg;
+    }
+
+    function _get_color(eventType) {
+        return ALERT_COLORS[eventType] || 'rgb(128, 128, 128)';
+    }
+
+    function _render_polygon_list() {
+        var list = document.getElementById('polygonList');
+        var ids = Object.keys(polygonData);
+        var sendBtn = document.getElementById('sendBtn');
+        var clearBtn = document.getElementById('clearBtn');
+
+        if (ids.length === 0) {
+            list.innerHTML = '<div class="polygon-list-empty">No polygons drawn yet.<br>Use the draw tools on the map.</div>';
+            sendBtn.disabled = true;
+            clearBtn.disabled = true;
+            return;
+        }
+
+        sendBtn.disabled = false;
+        clearBtn.disabled = false;
+        var html = '';
+        for (var i = 0; i < ids.length; i++) {
+            var id = ids[i];
+            var d = polygonData[id];
+            var color = _get_color(d.event);
+            var blinkLabel = d.blinking ? 'Blinking' : 'Static';
+            var dashedLabel = d.event === 'STP Watch' ? ' \u2022 Dashed' : '';
+            var expiryLabel = '';
+            if (d.expiresAt) {
+                var exp = new Date(d.expiresAt);
+                expiryLabel = ' \u2022 Exp ' + exp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            }
+            html += '<div class="polygon-item" data-id="' + id + '">' +
+                '<div class="polygon-color" style="background:' + color + '"></div>' +
+                '<div class="polygon-info">' +
+                    '<div class="polygon-event">' + d.event + '</div>' +
+                    '<div class="polygon-meta">' + blinkLabel + dashedLabel + expiryLabel + '</div>' +
+                '</div>' +
+                '<button class="polygon-delete" data-id="' + id + '" title="Delete">&times;</button>' +
+            '</div>';
+        }
+        list.innerHTML = html;
+    }
+
+    function _build_features() {
+        var allDrawn = draw.getAll();
+        if (!allDrawn || !allDrawn.features) return [];
+        var testFeatures = [];
+        for (var i = 0; i < allDrawn.features.length; i++) {
+            var f = allDrawn.features[i];
+            var meta = polygonData[f.id];
+            if (!meta) continue;
+            var eventType = meta.event;
+            var now = new Date();
+            var isSTP = eventType === 'STP Watch';
+            var desc = isSTP ? (meta.customDescription || '') : _build_description(eventType);
+            var headline = isSTP ? ('[STP Watch] ' + (meta.customHeadline || 'STP Watch')) : ('[TEST] ' + eventType + ' issued for test area');
+            var areaDesc = isSTP ? (meta.customArea || 'STP Watch Area') : _random_from(AREA_NAMES);
+            var expiry = meta.expiresAt ? new Date(meta.expiresAt) : new Date(now.getTime() + 3600000);
+
+            testFeatures.push({
+                type: 'Feature',
+                id: 'test-alert-' + f.id,
+                geometry: f.geometry,
+                properties: {
+                    id: 'test-alert-' + f.id,
+                    event: eventType,
+                    blinking: !!meta.blinking,
+                    headline: headline,
+                    areaDesc: areaDesc,
+                    description: desc,
+                    onset: now.toISOString(),
+                    expires: expiry.toISOString(),
+                    sent: now.toISOString(),
+                    severity: isSTP ? 'Moderate' : 'Extreme',
+                    certainty: 'Observed',
+                    urgency: 'Immediate',
+                    senderName: 'StormTrack Pro Developer Tools',
+                    _isTestAlert: true,
+                    _dashed: isSTP
+                }
+            });
+        }
+        return testFeatures;
+    }
+
+    function _auto_send() {
+        if (!_hasSentOnce) return;
+        var features = _build_features();
+        channel.postMessage({ type: 'test-alerts-update', features: features });
+        _update_status('Updated (' + features.length + ' polygon' + (features.length !== 1 ? 's' : '') + ')');
+    }
+
+    map.on('draw.create', function(e) {
+        var features = e.features;
+        var isSTP = currentMode === 'stp';
+        var alertType = isSTP ? 'STP Watch' : document.getElementById('alertTypeSelect').value;
+        var blinking = isSTP ? document.getElementById('stpBlinkingCheckbox').checked : document.getElementById('blinkingCheckbox').checked;
+        for (var i = 0; i < features.length; i++) {
+            var entry = { event: alertType, blinking: blinking };
+            if (isSTP) {
+                entry.customHeadline = document.getElementById('stpHeadline').value;
+                entry.customDescription = document.getElementById('stpDescription').value;
+                entry.customArea = document.getElementById('stpArea').value;
+                var expiryVal = document.getElementById('stpExpiry').value;
+                if (expiryVal) entry.expiresAt = new Date(expiryVal).toISOString();
+            }
+            polygonData[features[i].id] = entry;
+        }
+        _render_polygon_list();
+        _update_status('Polygon created (' + Object.keys(polygonData).length + ' total)');
+        _auto_send();
+    });
+
+    map.on('draw.delete', function(e) {
+        var features = e.features;
+        for (var i = 0; i < features.length; i++) {
+            delete polygonData[features[i].id];
+        }
+        _render_polygon_list();
+        _update_status('Polygon deleted (' + Object.keys(polygonData).length + ' remaining)');
+        _auto_send();
+    });
+
+    document.getElementById('polygonList').addEventListener('click', function(e) {
+        var btn = e.target.closest('.polygon-delete');
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        draw.delete(id);
+        delete polygonData[id];
+        _render_polygon_list();
+        _update_status('Polygon removed');
+        _auto_send();
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', function() {
+        var features = _build_features();
+        if (features.length === 0) {
+            _update_status('No polygons to send');
+            return;
+        }
+        _hasSentOnce = true;
+        channel.postMessage({ type: 'test-alerts-update', features: features });
+        _update_status('Sent ' + features.length + ' test alert(s) to main app');
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', function() {
+        draw.deleteAll();
+        polygonData = {};
+        _render_polygon_list();
+        channel.postMessage({ type: 'test-alerts-clear' });
+        _update_status('Cleared all polygons');
+    });
+
+})();
+</script>
+</body>
+</html>

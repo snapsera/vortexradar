@@ -30,7 +30,19 @@ const DEFAULTS = {
     audibleAlerts: false,
     ttsVolume: 100,
     tornadoWarningBeep: false,
-    tornadoWarningBeepVolume: 100
+    tornadoWarningBeepVolume: 100,
+    surfaceFronts: false,
+    weatherRadio: false,
+    timezones: false,
+    testAlerts: false,
+    radarLoopSpeed: 5,
+    radarLoopFrameCount: 14,
+    colortableREF: 'REF1',
+    colortableVEL: 'VEL1',
+    colortableRHO: 'RHO1',
+    colortableZDR: 'ZDR1',
+    colortableKDP: 'KDP1',
+    colortableDVL: 'DVL1'
 };
 
 function _load_raw() {
@@ -101,12 +113,29 @@ function get_settings_from_dom() {
     s.ttsVolume = $('#ttsVolumeSlider').length ? parseInt($('#ttsVolumeSlider').val(), 10) : DEFAULTS.ttsVolume;
     s.tornadoWarningBeep = $('#tornadoBeepEnabledSwitchElem').length ? $('#tornadoBeepEnabledSwitchElem').is(':checked') : DEFAULTS.tornadoWarningBeep;
     s.tornadoWarningBeepVolume = $('#tornadoBeepVolumeSlider').length ? parseInt($('#tornadoBeepVolumeSlider').val(), 10) : DEFAULTS.tornadoWarningBeepVolume;
+    s.surfaceFronts = $('#armrSurfaceFrontsBtnSwitchElem').length ? $('#armrSurfaceFrontsBtnSwitchElem').is(':checked') : DEFAULTS.surfaceFronts;
+    s.weatherRadio = $('#armrWeatherRadioBtnSwitchElem').length ? $('#armrWeatherRadioBtnSwitchElem').is(':checked') : DEFAULTS.weatherRadio;
+    s.timezones = $('#armrTimezonesBtnSwitchElem').length ? $('#armrTimezonesBtnSwitchElem').is(':checked') : DEFAULTS.timezones;
+    s.testAlerts = $('#devTestAlertsSwitchElem').length ? $('#devTestAlertsSwitchElem').is(':checked') : DEFAULTS.testAlerts;
+    s.radarLoopSpeed = $('#radarLoopSpeedSelect').length ? parseInt($('#radarLoopSpeedSelect').val(), 10) || DEFAULTS.radarLoopSpeed : DEFAULTS.radarLoopSpeed;
+    s.radarLoopFrameCount = $('#radarLoopFrameCountSelect').length ? parseInt($('#radarLoopFrameCountSelect').val(), 10) || DEFAULTS.radarLoopFrameCount : DEFAULTS.radarLoopFrameCount;
+    var ctableGroups = ['REF', 'VEL', 'RHO', 'ZDR', 'KDP', 'DVL'];
+    for (var i = 0; i < ctableGroups.length; i++) {
+        var g = ctableGroups[i];
+        var $sel = $('#' + g + '_ctable_options .ctableOption-selected');
+        s['colortable' + g] = $sel.length ? ($sel.attr('name') || g + '1') : DEFAULTS['colortable' + g];
+    }
     return s;
+}
+
+function saveFromDom() {
+    save(get_settings_from_dom());
 }
 
 module.exports = {
     load,
     save,
     get_settings_from_dom,
+    saveFromDom,
     DEFAULTS
 };

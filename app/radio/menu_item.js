@@ -1,16 +1,20 @@
 const plotToMap = require('./plot_to_map');
 const armFunctions = require('../core/menu/stormTrackProMenu');
 var map = require('../core/map/map');
+const settings_store = require('../core/menu/settings_store');
 
 armFunctions.toggleswitchFunctions($('#armrWeatherRadioBtnSwitchElem'), function() {
     if (map.getLayer('radioStationLayer')) {
-        // layer does exist - toggle the visibility to on
         map.setLayoutProperty('radioStationLayer', 'visibility', 'visible');
     } else {
-        // layer doesn't exist - load it onto the map for the first time
         plotToMap();
     }
 }, function() {
-    // layer does exist - toggle the visibility to off
     map.setLayoutProperty('radioStationLayer', 'visibility', 'none');
-})
+}, settings_store.saveFromDom);
+
+var _saved = settings_store.load();
+if (_saved.weatherRadio) {
+    $('#armrWeatherRadioBtnSwitchElem').prop('checked', true);
+    plotToMap();
+}

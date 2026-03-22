@@ -1,5 +1,6 @@
 const product_colors = require('./colormaps');
 const colortable_parser = require('./colortable_parser');
+const settings_store = require('../../core/menu/settings_store');
 
 function create_css_gradient(colors, values) {
     const cmax = values[values.length - 1];
@@ -41,6 +42,24 @@ function _generate_images() {
 }
 _generate_images();
 
+(function _restore_saved_colortables() {
+    var saved = settings_store.load();
+    var groups = ['REF', 'VEL', 'RHO', 'ZDR', 'KDP', 'DVL'];
+    for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        var ctable = saved['colortable' + g];
+        if (ctable && ctable !== g + '1') {
+            var $option = $('#' + g + '_ctable_options .ctableOption[name="' + ctable + '"]');
+            if ($option.length && !$option.hasClass('ctableOption-selected')) {
+                var $grid = $option.closest('.ctableGrid');
+                $grid.find('.ctableOption-selected').removeClass('ctableOption-selected').find('.ctableCheck').remove();
+                $option.addClass('ctableOption-selected').append('<span class="ctableCheck"><i class="fa fa-circle-check"></i></span>');
+                change_colortable(ctable.slice(0, 3), ctable);
+            }
+        }
+    }
+})();
+
 $(document).on('click', '.ctableOption', function() {
     if ($(this).hasClass('ctableOption-selected')) return;
 
@@ -50,6 +69,7 @@ $(document).on('click', '.ctableOption', function() {
 
     var name = $(this).attr('name');
     change_colortable(name.slice(0, 3), name);
+    settings_store.saveFromDom();
 })
 
 $('.colortable_upload_btn').click(function() {

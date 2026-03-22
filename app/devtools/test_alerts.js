@@ -116,7 +116,13 @@ armFunctions.toggleswitchFunctions($('#devTestAlertsSwitchElem'), function() {
     enable();
 }, function() {
     disable();
-});
+}, settings_store.saveFromDom);
+
+var _saved = settings_store.load();
+if (_saved.testAlerts) {
+    $('#devTestAlertsSwitchElem').prop('checked', true);
+    enable();
+}
 
 $('#devOpenAlertEditorBtn').on('click', function() {
     if (window.stormTrackProDesktop && window.stormTrackProDesktop.openAlertEditor) {

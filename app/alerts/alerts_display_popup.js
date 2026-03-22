@@ -185,7 +185,7 @@ function _build_info_panel() {
         <div class="adpInfoDanger" id="adpInfoDanger">
             <div class="adpInfoDangerHeader">
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>Highest Threat in the US</span>
+                <span>Top Alert</span>
             </div>
             <div class="adpInfoDangerBody" id="adpInfoDangerBody">
                 <div class="adpInfoDangerLoading"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>

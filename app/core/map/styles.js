@@ -50,17 +50,20 @@ function change_map_style(style) {
         map.setPaintProperty('water', 'fill-color', '#141722');
 
         var darkHalo = 'rgba(27,30,43,0.8)';
-        _safePaint('state-label', 'text-color', '#8a93a8');
+        var labelColor = 'rgb(255, 255, 255)';
+        _safePaint('state-label', 'text-color', labelColor);
         _safePaint('state-label', 'text-halo-color', darkHalo);
-        _safePaint('country-label', 'text-color', '#9aa3b8');
+        _safePaint('country-label', 'text-color', labelColor);
         _safePaint('country-label', 'text-halo-color', darkHalo);
-        _safePaint('settlement-label', 'text-color', '#8a93a8');
-        _safePaint('settlement-label', 'text-halo-color', darkHalo);
-        _safePaint('settlement-subdivision-label', 'text-color', '#8a93a8');
+        _safePaint('settlement-major-label', 'text-color', labelColor);
+        _safePaint('settlement-major-label', 'text-halo-color', darkHalo);
+        _safePaint('settlement-minor-label', 'text-color', labelColor);
+        _safePaint('settlement-minor-label', 'text-halo-color', darkHalo);
+        _safePaint('settlement-subdivision-label', 'text-color', labelColor);
         _safePaint('settlement-subdivision-label', 'text-halo-color', darkHalo);
         _safePaint('water-point-label', 'text-color', '#4a5470');
         _safePaint('water-line-label', 'text-color', '#4a5470');
-        _safePaint('road-label', 'text-color', '#5a6378');
+        _safePaint('road-label-simple', 'text-color', '#5a6378');
 
         _safePaint('admin-0-boundary', 'line-color', '#3a3f55');
         _safePaint('admin-0-boundary-disputed', 'line-color', '#3a3f55');
@@ -81,13 +84,15 @@ function change_map_style(style) {
         _safePaint('state-label', 'text-halo-color', origHalo);
         _safePaint('country-label', 'text-color', '#3d4554');
         _safePaint('country-label', 'text-halo-color', origHalo);
-        _safePaint('settlement-label', 'text-color', '#3d4554');
-        _safePaint('settlement-label', 'text-halo-color', origHalo);
+        _safePaint('settlement-major-label', 'text-color', '#3d4554');
+        _safePaint('settlement-major-label', 'text-halo-color', origHalo);
+        _safePaint('settlement-minor-label', 'text-color', '#3d4554');
+        _safePaint('settlement-minor-label', 'text-halo-color', origHalo);
         _safePaint('settlement-subdivision-label', 'text-color', '#3d4554');
         _safePaint('settlement-subdivision-label', 'text-halo-color', origHalo);
         _safePaint('water-point-label', 'text-color', '#4a6e8a');
         _safePaint('water-line-label', 'text-color', '#4a6e8a');
-        _safePaint('road-label', 'text-color', '#555e6e');
+        _safePaint('road-label-simple', 'text-color', '#555e6e');
 
         _safePaint('admin-0-boundary', 'line-color', '#b0b8c4');
         _safePaint('admin-0-boundary-disputed', 'line-color', '#b0b8c4');

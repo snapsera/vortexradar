@@ -114,6 +114,10 @@ function init() {
     const controller = new RadarLoopController();
     window.stormTrackData.radarLoopController = controller;
 
+    var _savedLoop = settings_store.load();
+    if (_savedLoop.radarLoopSpeed) controller.state.speedMultiplier = _savedLoop.radarLoopSpeed;
+    if (_savedLoop.radarLoopFrameCount) controller.state.frameCount = _savedLoop.radarLoopFrameCount;
+
     window.addEventListener('radarBaseFactoryLoaded', (event) => {
         const detail = event.detail || {};
         controller.on_base_radar_changed(detail.station, detail.product, detail.factory);
@@ -132,9 +136,11 @@ function init() {
     $('#radarLoopForwardBtn').on('click', () => controller.step_forward());
     $('#radarLoopSpeedSelect').on('change', function() {
         controller.set_speed($(this).val());
+        settings_store.saveFromDom();
     });
     $('#radarLoopFrameCountSelect').on('change', function() {
         controller.set_frame_count($(this).val());
+        settings_store.saveFromDom();
     });
 
     $(document).on('keydown', function(event) {

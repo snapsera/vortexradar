@@ -123,6 +123,7 @@ function init() {
         controller.on_base_radar_changed(detail.station, detail.product, detail.factory);
     });
     window.addEventListener('radarBaseSelectionRequested', () => {
+        controller._resume_after_switch = controller.state.playing || controller.state.preloading;
         controller._cancel_preload();
         controller.pause();
     });

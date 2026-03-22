@@ -33,6 +33,7 @@ class RadarLoopController {
         this.current_station = null;
         this.current_product = null;
         this.current_render_token = 0;
+        this._resume_after_switch = false;
     }
 
     is_supported_loop_product(product, base_factory = null) {
@@ -53,8 +54,7 @@ class RadarLoopController {
         this.current_station = station;
         this.current_product = product;
         this.state.supported = this.is_supported_loop_product(product, base_factory);
-        this.frame_factory_cache = {};
-        this.frame_render_cache = {};
+        this._trim_caches();
 
         if (!this.state.supported) {
             this.stop();
@@ -74,10 +74,16 @@ class RadarLoopController {
             this.frame_factory_cache.__base_factory = base_factory;
         }
 
+        const should_auto_play = this._resume_after_switch;
+        this._resume_after_switch = false;
+
         this.refresh_frames(() => {
             if (this.state.frames.length === 0) return;
             this.state.currentFrameIndex = this.state.frames.length - 1;
             this.plot_frame(this.state.currentFrameIndex, { preserve_playing_state: true });
+            if (should_auto_play) {
+                this.play();
+            }
         });
     }
 
@@ -282,6 +288,20 @@ class RadarLoopController {
             this.state.preloadTotal = 0;
             this.state.preloadLoaded = 0;
             this._emit_state();
+        }
+    }
+
+    _trim_caches() {
+        const MAX_CACHED_FRAMES = 100;
+        const keys = Object.keys(this.frame_factory_cache).filter(k => k !== '__base_factory');
+        if (keys.length <= MAX_CACHED_FRAMES) return;
+
+        const current_urls = new Set((this.state.frames || []).map(f => f?.url).filter(Boolean));
+        const evictable = keys.filter(url => !current_urls.has(url));
+        const excess = keys.length - MAX_CACHED_FRAMES;
+        for (let i = 0; i < Math.min(excess, evictable.length); i++) {
+            delete this.frame_factory_cache[evictable[i]];
+            delete this.frame_render_cache[evictable[i]];
         }
     }
 

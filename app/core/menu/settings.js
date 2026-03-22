@@ -360,6 +360,29 @@ armFunctions.toggleswitchFunctions($('#armrFocusNewAlertsBtnSwitchElem'), functi
     require('../../alerts/focus_new_alerts').hide_focus_panel();
 }, saveSettings);
 
+armFunctions.toggleswitchFunctions($('#armrAudibleAlertsBtnSwitchElem'), function() {}, function() {}, saveSettings);
+
+$('#ttsVolumeSlider').on('input', function() {
+    var val = parseInt($(this).val(), 10);
+    $('#ttsVolumeValue').text(val + '%');
+    saveSettings();
+});
+
+armFunctions.toggleswitchFunctions($('#tornadoBeepEnabledSwitchElem'), function() {}, function() {}, saveSettings);
+
+var audible_alerts = require('../../ui/audible_alerts');
+
+$('#tornadoBeepVolumeSlider').on('input', function() {
+    var val = parseInt($(this).val(), 10);
+    $('#tornadoBeepVolumeValue').text(val + '%');
+    audible_alerts.setVolume(val);
+    saveSettings();
+});
+
+$('#tornadoBeepTestBtn').on('click', function() {
+    audible_alerts.testTornadoWarningBeep();
+});
+
 armFunctions.toggleswitchFunctions($('#armrHurricaneLegendVisBtnSwitchElem'), function() {
     const is_hurricanes_enabled = $('#armrHurricanesBtnSwitchElem').is(':checked');
     if (is_hurricanes_enabled) {
@@ -395,6 +418,12 @@ function applySavedSettings() {
     $('#armrRadarSweepBtnSwitchElem').prop('checked', s.radarSweep);
     $('#armrRadarRadiusBtnSwitchElem').prop('checked', s.radarRadius);
     $('#armrFocusNewAlertsBtnSwitchElem').prop('checked', s.focusNewAlerts);
+    $('#armrAudibleAlertsBtnSwitchElem').prop('checked', s.audibleAlerts);
+    $('#ttsVolumeSlider').val(s.ttsVolume);
+    $('#ttsVolumeValue').text(s.ttsVolume + '%');
+    $('#tornadoBeepEnabledSwitchElem').prop('checked', s.tornadoWarningBeep);
+    $('#tornadoBeepVolumeSlider').val(s.tornadoWarningBeepVolume);
+    $('#tornadoBeepVolumeValue').text(s.tornadoWarningBeepVolume + '%');
     $('#appDevAutoUpdateModeSelect').val(s.devAutoUpdateMode === 'restartApp' ? 'restartApp' : s.devAutoUpdateMode === 'off' ? 'off' : 'reloadWindow');
 
     // Map style (mutually exclusive)

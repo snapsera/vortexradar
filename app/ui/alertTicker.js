@@ -1,4 +1,5 @@
 var get_polygon_colors = require('../alerts/colors/polygon_colors');
+var alert_voice = require('./alert_voice');
 
 var _queue = [];
 var _playing = false;
@@ -107,15 +108,23 @@ function _build_threat_details(event, params, properties) {
     return null;
 }
 
+function _extract_field(description, field) {
+    var re = new RegExp('\\*?\\s*' + field + '\\.\\.\\.([\\s\\S]+?)(?=\\n\\s*\\*\\s*[A-Z]|\\.\\.\\.\\s*$|$)', 'i');
+    var m = description.match(re);
+    if (!m) return null;
+    var val = m[1].replace(/\s+/g, ' ').trim().replace(/\.\s*$/, '');
+    return val || null;
+}
+
 function _parse_structured_fields(description) {
     if (!description) return {};
     var result = {};
-    var h = description.match(/\*?\s*HAZARD\.\.\.(.+)/i);
-    var s = description.match(/\*?\s*SOURCE\.\.\.(.+)/i);
-    var i = description.match(/\*?\s*IMPACT\.\.\.(.+)/i);
-    if (h) result.hazard = h[1].trim().replace(/\.\s*$/, '');
-    if (s) result.source = s[1].trim().replace(/\.\s*$/, '');
-    if (i) result.impact = i[1].trim().replace(/\.\s*$/, '');
+    var h = _extract_field(description, 'HAZARD');
+    var s = _extract_field(description, 'SOURCE');
+    var i = _extract_field(description, 'IMPACT');
+    if (h) result.hazard = h;
+    if (s) result.source = s;
+    if (i) result.impact = i;
     return result;
 }
 
@@ -214,6 +223,7 @@ function _show_next() {
             void track.offsetWidth;
             track.style.animationName = '';
             ticker.classList.add('alertTicker-scrolling');
+            alert_voice.speak(item.text);
 
             var done = false;
             function onScrollDone() {

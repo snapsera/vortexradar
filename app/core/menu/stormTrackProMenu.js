@@ -1,14 +1,20 @@
+function _resetAllScreens() {
+    $('.armScreen').removeClass('armScreen-slide-out armScreen-slide-in').css({ transform: '', opacity: '', display: '' }).hide();
+}
+
 function showARMwindow() {
-    $('.armScreen').stop(true, true).hide().css({ left: 0, opacity: 1 });
+    _resetAllScreens();
     $('#appMenuMainScreen').show();
     currentScreen = '#appMenuMainScreen';
+    _sliding = false;
     $('#leftPanel').removeClass('leftPanel-closed').addClass('leftPanel-open');
 }
 function hideARMwindow() {
     $('#leftPanel').removeClass('leftPanel-open').addClass('leftPanel-closed');
-    $('.armScreen').stop(true, true).hide().css({ left: 0, opacity: 1 });
+    _resetAllScreens();
     $('#appMenuMainScreen').show();
     currentScreen = '#appMenuMainScreen';
+    _sliding = false;
 }
 
 $(function() {
@@ -107,37 +113,52 @@ $('.armrSlideDown').hover(function() {
     $(this).css('cursor', 'default');
 });
 
-const slideDuration = 200;
+var SLIDE_MS = 220;
 
 var mainMenuScreen = '#appMenuMainScreen';
 var settingsScreen = '#appMenuSettingsScreen';
 var spcScreen = '#appMenuSPCScreen';
 var devToolsScreen = '#appMenuDevToolsScreen';
-var allScreens = [mainMenuScreen, settingsScreen, spcScreen, devToolsScreen];
+var ttsAlertsScreen = '#appMenuTTSAlertsScreen';
+var audibleAlertsScreen = '#appMenuAudibleAlertsScreen';
+var themeScreen = '#appMenuThemeScreen';
+var allScreens = [mainMenuScreen, settingsScreen, spcScreen, devToolsScreen, ttsAlertsScreen, audibleAlertsScreen, themeScreen];
 var currentScreen = mainMenuScreen;
+var _sliding = false;
 
 function slideToScreen(targetScreen, direction) {
     if (targetScreen === currentScreen) return;
-
-    var $container = $('#appMenuBody');
-    var containerWidth = $container.outerWidth() || 350;
-    var slideOut = direction === 'forward' ? -containerWidth : containerWidth;
-    var slideIn = direction === 'forward' ? containerWidth : -containerWidth;
+    if (_sliding) return;
+    _sliding = true;
 
     var $current = $(currentScreen);
     var $target = $(targetScreen);
 
-    $current.stop(true, false);
-    $target.stop(true, false);
+    var outX = direction === 'forward' ? '-100%' : '100%';
+    var inX  = direction === 'forward' ? '100%' : '-100%';
 
-    $current.animate({ left: slideOut, opacity: 0 }, slideDuration, function() {
-        $(this).hide().css({ left: 0, opacity: 1 });
+    $current.addClass('armScreen-slide-out');
+    $target.addClass('armScreen-slide-in');
+
+    $target.scrollTop(0).css({
+        display: 'block',
+        transform: 'translateX(' + inX + ')',
+        opacity: 0
     });
 
-    $target.scrollTop(0).css({ left: slideIn, opacity: 0, display: 'block' })
-        .animate({ left: 0, opacity: 1 }, slideDuration);
+    $target[0].offsetWidth;
 
+    $current.css({ transform: 'translateX(' + outX + ')', opacity: 0 });
+    $target.css({ transform: 'translateX(0)', opacity: 1 });
+
+    var prev = currentScreen;
     currentScreen = targetScreen;
+
+    setTimeout(function() {
+        $(prev).hide().removeClass('armScreen-slide-out').css({ transform: '', opacity: '' });
+        $target.removeClass('armScreen-slide-in').css({ transform: '', opacity: '' });
+        _sliding = false;
+    }, SLIDE_MS + 30);
 }
 
 $('#armrSettingsBtn').click(function() {
@@ -158,6 +179,27 @@ $('#armrDevToolsBtn').click(function() {
     slideToScreen(devToolsScreen, 'forward');
 });
 $('#armsDevToolsBackBtn').click(function() {
+    slideToScreen(mainMenuScreen, 'back');
+});
+
+$('#armrTTSAlertsBtn').click(function() {
+    slideToScreen(ttsAlertsScreen, 'forward');
+});
+$('#armsTTSAlertsBackBtn').click(function() {
+    slideToScreen(mainMenuScreen, 'back');
+});
+
+$('#armrAudibleAlertsBtn').click(function() {
+    slideToScreen(audibleAlertsScreen, 'forward');
+});
+$('#armsAudibleAlertsBackBtn').click(function() {
+    slideToScreen(mainMenuScreen, 'back');
+});
+
+$('#armrThemeBtn').click(function() {
+    slideToScreen(themeScreen, 'forward');
+});
+$('#armsThemeBackBtn').click(function() {
     slideToScreen(mainMenuScreen, 'back');
 });
 

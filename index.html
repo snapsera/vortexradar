@@ -714,32 +714,26 @@
                         </div>
                     </div>
 
-                    <div class="menu-category" id="menuCategoryTheme">
+                    <div class="menu-category" id="menuCategoryAppSettings">
                         <div class="menu-category-header">
-                            <span class="menu-category-title">Theme (Map Style)</span>
+                            <span class="menu-category-title">App Settings</span>
                             <i class="fa fa-chevron-down menu-category-chevron"></i>
                         </div>
                         <div class="menu-category-body" style="display: none;">
-                            <div class="menu-row armrTop" id="armrLightMapBtn">
-                                <i class="armrIcon armrIcon-Blue fa-solid fa-sun"></i>
-                                Light
-                                <div class="form-check form-switch">
-                                    <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrLightMapBtnSwitchElem">
-                                </div>
+                            <div class="menu-row armrTop" id="armrTTSAlertsBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-comment-dots"></i>
+                                TTS Alerts
+                                <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                             </div>
-                            <div class="menu-row armrMiddle" id="armrDarkMapBtn">
-                                <i class="armrIcon armrIcon-Blue fa-solid fa-moon"></i>
-                                Dark
-                                <div class="form-check form-switch">
-                                    <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrDarkMapBtnSwitchElem" checked>
-                                </div>
+                            <div class="menu-row armrMiddle" id="armrAudibleAlertsBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-volume-high"></i>
+                                Audible Alerts
+                                <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                             </div>
-                            <div class="menu-row armrBottom" id="armrSatelliteMapBtn">
-                                <i class="armrIcon armrIcon-Blue fa-solid fa-earth-americas"></i>
-                                Satellite
-                                <div class="form-check form-switch">
-                                    <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrSatelliteMapBtnSwitchElem">
-                                </div>
+                            <div class="menu-row armrBottom" id="armrThemeBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-palette"></i>
+                                Theme
+                                <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                             </div>
                         </div>
                     </div>
@@ -860,6 +854,75 @@
                         <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                     </div>
 
+                </div>
+                <div id="appMenuTTSAlertsScreen" class="armScreen" style="display: none">
+                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsTTSAlertsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>TTS Alerts<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">TEXT-TO-SPEECH</div>
+                    <div class="menu-row armrTop armrWide" id="armrTTSEnabledRow">
+                        Enabled
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrAudibleAlertsBtnSwitchElem">
+                        </div>
+                    </div>
+                    <div class="menu-row armrBottom armrWide menu-row-slider" id="armrTTSVolumeRow">
+                        Volume
+                        <div class="slider-container">
+                            <input type="range" min="0" max="100" value="100" step="5" class="opacity-slider" id="ttsVolumeSlider">
+                            <span class="slider-value" id="ttsVolumeValue">100%</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="appMenuThemeScreen" class="armScreen" style="display: none">
+                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsThemeBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Theme<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">MAP STYLE</div>
+                    <div class="menu-row armrTop armrWide" id="armrLightMapBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-sun"></i>
+                        Light
+                        <div class="form-check form-switch">
+                            <input class="map_style_button form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrLightMapBtnSwitchElem">
+                        </div>
+                    </div>
+                    <div class="menu-row armrMiddle armrWide" id="armrDarkMapBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-moon"></i>
+                        Dark
+                        <div class="form-check form-switch">
+                            <input class="map_style_button form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrDarkMapBtnSwitchElem" checked>
+                        </div>
+                    </div>
+                    <div class="menu-row armrBottom armrWide" id="armrSatelliteMapBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-earth-americas"></i>
+                        Satellite
+                        <div class="form-check form-switch">
+                            <input class="map_style_button form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrSatelliteMapBtnSwitchElem">
+                        </div>
+                    </div>
+                </div>
+                <div id="appMenuAudibleAlertsScreen" class="armScreen" style="display: none">
+                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsAudibleAlertsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Audible Alerts<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <br>
+
+                    <div class="armrHeader armrHeaderWide">TORNADO WARNING</div>
+                    <div class="menu-row armrTop armrWide" id="armrTornadoBeepEnabledRow">
+                        Enabled
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="tornadoBeepEnabledSwitchElem">
+                        </div>
+                    </div>
+                    <div class="menu-row armrMiddle armrWide menu-row-slider" id="armrTornadoBeepVolumeRow">
+                        Volume
+                        <div class="slider-container">
+                            <input type="range" min="0" max="100" value="100" step="5" class="opacity-slider" id="tornadoBeepVolumeSlider">
+                            <span class="slider-value" id="tornadoBeepVolumeValue">100%</span>
+                        </div>
+                    </div>
+                    <div class="menu-row armrBottom armrWide devtools-action-row" id="tornadoBeepTestBtn">
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-play"></i>
+                        Test Sound
+                    </div>
                 </div>
                 <div id="appMenuDevToolsScreen" class="armScreen" style="display: none">
                     <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsDevToolsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Developer Tools<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>

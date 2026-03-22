@@ -26,7 +26,11 @@ const DEFAULTS = {
     alertBlinkColor: '#000000',
     alertBlinkEnabled: true,
     alertBlinkDuration: 30,
-    warningCounter: false
+    warningCounter: false,
+    audibleAlerts: false,
+    ttsVolume: 100,
+    tornadoWarningBeep: false,
+    tornadoWarningBeepVolume: 100
 };
 
 function _load_raw() {
@@ -93,6 +97,10 @@ function get_settings_from_dom() {
     s.alertBlinkEnabled = $('#alertBlinkEnabledSwitchElem').length ? $('#alertBlinkEnabledSwitchElem').is(':checked') : DEFAULTS.alertBlinkEnabled;
     s.alertBlinkDuration = $('#alertBlinkDurationSelect').length ? parseInt($('#alertBlinkDurationSelect').val(), 10) : DEFAULTS.alertBlinkDuration;
     s.warningCounter = $('#armrWarningCounterBtnSwitchElem').length ? $('#armrWarningCounterBtnSwitchElem').is(':checked') : DEFAULTS.warningCounter;
+    s.audibleAlerts = $('#armrAudibleAlertsBtnSwitchElem').length ? $('#armrAudibleAlertsBtnSwitchElem').is(':checked') : DEFAULTS.audibleAlerts;
+    s.ttsVolume = $('#ttsVolumeSlider').length ? parseInt($('#ttsVolumeSlider').val(), 10) : DEFAULTS.ttsVolume;
+    s.tornadoWarningBeep = $('#tornadoBeepEnabledSwitchElem').length ? $('#tornadoBeepEnabledSwitchElem').is(':checked') : DEFAULTS.tornadoWarningBeep;
+    s.tornadoWarningBeepVolume = $('#tornadoBeepVolumeSlider').length ? parseInt($('#tornadoBeepVolumeSlider').val(), 10) : DEFAULTS.tornadoWarningBeepVolume;
     return s;
 }
 

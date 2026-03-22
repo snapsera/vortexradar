@@ -15,6 +15,9 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`StormTrack Pro running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log('StormTrack Pro running on port ' + PORT);
+}).on('error', (err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
 });

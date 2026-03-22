@@ -277,7 +277,7 @@ async function _select_radar_and_fly(feature) {
     if (!geom) return false;
     const centroid = turf.centroid(geom);
     const [lng, lat] = centroid.geometry.coordinates;
-    const station = alert_helpers.get_closest_wsr88d_radar(lng, lat);
+    const station = alert_helpers.get_best_wsr88d_radar(geom, lng, lat);
     if (!station) {
         _fly_to_geometry(geom);
         return true;

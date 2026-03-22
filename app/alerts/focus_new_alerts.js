@@ -59,8 +59,13 @@ function _get_station_with_severe_alert(preferNearFeature) {
     }
     if (stationsWithSevere.length === 0) return null;
     if (preferNearFeature && preferNearFeature.geometry) {
+        const geom = preferNearFeature.geometry;
+        const best = alert_helpers.get_best_wsr88d_radar(geom);
+        if (best && stationsWithSevere.some((s) => s.stationId === best)) {
+            return best;
+        }
         try {
-            const centroid = turf.centroid(turf.feature(preferNearFeature.geometry));
+            const centroid = turf.centroid(turf.feature(geom));
             const [lng, lat] = centroid.geometry.coordinates;
             let closest = null;
             let minDist = Infinity;
@@ -94,7 +99,7 @@ function _get_station_for_alert(feature) {
     try {
         const centroid = turf.centroid(turf.feature(geom));
         const [lng, lat] = centroid.geometry.coordinates;
-        return alert_helpers.get_closest_wsr88d_radar(lng, lat);
+        return alert_helpers.get_best_wsr88d_radar(geom, lng, lat);
     } catch (_) {
         return null;
     }

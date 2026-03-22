@@ -149,7 +149,7 @@ function click_listener(e) {
     ${parameters_html}
     ${expiresStr ? `<div class="alert_popup_lessertext">${expiresStr}</div>` : ''}
     <div class="alertPopupCardActions">
-      <button type="button" class="alertPopupBtn alertPopupGlobe" title="Select closest radar"><span class="fa fa-globe"></span></button>
+      <button type="button" class="alertPopupBtn alertPopupGlobe" title="Select best radar for this alert"><span class="fa fa-globe"></span></button>
       <button type="button" class="alertPopupBtn alertPopupArrow" title="View details"><span class="fa fa-chevron-right"></span></button>
     </div>
   </div>
@@ -171,7 +171,8 @@ function click_listener(e) {
         const id = card.data('id');
         const data = alertContentObj[id];
         if (!data) return;
-        const station = alert_helpers.get_closest_wsr88d_radar(lng, lat);
+        const featureGeom = data.feature?.geometry || null;
+        const station = alert_helpers.get_best_wsr88d_radar(featureGeom, lng, lat);
         _select_radar_and_fly(station, data.feature);
         popup.remove();
     });

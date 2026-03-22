@@ -30,6 +30,92 @@ function get_closest_wsr88d_radar(lng, lat) {
     return closest;
 }
 
+const _RADAR_RANGE_KM = 230;
+const _SEARCH_RADIUS_KM = 350;
+const _W_COVERAGE = 0.55;
+const _W_PROXIMITY = 0.45;
+
+/**
+ * Select the best WSR-88D radar for viewing an alert polygon.
+ *
+ * Scores candidates on two axes:
+ *   - Coverage (55%): fraction of the alert polygon within the radar's 230 km range.
+ *   - Proximity (45%): how centered the alert is within range (closer = lower beam
+ *     height and better resolution).
+ *
+ * Falls back to closest-radar logic when no geometry is available or if turf
+ * operations fail.
+ *
+ * @param {object|null} geometry  GeoJSON geometry of the alert (Polygon / MultiPolygon)
+ * @param {number}      [fallbackLng]  Longitude to use when geometry is unavailable
+ * @param {number}      [fallbackLat]  Latitude  to use when geometry is unavailable
+ * @returns {string|null} Station ID or null
+ */
+function get_best_wsr88d_radar(geometry, fallbackLng, fallbackLat) {
+    if (!geometry) {
+        return (fallbackLng != null && fallbackLat != null)
+            ? get_closest_wsr88d_radar(fallbackLng, fallbackLat)
+            : null;
+    }
+
+    try {
+        const alertFeature = turf.feature(geometry);
+        const centroid = turf.centroid(alertFeature);
+        const [cLng, cLat] = centroid.geometry.coordinates;
+        const alertArea = turf.area(alertFeature);
+
+        if (!alertArea || alertArea < 1) {
+            return get_closest_wsr88d_radar(cLng, cLat);
+        }
+
+        let bestStation = null;
+        let bestScore = -Infinity;
+
+        for (const [stationId, loc] of Object.entries(nexrad_locations)) {
+            if (loc.type !== 'WSR-88D') continue;
+
+            const stationPt = turf.point([loc.lon, loc.lat]);
+            const distKm = turf.distance(centroid, stationPt, { units: 'kilometers' });
+            if (distKm > _SEARCH_RADIUS_KM) continue;
+
+            const proximityScore = Math.max(0, 1 - distKm / _RADAR_RANGE_KM);
+
+            let coverageScore;
+            try {
+                const circle = turf.circle([loc.lon, loc.lat], _RADAR_RANGE_KM, {
+                    steps: 64,
+                    units: 'kilometers'
+                });
+
+                if (turf.booleanContains(circle, alertFeature)) {
+                    coverageScore = 1.0;
+                } else {
+                    const inter = turf.intersect(alertFeature, circle);
+                    coverageScore = inter
+                        ? Math.min(1, turf.area(inter) / alertArea)
+                        : 0;
+                }
+            } catch (_) {
+                coverageScore = distKm <= _RADAR_RANGE_KM
+                    ? Math.max(0.1, 1 - distKm / _RADAR_RANGE_KM)
+                    : 0;
+            }
+
+            const score = _W_COVERAGE * coverageScore + _W_PROXIMITY * proximityScore;
+            if (score > bestScore) {
+                bestScore = score;
+                bestStation = stationId;
+            }
+        }
+
+        return bestStation || get_closest_wsr88d_radar(cLng, cLat);
+    } catch (_) {
+        return (fallbackLng != null && fallbackLat != null)
+            ? get_closest_wsr88d_radar(fallbackLng, fallbackLat)
+            : null;
+    }
+}
+
 function checkPropertyExists(property) {
     return (typeof property === 'undefined') ? 'None' : property;
 }
@@ -300,6 +386,7 @@ function build_full_alert_body(properties) {
 
 module.exports = {
     get_closest_wsr88d_radar,
+    get_best_wsr88d_radar,
     build_full_alert_body,
     checkPropertyExists,
     is_severe_weather_alert

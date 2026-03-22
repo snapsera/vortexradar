@@ -56,19 +56,33 @@ tools/              Changelog and bundle-size tracking utilities
 - **Browserify + brfs** for bundling
 - **WebGL (custom GLSL shaders)** for radar rendering
 - Radar decoding is done entirely client-side, including bzip2 decompression (Level 2) and various NEXRAD message parsers
-- A lightweight local HTTP server (`electron/main/process_manager.js`) serves the frontend at `127.0.0.1:3333`
+- **Express** serves the frontend (`server.js` on port 3000 standalone, or via `electron/main/process_manager.js` on `127.0.0.1:3333` in the desktop app)
 
 ## Getting started
 
 ```bash
 npm install
 npm run build
-npm run start
 ```
 
-`npm run build` concatenates CSS source files into `index.css`, bundles JS with Browserify, and minifies with UglifyJS. `npm run start` launches the Electron app.
+`npm run build` concatenates CSS source files into `index.css`, bundles JS with Browserify, and minifies with UglifyJS.
 
-For development with auto-rebuild on changes:
+### Running the desktop app (Electron)
+
+```bash
+npm run start:desktop
+```
+
+### Running locally in the browser
+
+```bash
+npm run start          # starts the Express server (port 3000)
+npm run dev:browser    # builds first, then starts the server
+```
+
+Open `http://localhost:3000` in your browser. Useful for testing changes before pushing to production.
+
+### Development with auto-rebuild
 
 ```bash
 npm run dev

@@ -39,6 +39,7 @@ function load() {
     require('../../ui/alertTicker').init();
     require('../../ui/alert_voice').init();
     require('../../ui/audible_alerts').init();
+    require('../../ui/fullscreen_toggle').init();
 
     window.dispatchEvent(new CustomEvent('stormTrackModulesLoaded'));
 }

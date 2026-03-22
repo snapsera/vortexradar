@@ -50,10 +50,9 @@ function build_about_html() {
         <div class="about_bottomCol">
             <div class="about_sectionLabel">Built with</div>
             <div class="about_tagRow">
-                <span class="about_tag">Electron</span>
                 <span class="about_tag">Mapbox GL</span>
                 <span class="about_tag">WebGL</span>
-                <span class="about_tag">Node.js</span>
+                ${window.stormTrackProDesktop ? '<span class="about_tag">Electron</span><span class="about_tag">Node.js</span>' : ''}
             </div>
         </div>
     </div>
@@ -82,8 +81,11 @@ $('#armrAboutBtn').click(function() {
 
 $(document).on('click', '.about_discordLink', function(e) {
     e.preventDefault();
+    var href = $(this).attr('href');
     if (window.stormTrackProDesktop && window.stormTrackProDesktop.openExternalUrl) {
-        window.stormTrackProDesktop.openExternalUrl($(this).attr('href'));
+        window.stormTrackProDesktop.openExternalUrl(href);
+    } else {
+        window.open(href, '_blank', 'noopener');
     }
 });
 

@@ -22,10 +22,9 @@ function kmz_to_geojson(kmz_blob, callback, return_dom = false) {
         } else {
             let geoJsonObject = toGeoJSON.kml(kmlDom)
             callback(geoJsonObject);
-            // //console.log(`${hurricaneID} - KMZ successfully unzipped.`);
-            // //drawHurricanesToMap(geoJsonObject, type, index, hurricaneID);
-            // cb(geoJsonObject);
         }
+    }).catch(err => {
+        console.warn('kmz_to_geojson: failed to parse KMZ:', err.message || err);
     })
 }
 

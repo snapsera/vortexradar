@@ -162,11 +162,14 @@ function fetch_watches() {
             for (var i = 0; i < links.length; i++) {
                 const this_discussion_url = links[i].Link.href['#text'];
                 const this_discussion_desc = links[i].name['#text'];
-                const event = /(.*? Watch \d+).*/.exec(this_discussion_desc)[1];
+                const event_match = /(.*? Watch \d+).*/.exec(this_discussion_desc);
+                if (!event_match) continue;
+                const event = event_match[1];
                 const color = get_polygon_colors(event.substring(0, event.lastIndexOf(' '))).color;
 
-                var id_split = event.split(' ');
-                const id = id_split[id_split.length - 1];
+                const id_match = event.match(/(\d+)/);
+                if (!id_match) continue;
+                const id = id_match[1];
 
                 _fetch_individual_watch(this_discussion_url, (geojson) => {
                     geojson.features[0].properties.event = event;

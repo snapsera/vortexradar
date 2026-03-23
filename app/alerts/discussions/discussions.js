@@ -151,8 +151,9 @@ function fetch_discussions() {
                 const this_discussion_url = links[i].Link.href['#text'];
                 const this_discussion_desc = links[i].name['#text'];
 
-                var id_split = this_discussion_desc.split(' ');
-                const id = id_split[1];
+                const id_match = this_discussion_desc.match(/(\d+)/);
+                if (!id_match) continue;
+                const id = id_match[1];
 
                 _fetch_individual_discussion(this_discussion_url, (geojson) => {
                     geojson.features[0].properties.event = this_discussion_desc;

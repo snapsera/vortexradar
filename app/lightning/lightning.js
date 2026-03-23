@@ -1,7 +1,6 @@
 var map = require('../core/map/map');
 var map_funcs = require('../core/map/mapFunctions');
 var setLayerOrder = require('../core/map/setLayerOrder');
-var ut = require('../core/utils');
 
 var LAYER_GLOW = 'lightningGlow';
 var LAYER_CORE = 'lightningCore';
@@ -10,29 +9,50 @@ var LAYERS = [LAYER_GLOW, LAYER_CORE];
 
 var STRIKE_LIFETIME_MS = 6000;
 var ANIMATION_INTERVAL_MS = 75;
-var POLL_INTERVAL_MS = 20000;
-
-var WS_ATTEMPTS = [
-    { url: 'wss://ws1.blitzortung.org:3000/', msg: '{"time":0}', decode: false },
-    { url: 'wss://ws7.blitzortung.org:3000/', msg: '{"time":0}', decode: false },
-    { url: 'wss://ws5.blitzortung.org:3000/', msg: '{"time":0}', decode: false },
-    { url: 'wss://ws6.blitzortung.org:3000/', msg: '{"time":0}', decode: false },
+var WS_RECONNECT_MS = 3000;
+var WS_SERVERS = [
+    'ws1.blitzortung.org',
+    'ws2.blitzortung.org',
+    'ws7.blitzortung.org',
+    'ws8.blitzortung.org',
 ];
 
-var ARCHIVE_CONTAINERS = [3, 1, 5, 4, 2, 6];
-var ARCHIVE_BASE = 'https://www.limaps.org/JSON/';
-
 var strikes = [];
-var seenKeys = {};
 var ws = null;
 var animationTimer = null;
-var pollTimer = null;
 var active = false;
-var wsAttemptIndex = 0;
-var wsGotData = false;
-var wsConnectTimer = null;
-var mode = 'none'; // 'ws', 'poll', 'none'
-var lastPollTime = 0;
+var wsServerIndex = 0;
+var reconnectTimer = null;
+
+// ── LZW decoder (matches official Blitzortung map decode function) ──
+
+function decode(input) {
+    var dict = {};
+    var chars = input.split('');
+    var firstChar = chars[0];
+    var prevEntry = firstChar;
+    var result = [firstChar];
+    var nextCode = 256;
+    var o = nextCode;
+
+    for (var i = 1; i < chars.length; i++) {
+        var code = chars[i].charCodeAt(0);
+        var entry;
+        if (nextCode > code) {
+            entry = chars[i];
+        } else if (dict[code]) {
+            entry = dict[code];
+        } else {
+            entry = prevEntry + firstChar;
+        }
+        result.push(entry);
+        firstChar = entry.charAt(0);
+        dict[o] = prevEntry + firstChar;
+        o++;
+        prevEntry = entry;
+    }
+    return result.join('');
+}
 
 // ── Mapbox layers ──
 
@@ -70,7 +90,7 @@ function createLayers() {
     setLayerOrder();
 }
 
-// ── Strike animation math ──
+// ── Strike animation ──
 
 function getStrikeVisuals(ageMs) {
     if (ageMs >= STRIKE_LIFETIME_MS) return { co: 0, go: 0, cr: 0, gr: 0 };
@@ -118,234 +138,68 @@ function updateAnimation() {
     }
 }
 
-function addStrike(lat, lon, displayTime) {
-    var key = lat.toFixed(3) + ',' + lon.toFixed(3) + ',' + Math.floor(displayTime / 2000);
-    if (seenKeys[key]) return;
-    seenKeys[key] = true;
-    strikes.push({ lt: lat, ln: lon, t: displayTime });
+// ── WebSocket connection (protocol extracted from official map.blitzortung.org) ──
 
-    // Prune seenKeys periodically
-    if (Object.keys(seenKeys).length > 5000) {
-        seenKeys = {};
-    }
-}
-
-// ── LZW decoder for obfuscated Blitzortung WebSocket data ──
-
-function lzwDecode(str) {
-    var data = str.split('');
-    if (data.length === 0) return '';
-
-    var dict = {};
-    var c = data[0];
-    var f = c;
-    var result = [c];
-    var nextCode = 256;
-
-    for (var i = 1; i < data.length; i++) {
-        var code = data[i].charCodeAt(0);
-        var entry;
-        if (code < 256) {
-            entry = data[i];
-        } else if (dict[code] !== undefined) {
-            entry = dict[code];
-        } else {
-            entry = f + c;
-        }
-        result.push(entry);
-        c = entry.charAt(0);
-        dict[nextCode] = f + c;
-        nextCode++;
-        f = entry;
-    }
-    return result.join('');
-}
-
-// ── WebSocket data source ──
-
-function tryNextWebSocket() {
-    if (!active) return;
-    if (wsAttemptIndex >= WS_ATTEMPTS.length) {
-        console.log('[lightning] all WebSocket endpoints failed, falling back to HTTP polling');
-        startPolling();
-        return;
+function connectWebSocket() {
+    if (ws) {
+        try { ws.close(); } catch (e) { /* */ }
+        ws = null;
     }
 
-    var attempt = WS_ATTEMPTS[wsAttemptIndex];
-    wsAttemptIndex++;
-    wsGotData = false;
+    var server = WS_SERVERS[wsServerIndex % WS_SERVERS.length];
+    wsServerIndex++;
+    var url = 'wss://' + server;
 
-    console.log('[lightning] trying WebSocket:', attempt.url);
+    console.log('[lightning] connecting to', url);
 
     try {
-        if (ws) { try { ws.close(); } catch (e) { /* */ } }
-        ws = new WebSocket(attempt.url);
+        ws = new WebSocket(url);
     } catch (e) {
         console.warn('[lightning] WebSocket creation failed:', e.message);
-        tryNextWebSocket();
+        scheduleReconnect();
         return;
     }
 
-    var thisWs = ws;
-
-    wsConnectTimer = setTimeout(function() {
-        if (!wsGotData && ws === thisWs) {
-            console.log('[lightning] no data from', attempt.url, '- trying next');
-            try { ws.close(); } catch (e) { /* */ }
-            ws = null;
-            tryNextWebSocket();
-        }
-    }, 6000);
-
     ws.onopen = function() {
-        console.log('[lightning] WebSocket connected to', attempt.url);
-        try { ws.send(attempt.msg); } catch (e) { /* */ }
+        console.log('[lightning] connected to', server);
+        try {
+            ws.send('{"a":111}');
+        } catch (e) { /* */ }
     };
 
     ws.onmessage = function(event) {
         if (!active) return;
-
-        var raw = event.data;
-        var parsed;
-
         try {
-            // Try direct JSON first
-            parsed = JSON.parse(raw);
-        } catch (e) {
-            // Try LZW decode
-            try {
-                var decoded = lzwDecode(raw);
-                parsed = JSON.parse(decoded);
-            } catch (e2) {
-                return;
-            }
-        }
+            var decoded = decode(event.data);
+            var data = JSON.parse(decoded);
 
-        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lon === 'number') {
-            if (!wsGotData) {
-                wsGotData = true;
-                mode = 'ws';
-                if (wsConnectTimer) { clearTimeout(wsConnectTimer); wsConnectTimer = null; }
-                console.log('[lightning] receiving live data via WebSocket');
+            if (typeof data.lat === 'number' && typeof data.lon === 'number' && 'delay' in data) {
+                var lat = data.lat;
+                var lon = data.lon;
+                if (typeof data.latc === 'number') lat += data.latc;
+                if (typeof data.lonc === 'number') lon += data.lonc;
+                strikes.push({ lt: lat, ln: lon, t: Date.now() });
             }
-            addStrike(parsed.lat, parsed.lon, Date.now());
-        }
+        } catch (e) { /* skip malformed messages */ }
     };
 
     ws.onerror = function() {
-        console.warn('[lightning] WebSocket error on', attempt.url);
+        console.warn('[lightning] WebSocket error on', server);
     };
 
     ws.onclose = function() {
-        if (ws === thisWs) ws = null;
-        if (active && mode === 'ws') {
-            console.log('[lightning] WebSocket closed, reconnecting...');
-            wsAttemptIndex = 0;
-            setTimeout(function() { if (active) tryNextWebSocket(); }, 3000);
-        }
+        ws = null;
+        if (active) scheduleReconnect();
     };
 }
 
-// ── HTTP polling fallback (Blitzortung JSON archive via CORS proxy) ──
-
-function get10MinBlock(d) {
-    return Math.floor(d.getUTCMinutes() / 10) * 10;
-}
-
-function pad2(n) { return n < 10 ? '0' + n : '' + n; }
-
-function buildArchiveUrl(container, d) {
-    var tenMin = get10MinBlock(d);
-    return ARCHIVE_BASE +
-        'C' + container + '/' +
-        d.getUTCFullYear() + '/' +
-        pad2(d.getUTCMonth() + 1) + '/' +
-        pad2(d.getUTCDate()) + '/' +
-        pad2(d.getUTCHours()) + '/' +
-        pad2(tenMin) + '.json';
-}
-
-function fetchArchiveBlock(container, dateObj, callback) {
-    var url = buildArchiveUrl(container, dateObj);
-    var proxyUrl = ut.phpProxy + encodeURIComponent(url);
-
-    fetch(proxyUrl).then(function(resp) {
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        return resp.text();
-    }).then(function(text) {
-        var results = [];
-        var lines = text.split('\n');
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (!line) continue;
-            try {
-                var obj = JSON.parse(line);
-                if (typeof obj.lat === 'number' && typeof obj.lon === 'number' && obj.time) {
-                    results.push(obj);
-                }
-            } catch (e) { /* skip malformed lines */ }
-        }
-        callback(results);
-    }).catch(function(err) {
-        callback([]);
-    });
-}
-
-function pollOnce() {
-    if (!active || mode !== 'poll') return;
-
-    var now = new Date();
-    var prev = new Date(now.getTime() - 10 * 60 * 1000);
-    var fetched = 0;
-    var totalContainers = ARCHIVE_CONTAINERS.length;
-    var allResults = [];
-
-    function onDone() {
-        fetched++;
-        if (fetched < totalContainers * 2) return;
-
-        if (allResults.length > 0) {
-            console.log('[lightning] polled', allResults.length, 'strikes from archive');
-        }
-
-        var displayNow = Date.now();
-        var spreadMs = Math.min(POLL_INTERVAL_MS, 15000);
-
-        for (var i = 0; i < allResults.length; i++) {
-            var s = allResults[i];
-            var strikeEpoch = Math.floor(s.time / 1e6);
-            if (strikeEpoch <= lastPollTime) continue;
-            var stagger = Math.random() * spreadMs;
-            addStrike(s.lat, s.lon, displayNow + stagger);
-        }
-
-        lastPollTime = Date.now();
-    }
-
-    for (var c = 0; c < ARCHIVE_CONTAINERS.length; c++) {
-        var container = ARCHIVE_CONTAINERS[c];
-        fetchArchiveBlock(container, now, function(results) {
-            allResults = allResults.concat(results);
-            onDone();
-        });
-        fetchArchiveBlock(container, prev, function(results) {
-            allResults = allResults.concat(results);
-            onDone();
-        });
-    }
-}
-
-function startPolling() {
-    if (mode === 'poll') return;
-    mode = 'poll';
-    lastPollTime = Date.now() - 5 * 60 * 1000;
-    console.log('[lightning] starting HTTP poll mode');
-    pollOnce();
-    pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
-}
-
-function stopPolling() {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+function scheduleReconnect() {
+    if (!active) return;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(function() {
+        reconnectTimer = null;
+        if (active) connectWebSocket();
+    }, WS_RECONNECT_MS);
 }
 
 // ── Animation loop ──
@@ -364,9 +218,7 @@ function stopAnimationLoop() {
 function start() {
     if (active) return;
     active = true;
-    mode = 'none';
-    wsAttemptIndex = 0;
-    wsGotData = false;
+    wsServerIndex = 0;
 
     console.log('[lightning] starting lightning tracker');
 
@@ -381,20 +233,17 @@ function start() {
     }
 
     startAnimationLoop();
-    tryNextWebSocket();
+    connectWebSocket();
 }
 
 function stop() {
     active = false;
-    mode = 'none';
     stopAnimationLoop();
-    stopPolling();
 
-    if (wsConnectTimer) { clearTimeout(wsConnectTimer); wsConnectTimer = null; }
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     if (ws) { try { ws.close(); } catch (e) { /* */ } ws = null; }
 
     strikes = [];
-    seenKeys = {};
 
     var source = map.getSource(SOURCE_ID);
     if (source) {

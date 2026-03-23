@@ -24,6 +24,12 @@ $(function() {
         $('#appMenu').hide();
     }
 
+    var host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+        $('#menuCategoryDeveloper').remove();
+        $('#appMenuDevToolsScreen').remove();
+    }
+
     $('.menu-category-header').on('click', function() {
         var $category = $(this).closest('.menu-category');
         var $body = $category.find('.menu-category-body');

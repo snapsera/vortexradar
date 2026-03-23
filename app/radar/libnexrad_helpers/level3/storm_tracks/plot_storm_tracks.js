@@ -45,6 +45,7 @@ function generatePerpendicularLine(basePoint, destPoint, cellData, forecastIndex
 }
 
 function plot_storm_tracks(L3Factory) {
+    if (!L3Factory.formatted_tabular || !L3Factory.formatted_tabular.storms) return;
     const allTracks = L3Factory.formatted_tabular.storms;
 
     function individualCell(id) {

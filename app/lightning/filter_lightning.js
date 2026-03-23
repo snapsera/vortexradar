@@ -2,43 +2,57 @@ const map = require('../core/map/map');
 const turf = require('@turf/turf');
 const NEXRAD_LOCATIONS = require('../radar/libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
 
-function filter_lightning(total_hide = false) {
-    if (total_hide) {
-        const fc =  turf.featureCollection([]);
+function filter_lightning(total_hide) {
+    var original = window.stormTrackData && window.stormTrackData.original_lightning_points;
+    if (!original || !original.features) {
         if (map.getSource('lightningSource')) {
-            map.getSource('lightningSource').setData(fc);
+            map.getSource('lightningSource').setData(turf.featureCollection([]));
         }
-        return fc;
+        return turf.featureCollection([]);
     }
 
-    var data = JSON.parse(JSON.stringify(window.stormTrackData.original_lightning_points));
-    const points = [];
+    if (total_hide) {
+        var empty = turf.featureCollection([]);
+        if (map.getSource('lightningSource')) {
+            map.getSource('lightningSource').setData(empty);
+        }
+        return empty;
+    }
 
-    const current_station = window.stormTrackData.currentStation;
-    if (current_station != undefined) {
-        const current_station_point = turf.point([NEXRAD_LOCATIONS[current_station].lon, NEXRAD_LOCATIONS[current_station].lat]);
+    var current_station = window.stormTrackData.currentStation;
+    if (!current_station || !NEXRAD_LOCATIONS[current_station]) {
+        if (map.getSource('lightningSource')) {
+            map.getSource('lightningSource').setData(turf.featureCollection([]));
+        }
+        return turf.featureCollection([]);
+    }
 
-        for (var i = 0; i < data.features.length; i++) {
-            const coords = data.features[i].geometry.coordinates;
-            const properties = data.features[i].properties;
-            const point = turf.point(coords, properties);
+    var station_loc = NEXRAD_LOCATIONS[current_station];
+    var station_point = turf.point([station_loc.lon, station_loc.lat]);
+    var points = [];
 
-            const distance = turf.distance(current_station_point, point, { units: 'kilometers' });
+    for (var i = 0; i < original.features.length; i++) {
+        var feature = original.features[i];
+        if (!feature || !feature.geometry || !feature.geometry.coordinates) continue;
+
+        try {
+            var point = turf.point(feature.geometry.coordinates, feature.properties);
+            var distance = turf.distance(station_point, point, { units: 'kilometers' });
             if (distance <= 460) {
                 points.push(point);
             }
+        } catch (_) {
+            // skip invalid feature
         }
-
-        const fc = turf.featureCollection(points);
-        window.stormTrackData.station_lightning = JSON.parse(JSON.stringify(fc));
-
-        if (map.getSource('lightningSource')) {
-            map.getSource('lightningSource').setData(fc);
-        }
-        return fc;
-    } else {
-        return turf.featureCollection([]);
     }
+
+    var fc = turf.featureCollection(points);
+    window.stormTrackData.station_lightning = fc;
+
+    if (map.getSource('lightningSource')) {
+        map.getSource('lightningSource').setData(fc);
+    }
+    return fc;
 }
 
 module.exports = filter_lightning;

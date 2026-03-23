@@ -13,21 +13,26 @@ const Level3Factory = require('../libnexrad/level3/level3_factory');
  * @param {*} callback A callback function that has a single paramater, which is the buffer of the file.
  */
 function file_to_buffer(url, callback, signal = null) {
-    // good catch! thanks CGray1234!
     if (url.includes('tgftp.nws.noaa.gov')) url = ut.phpProxy + url;
 
     var fetchOpts = { cache: 'no-cache' };
     if (signal) fetchOpts.signal = signal;
 
     fetch(url, fetchOpts)
-    .then(response => response.arrayBuffer())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ' fetching radar file');
+        }
+        return response.arrayBuffer();
+    })
     .then(buffer => {
         var fileBuffer = Buffer.from(buffer);
         callback(fileBuffer);
     })
     .catch((error) => {
         if (error?.name === 'AbortError') return;
-        console.error('Error fetching radar file:', error);
+        console.warn('[file_to_buffer]', error.message || error);
+        callback(null);
     });
 }
 
@@ -191,13 +196,17 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
         )
         .then(response => {
             if (signal?.aborted) return;
+            if (!response.ok) {
+                console.warn('[storm data] HTTP ' + response.status + ' for ' + product + '/' + station);
+                callback(null);
+                return;
+            }
             const file_modified_date = response.headers.get('Last-Modified');
-
             callback(fileUrl, new Date(file_modified_date));
         })
         .catch((error) => {
             if (error?.name === 'AbortError') return;
-            console.error('Error getting latest special level 3 URL:', error);
+            console.warn('[storm data]', error.message || error);
             callback(null);
         })
     }
@@ -387,10 +396,15 @@ function return_level_3_factory_from_info(station, product, callback, signal = n
 function return_level_3_factory_from_url(url, callback, signal = null) {
     if (!url) return;
     file_to_buffer(url, (buffer) => {
+        if (!buffer) return;
         if (signal?.aborted) return;
-        const file = new NEXRADLevel3File(buffer);
-        const L3Factory = new Level3Factory(file);
-        callback(L3Factory);
+        try {
+            const file = new NEXRADLevel3File(buffer);
+            const L3Factory = new Level3Factory(file);
+            callback(L3Factory);
+        } catch (e) {
+            console.warn('[L3 parse]', e.message || e);
+        }
     }, signal)
 }
 /**

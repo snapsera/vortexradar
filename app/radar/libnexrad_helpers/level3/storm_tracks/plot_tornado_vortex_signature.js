@@ -1,5 +1,6 @@
 const nexrad_locations = require('../../../libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
 const turf = require('@turf/turf');
+const map = require('../../../../core/map/map');
 const ut = require('../../../../core/utils');
 const setLayerOrder = require('../../../../core/map/setLayerOrder');
 const icons = require('../../../../core/map/icons/icons');
@@ -16,6 +17,7 @@ function findTerminalCoordinates(startLat, startLng, distanceNM, bearingDEG) {
 }
 
 function plot_tornado_vortex_signature(L3Factory) {
+    if (!L3Factory.formatted_tabular || !L3Factory.formatted_tabular.tvs) return;
     icons.add_icon_svg([
         [icons.icons.tornado_icon, 'tornado']
     ], () => {

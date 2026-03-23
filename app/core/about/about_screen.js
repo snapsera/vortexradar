@@ -27,9 +27,7 @@ function build_about_html() {
             <div class="about_feat"><i class="fa-solid fa-satellite-dish about_featDot"></i>Full NEXRAD Level II &amp; III radar products with super resolution</div>
             <div class="about_feat"><i class="fa-solid fa-wind about_featDot"></i>Doppler velocity dealiasing</div>
             <div class="about_feat"><i class="fa-solid fa-triangle-exclamation about_featDot"></i>Real-time NWS weather alerts with polygon map overlays</div>
-            <div class="about_feat"><i class="fa-solid fa-bolt-lightning about_featDot"></i>Lightning strike tracking</div>
             <div class="about_feat"><i class="fa-solid fa-cloud-bolt about_featDot"></i>SPC convective outlooks &mdash; categorical, tornado, wind, hail</div>
-            <div class="about_feat"><i class="fa-solid fa-route about_featDot"></i>Storm tracks with automated projections</div>
             <div class="about_feat"><i class="fa-solid fa-radio about_featDot"></i>NOAA Weather Radio live streams</div>
             <div class="about_feat"><i class="fa-solid fa-palette about_featDot"></i>Custom colortables with upload support</div>
         </div>
@@ -57,12 +55,21 @@ function build_about_html() {
         </div>
     </div>
 
-    <div class="about_discord">
-        <a class="about_discordLink" href="https://discord.gg/wn8FMHC26v">
-            <i class="fa-brands fa-discord about_discordIcon"></i>
+    <div class="about_socials">
+        <a class="about_socialLink about_socialLink--discord" href="https://discord.gg/wn8FMHC26v">
+            <i class="fa-brands fa-discord about_socialIcon"></i>
             Join our Discord
         </a>
+        <a class="about_socialLink about_socialLink--x" href="https://x.com/_snapsera">
+            <i class="fa-brands fa-x-twitter about_socialIcon"></i>
+            @_snapsera
+        </a>
+        <a class="about_socialLink about_socialLink--github" href="https://github.com/snapsera">
+            <i class="fa-brands fa-github about_socialIcon"></i>
+            GitHub
+        </a>
     </div>
+    <div class="about_discordUid">Discord UID: 232292307833978881</div>
 
     <div class="about_footer">&copy; ${year} StormTrack Pro</div>
 </div>`;
@@ -79,7 +86,7 @@ $('#armrAboutBtn').click(function() {
     });
 });
 
-$(document).on('click', '.about_discordLink', function(e) {
+$(document).on('click', '.about_socialLink', function(e) {
     e.preventDefault();
     var href = $(this).attr('href');
     window.open(href, '_blank', 'noopener');

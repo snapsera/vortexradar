@@ -62,7 +62,14 @@ function openLoadDefaultsConfirm() {
         clearTimeout(_loadDefaultsHideTimeout);
         _loadDefaultsHideTimeout = null;
     }
-    $overlay.css('display', 'flex');
+    // Force visible state in case any stale CSS/DOM state exists.
+    $overlay.css({
+        display: 'flex',
+        opacity: '1',
+        visibility: 'visible',
+        'pointer-events': 'auto',
+        'z-index': '3000000'
+    });
     requestAnimationFrame(function() {
         $overlay.addClass('defaultsConfirmOverlay-visible');
     });
@@ -74,7 +81,13 @@ function closeLoadDefaultsConfirm() {
     $overlay.removeClass('defaultsConfirmOverlay-visible');
     if (_loadDefaultsHideTimeout) clearTimeout(_loadDefaultsHideTimeout);
     _loadDefaultsHideTimeout = setTimeout(function() {
-        $overlay.css('display', 'none');
+        $overlay.css({
+            display: 'none',
+            opacity: '',
+            visibility: '',
+            'pointer-events': '',
+            'z-index': ''
+        });
         _loadDefaultsHideTimeout = null;
     }, 200);
 }
@@ -453,7 +466,7 @@ $('#tornadoBeepTestBtn').on('click', function() {
 });
 
 $(document).on('click', '#armrLoadSiteDefaultsBtn', function() {
-    applySiteDefaults();
+    openLoadDefaultsConfirm();
 });
 
 $(document).on('click', '#loadDefaultsCancelBtn', function() {

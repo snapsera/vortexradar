@@ -3047,7 +3047,7 @@ a:hover { color: var(--color-accent-hover); }
     left: 0;
     width: 120px;
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 30%, white 100%);
+    background: linear-gradient(90deg, transparent 0%, var(--ticker-tracer-color, white) 100%);
     transform: translateX(-140px);
     pointer-events: none;
     z-index: 2;

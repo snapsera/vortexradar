@@ -6,8 +6,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname), {
     extensions: ['html'],
-    setHeaders(res) {
-        res.set('Cache-Control', 'public, max-age=3600');
+    setHeaders(res, filePath) {
+        if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.set('Cache-Control', 'no-cache');
+        } else {
+            res.set('Cache-Control', 'public, max-age=3600');
+        }
     }
 }));
 

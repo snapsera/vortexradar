@@ -4,7 +4,7 @@ var alert_voice = require('./alert_voice');
 var _queue = [];
 var _playing = false;
 var _shownIds = new Set();
-var MAX_LOOPS = 2;
+var MAX_LOOPS = 1;
 var PIXELS_PER_SEC = 110;
 var SLIDE_MS = 400;
 var TRACER_MS = 600;
@@ -108,24 +108,27 @@ function _build_threat_details(event, params, properties) {
     return null;
 }
 
-function _extract_field(description, field) {
-    var re = new RegExp('\\*?\\s*' + field + '\\.\\.\\.([\\s\\S]+?)(?=\\n\\s*\\*\\s*[A-Z]|\\.\\.\\.\\s*$|$)', 'i');
-    var m = description.match(re);
-    if (!m) return null;
-    var val = m[1].replace(/\s+/g, ' ').trim().replace(/\.\s*$/, '');
+function _extract_impact_text(description) {
+    if (!description) return null;
+    var match = description.match(
+        /IMPACT\.\.\.\s*([\s\S]+?)(?=\n\n|\n\s*\n|Locations impacted include|$)/i
+    );
+    if (!match) return null;
+    var val = match[1].replace(/\s+/g, ' ').trim().replace(/\.\s*$/, '');
     return val || null;
 }
 
-function _parse_structured_fields(description) {
-    if (!description) return {};
-    var result = {};
-    var h = _extract_field(description, 'HAZARD');
-    var s = _extract_field(description, 'SOURCE');
-    var i = _extract_field(description, 'IMPACT');
-    if (h) result.hazard = h;
-    if (s) result.source = s;
-    if (i) result.impact = i;
-    return result;
+function _build_source(event, params, description) {
+    var desc = (description || '').toUpperCase();
+    var source = _arr(params.flashFloodDetection) || _arr(params.tornadoDetection);
+    if (!source) {
+        if (desc.indexOf('RADAR INDICATED') !== -1 || desc.indexOf('RADAR-INDICATED') !== -1) {
+            source = 'Radar indicated';
+        } else if (desc.indexOf('OBSERVED') !== -1) {
+            source = 'Observed';
+        }
+    }
+    return source;
 }
 
 function _build_ticker_text(feature) {
@@ -149,10 +152,11 @@ function _build_ticker_text(feature) {
     var details = _build_threat_details(event, params, p);
     if (details) tail.push(details);
 
-    var fields = _parse_structured_fields(p.description);
-    if (fields.source) tail.push('Source: ' + fields.source + '.');
-    if (fields.hazard) tail.push('Hazard: ' + fields.hazard + '.');
-    if (fields.impact) tail.push('Impact: ' + fields.impact + '.');
+    var source = _build_source(event, params, p.description);
+    if (source) tail.push('Source: ' + source + '.');
+
+    var impact = _extract_impact_text(p.description);
+    if (impact) tail.push('Impact: ' + impact + '.');
 
     if (tail.length) return head + '  \u2014  ' + tail.join('  \u2014  ');
     return head;
@@ -198,6 +202,10 @@ function _show_next() {
     if (!ticker || !textEl || !track) { _playing = false; return; }
 
     textEl.textContent = item.text;
+
+    var colorInfo = get_polygon_colors(item.event);
+    var tracerColor = colorInfo ? colorInfo.color : 'white';
+    ticker.style.setProperty('--ticker-tracer-color', tracerColor);
 
     textEl.style.display = 'inline-block';
     void track.offsetWidth;

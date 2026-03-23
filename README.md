@@ -2,6 +2,10 @@
 
 A web-based weather toolkit. It pulls live data from NWS and other public sources to give you radar, alerts, surface observations, and more — all in your browser.
 
+## Screenshot
+
+![StormTrack Pro](images/screenshot.png)
+
 ## What it does
 
 - **NEXRAD radar** — Plots Level 2 and Level 3 data from any NEXRAD site in the US. Supports reflectivity, velocity (with dealiasing), and a bunch of other products. Includes a national composite view, radar looping, and a data inspector for reading values off the map.

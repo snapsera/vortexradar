@@ -31,6 +31,7 @@ const DEFAULTS = {
     surfaceFronts: false,
     weatherRadio: false,
     timezones: false,
+    lightning: false,
     testAlerts: false,
     radarLoopSpeed: 5,
     radarLoopFrameCount: 14,
@@ -109,6 +110,7 @@ function get_settings_from_dom() {
     s.surfaceFronts = $('#armrSurfaceFrontsBtnSwitchElem').length ? $('#armrSurfaceFrontsBtnSwitchElem').is(':checked') : DEFAULTS.surfaceFronts;
     s.weatherRadio = $('#armrWeatherRadioBtnSwitchElem').length ? $('#armrWeatherRadioBtnSwitchElem').is(':checked') : DEFAULTS.weatherRadio;
     s.timezones = $('#armrTimezonesBtnSwitchElem').length ? $('#armrTimezonesBtnSwitchElem').is(':checked') : DEFAULTS.timezones;
+    s.lightning = $('#armrLightningBtnSwitchElem').length ? $('#armrLightningBtnSwitchElem').is(':checked') : DEFAULTS.lightning;
     s.testAlerts = $('#devTestAlertsSwitchElem').length ? $('#devTestAlertsSwitchElem').is(':checked') : DEFAULTS.testAlerts;
     s.radarLoopSpeed = $('#radarLoopSpeedSelect').length ? parseInt($('#radarLoopSpeedSelect').val(), 10) || DEFAULTS.radarLoopSpeed : DEFAULTS.radarLoopSpeed;
     s.radarLoopFrameCount = $('#radarLoopFrameCountSelect').length ? parseInt($('#radarLoopFrameCountSelect').val(), 10) || DEFAULTS.radarLoopFrameCount : DEFAULTS.radarLoopFrameCount;

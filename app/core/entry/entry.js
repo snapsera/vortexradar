@@ -42,6 +42,7 @@ function load() {
     require('../../ui/audible_alerts').init();
     require('../../ui/fullscreen_toggle').init();
     require('../../forecast/forecast_modal').init();
+    require('../../lightning/menu_item');
 
     window.dispatchEvent(new CustomEvent('stormTrackModulesLoaded'));
 }

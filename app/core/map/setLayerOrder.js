@@ -25,6 +25,10 @@ function setLayerOrder() {
     move_layer_to_top('baseReflectivity', before_layer);
     move_layer_to_top('nationalRadarLayer', before_layer);
 
+    // lightning overlay
+    move_layer_to_top('lightningGlow', before_layer);
+    move_layer_to_top('lightningCore', before_layer);
+
     // timezone boundary layers
     move_layer_to_top('timezone_boundary_line', before_layer);
     move_layer_to_top('timezone_label_layer', before_layer);

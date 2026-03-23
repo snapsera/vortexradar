@@ -1,14 +1,17 @@
 const display_app_dialog = require('../menu/app_dialog');
 
+const X_SVG = '<svg class="about_xSvg" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
+
 function build_about_html() {
     const year = new Date().getFullYear();
 
     return `
 <div class="about">
-    <div class="about_header">
+    <div class="about_hero">
         <img class="about_logo" src="images/STP_icon.svg" draggable="false" oncontextmenu="return false;">
-        <div class="about_titleBlock">
+        <div>
             <div class="about_name">StormTrack Pro</div>
+            <div class="about_tagline">Real-time radar at your fingertips</div>
         </div>
     </div>
 
@@ -19,25 +22,57 @@ function build_about_html() {
         need, fast.
     </p>
 
-    <div class="about_divider"></div>
-
     <div class="about_section">
-        <div class="about_sectionLabel">What's inside</div>
-        <div class="about_featureList">
-            <div class="about_feat"><i class="fa-solid fa-satellite-dish about_featDot"></i>Full NEXRAD Level II &amp; III radar products with super resolution</div>
-            <div class="about_feat"><i class="fa-solid fa-wind about_featDot"></i>Doppler velocity dealiasing</div>
-            <div class="about_feat"><i class="fa-solid fa-triangle-exclamation about_featDot"></i>Real-time NWS weather alerts with polygon map overlays</div>
-            <div class="about_feat"><i class="fa-solid fa-cloud-bolt about_featDot"></i>SPC convective outlooks &mdash; categorical, tornado, wind, hail</div>
-            <div class="about_feat"><i class="fa-solid fa-radio about_featDot"></i>NOAA Weather Radio live streams</div>
-            <div class="about_feat"><i class="fa-solid fa-palette about_featDot"></i>Custom colortables with upload support</div>
+        <div class="about_sectionLabel">What's Inside</div>
+        <div class="about_featureGrid">
+            <div class="about_feat">
+                <div class="about_featIcon"><i class="fa-solid fa-satellite-dish"></i></div>
+                <div>
+                    <div class="about_featTitle">NEXRAD Radar</div>
+                    <div class="about_featSub">Level II &amp; III with super resolution</div>
+                </div>
+            </div>
+            <div class="about_feat">
+                <div class="about_featIcon about_featIcon--green"><i class="fa-solid fa-wind"></i></div>
+                <div>
+                    <div class="about_featTitle">Velocity Dealiasing</div>
+                    <div class="about_featSub">Doppler velocity processing</div>
+                </div>
+            </div>
+            <div class="about_feat">
+                <div class="about_featIcon about_featIcon--amber"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div>
+                    <div class="about_featTitle">Weather Alerts</div>
+                    <div class="about_featSub">Real-time NWS polygon map overlays</div>
+                </div>
+            </div>
+            <div class="about_feat">
+                <div class="about_featIcon about_featIcon--red"><i class="fa-solid fa-cloud-bolt"></i></div>
+                <div>
+                    <div class="about_featTitle">SPC Outlooks</div>
+                    <div class="about_featSub">Categorical, tornado, wind, hail</div>
+                </div>
+            </div>
+            <div class="about_feat">
+                <div class="about_featIcon about_featIcon--purple"><i class="fa-solid fa-radio"></i></div>
+                <div>
+                    <div class="about_featTitle">Weather Radio</div>
+                    <div class="about_featSub">NOAA live streams</div>
+                </div>
+            </div>
+            <div class="about_feat">
+                <div class="about_featIcon about_featIcon--pink"><i class="fa-solid fa-palette"></i></div>
+                <div>
+                    <div class="about_featTitle">Custom Colortables</div>
+                    <div class="about_featSub">Upload your own palettes</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="about_divider"></div>
-
-    <div class="about_bottomRow">
-        <div class="about_bottomCol">
-            <div class="about_sectionLabel">Data sources</div>
+    <div class="about_metaRow">
+        <div class="about_metaCol">
+            <div class="about_sectionLabel">Data Sources</div>
             <div class="about_tagRow">
                 <span class="about_tag">NWS</span>
                 <span class="about_tag">NOAA NEXRAD</span>
@@ -45,8 +80,8 @@ function build_about_html() {
                 <span class="about_tag">Unidata</span>
             </div>
         </div>
-        <div class="about_bottomCol">
-            <div class="about_sectionLabel">Built with</div>
+        <div class="about_metaCol">
+            <div class="about_sectionLabel">Built With</div>
             <div class="about_tagRow">
                 <span class="about_tag">Mapbox GL</span>
                 <span class="about_tag">WebGL</span>
@@ -57,21 +92,23 @@ function build_about_html() {
 
     <div class="about_socials">
         <a class="about_socialLink about_socialLink--discord" href="https://discord.gg/wn8FMHC26v">
-            <i class="fa-brands fa-discord about_socialIcon"></i>
-            Join our Discord
+            <i class="fa-brands fa-discord"></i>
+            Discord
         </a>
         <a class="about_socialLink about_socialLink--x" href="https://x.com/_snapsera">
-            <i class="fa-brands fa-x-twitter about_socialIcon"></i>
+            ${X_SVG}
             @_snapsera
         </a>
         <a class="about_socialLink about_socialLink--github" href="https://github.com/snapsera">
-            <i class="fa-brands fa-github about_socialIcon"></i>
+            <i class="fa-brands fa-github"></i>
             GitHub
         </a>
     </div>
-    <div class="about_discordUid">Discord UID: 232292307833978881</div>
 
-    <div class="about_footer">&copy; ${year} StormTrack Pro</div>
+    <div class="about_footer">
+        <span>&copy; ${year} StormTrack Pro</span>
+        <span class="about_uid">UID: 232292307833978881</span>
+    </div>
 </div>`;
 }
 

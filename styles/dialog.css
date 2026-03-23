@@ -271,71 +271,92 @@
 .adpRowSwitch .form-check-input { width: 30px; height: 16px; }
 
 /* ── About screen ── */
-#appDialogContainer.appDialog-about { width: 720px; }
-.about { display: flex; flex-direction: column; gap: var(--space-4); }
-.about_header { display: flex; align-items: center; gap: var(--space-3); }
+#appDialogContainer.appDialog-about { width: 680px; }
+
+.about { display: flex; flex-direction: column; gap: 20px; }
+
+.about_hero { display: flex; align-items: center; gap: 14px; }
 .about_logo {
-  width: 36px; height: 36px; object-fit: contain; flex-shrink: 0;
+  width: 52px; height: 52px; object-fit: contain; flex-shrink: 0;
   pointer-events: none; user-select: none; -webkit-user-select: none;
 }
-.about_titleBlock { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
-.about_name { font-size: 20px; font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
-.about_ver {
-  font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.06em; color: var(--color-accent);
-  background: var(--color-accent-muted); padding: 2px 8px; border-radius: var(--radius-pill);
+.about_name {
+  font-size: 22px; font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary); letter-spacing: -0.01em;
 }
+.about_tagline {
+  font-size: var(--font-size-sm); color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium); margin-top: 1px;
+}
+
 .about_desc {
   font-size: var(--font-size-md); color: var(--color-text-secondary);
-  line-height: 1.7; margin: 0;
+  line-height: 1.7; margin: 0; padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
 }
-.about_divider { height: 1px; background: var(--color-border); }
-.about_section { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.about_section { display: flex; flex-direction: column; gap: 12px; }
 .about_sectionLabel {
-  font-size: var(--font-size-xs); font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted);
+  font-size: 11px; font-weight: var(--font-weight-bold);
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted);
 }
-.about_featureList {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px;
-}
+
+.about_featureGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .about_feat {
-  display: flex; align-items: center; gap: var(--space-2);
-  font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: 1.5;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--color-bg-tertiary); border: 1px solid var(--color-border);
 }
-.about_featDot { width: 14px; flex-shrink: 0; color: var(--color-accent); font-size: 11px; text-align: center; }
-.about_bottomRow { display: flex; gap: var(--space-6); }
-.about_bottomCol { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); }
-.about_tagRow { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.about_featIcon {
+  width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; background: rgba(96, 165, 250, 0.12); color: #60a5fa;
+}
+.about_featIcon--green  { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
+.about_featIcon--amber  { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+.about_featIcon--red    { background: rgba(248, 113, 113, 0.12); color: #f87171; }
+.about_featIcon--purple { background: rgba(167, 139, 250, 0.12); color: #a78bfa; }
+.about_featIcon--pink   { background: rgba(244, 114, 182, 0.12); color: #f472b6; }
+.about_featTitle {
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary); line-height: 1.3;
+}
+.about_featSub {
+  font-size: var(--font-size-xs); color: var(--color-text-muted);
+  line-height: 1.4; margin-top: 1px;
+}
+
+.about_metaRow {
+  display: flex; gap: 24px; padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+.about_metaCol { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.about_tagRow { display: flex; flex-wrap: wrap; gap: 6px; }
 .about_tag {
-  font-size: var(--font-size-xs); font-weight: var(--font-weight-medium);
-  padding: 2px 8px; border-radius: var(--radius-pill);
+  font-size: 11px; font-weight: var(--font-weight-medium);
+  padding: 3px 10px; border-radius: var(--radius-pill);
   background: var(--color-bg-tertiary); border: 1px solid var(--color-border);
   color: var(--color-text-muted);
 }
-.about_socials { display: flex; justify-content: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.about_socials { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .about_socialLink {
-  display: inline-flex; align-items: center; gap: var(--space-2);
-  padding: 6px 16px; border-radius: var(--radius-pill);
-  color: #fff;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 20px; border-radius: var(--radius-pill);
   font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
-  text-decoration: none; letter-spacing: 0.02em;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  color: #fff; text-decoration: none; letter-spacing: 0.01em;
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
-.about_socialLink:hover { transform: translateY(-1px); }
+.about_socialLink:hover { filter: brightness(1.2); transform: translateY(-1px); }
 .about_socialLink--discord { background: #5865F2; }
-.about_socialLink--discord:hover { background: #4752c4; }
-.about_socialLink--x { background: #000; }
-.about_socialLink--x:hover { background: #333; }
-.about_socialLink--github { background: #24292f; }
-.about_socialLink--github:hover { background: #3a3f46; }
-.about_socialIcon { font-size: 15px; }
-.about_discordUid {
-  text-align: center; padding-top: var(--space-1);
-  font-size: var(--font-size-xs); color: var(--color-text-muted);
-  font-family: monospace; letter-spacing: 0.03em;
-}
+.about_socialLink--x { background: #000; border: 1px solid rgba(255, 255, 255, 0.15); }
+.about_socialLink--github { background: #24292f; border: 1px solid rgba(255, 255, 255, 0.08); }
+.about_socialLink i { font-size: 15px; }
+.about_xSvg { width: 14px; height: 14px; }
+
 .about_footer {
-  text-align: center; padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 12px; border-top: 1px solid var(--color-border);
   font-size: var(--font-size-xs); color: var(--color-text-muted);
 }
+.about_uid { font-family: var(--font-mono); letter-spacing: 0.02em; opacity: 0.5; }

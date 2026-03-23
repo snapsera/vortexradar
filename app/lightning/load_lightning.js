@@ -50,13 +50,27 @@ function load_lightning(callback) {
             window.stormTrackData.original_lightning_points = collection;
             // collection = filter_lightning(collection);
 
-            map.addSource('lightningSource', {
-                type: 'geojson',
-                data: collection
-            });
+            if (map.getSource('lightningSource')) {
+                map.getSource('lightningSource').setData(collection);
+            } else {
+                map.addSource('lightningSource', {
+                    type: 'geojson',
+                    data: collection
+                });
+            }
+            if (map.getLayer('lightningLayer')) {
+                setLayerOrder();
+                callback();
+                return;
+            }
             icons.add_icon_svg([
                 [icons.icons.lightning_bolt_bold, 'lightning_bolt_bold']
             ], () => {
+                if (map.getLayer('lightningLayer')) {
+                    setLayerOrder();
+                    callback();
+                    return;
+                }
                 const calculate_opacity_level = (decrease_rate) => Array.from({ length: 5 }, (_, i) => 1 - i * decrease_rate);
                 const levels = calculate_opacity_level(0.125);
 

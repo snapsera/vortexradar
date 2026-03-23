@@ -62,9 +62,14 @@ function _is_event_enabled(event) {
     return alerts_display_state.get_category_enabled(category);
 }
 
+function _is_watch_event(event) {
+    return !!event && (event.endsWith('Watch') || event.includes(' Watch'));
+}
+
 function _filter_panel_features(features) {
     return (features || []).filter((f) => {
         const event = f?.properties?.event || '';
+        if (_is_watch_event(event)) return false;
         if (event === 'Special Weather Statement') {
             const toggleKey = f?.geometry
                 ? 'Special Weather Statement'

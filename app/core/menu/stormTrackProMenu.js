@@ -28,6 +28,7 @@ $(function() {
     if (host !== 'localhost' && host !== '127.0.0.1') {
         $('#menuCategoryDeveloper').remove();
         $('#appMenuDevToolsScreen').remove();
+        $('#devConsolePanel').remove();
     }
 
     $('.menu-category-header').on('click', function() {

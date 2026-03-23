@@ -11,9 +11,10 @@ const STRIKE_LIFETIME_MS = 6000;
 const ANIMATION_INTERVAL_MS = 75;
 const WS_RECONNECT_DELAY_MS = 5000;
 const WS_URLS = [
-    'wss://ws1.blitzortung.org/',
-    'wss://ws7.blitzortung.org/',
-    'wss://ws8.blitzortung.org/',
+    'wss://ws1.blitzortung.org:3000/',
+    'wss://ws5.blitzortung.org:3000/',
+    'wss://ws6.blitzortung.org:3000/',
+    'wss://ws7.blitzortung.org:3000/',
 ];
 
 var strikes = [];
@@ -128,7 +129,7 @@ function connectWebSocket() {
 
     ws.onopen = function() {
         console.log('[lightning] connected to', url);
-        ws.send(JSON.stringify({ a: 418 }));
+        ws.send(JSON.stringify({ time: 0 }));
     };
 
     ws.onmessage = function(event) {

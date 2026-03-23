@@ -109,30 +109,6 @@ if ($(iconElem).length) {
     });
 }
 
-$('#armrSTVisBtnSwitchElem').on('click', function() {
-    var isChecked = $(this).is(':checked');
-    $('#dataDiv').data('stormTracksVisibility', isChecked);
-
-    var st_layers = window.stormTrackData.storm_track_layers;
-    var tvs_layers = window.stormTrackData.tvs_layers;
-    if (!isChecked) {
-        for (var item in st_layers) {
-            map.setLayoutProperty(st_layers[item], 'visibility', 'none');
-        }
-        for (var item in tvs_layers) {
-            map.setLayoutProperty(tvs_layers[item], 'visibility', 'none');
-        }
-    } else if (isChecked) {
-        for (var item in st_layers) {
-            map.setLayoutProperty(st_layers[item], 'visibility', 'visible');
-        }
-        for (var item in tvs_layers) {
-            map.setLayoutProperty(tvs_layers[item], 'visibility', 'visible');
-        }
-    }
-    saveSettings();
-})
-
 armFunctions.toggleswitchFunctions($('#armrRadarVisBtnSwitchElem'), function() {
     setRadarVisibility(true);
 }, function() {
@@ -290,36 +266,6 @@ $('#alertBlinkDurationSelect').on('change', function() {
     saveSettings();
 });
 
-armFunctions.toggleswitchFunctions($('#armrLightningVisBtnSwitchElem'), function() {
-    if (map.getLayer('lightningLayer')) {
-        map.setLayoutProperty('lightningLayer', 'visibility', 'visible');
-    }
-}, function() {
-    if (map.getLayer('lightningLayer')) {
-        map.setLayoutProperty('lightningLayer', 'visibility', 'none');
-    }
-}, saveSettings)
-
-armFunctions.toggleswitchFunctions($('#armrSTVisBtnSwitchElem'), function() {
-    var stormTrackLayers = window.stormTrackData.stormTrackLayers;
-    if (stormTrackLayers != undefined) {
-        for (var i in stormTrackLayers) {
-            if (map.getLayer(stormTrackLayers[i])) {
-                map.setLayoutProperty(stormTrackLayers[i], 'visibility', 'visible');
-            }
-        }
-    }
-}, function() {
-    var stormTrackLayers = window.stormTrackData.stormTrackLayers;
-    if (stormTrackLayers != undefined) {
-        for (var i in stormTrackLayers) {
-            if (map.getLayer(stormTrackLayers[i])) {
-                map.setLayoutProperty(stormTrackLayers[i], 'visibility', 'none');
-            }
-        }
-    }
-}, saveSettings)
-
 armFunctions.toggleswitchFunctions($('#armrRadarSiteLegacyStyleBtnSwitchElem'), function() {
     station_markers.setStationMarkerStyle(true);
 }, function() {
@@ -407,8 +353,6 @@ function applySavedSettings() {
     $('#gateFilterMaxValue').text(s.gateFilterMax);
     updateGateFilterTrack();
     applyGateFilter(s.gateFilterMin, s.gateFilterMax);
-    $('#armrSTVisBtnSwitchElem').prop('checked', s.stormTracks);
-    $('#armrLightningVisBtnSwitchElem').prop('checked', s.lightning);
     $('#armrRadarSiteLegacyStyleBtnSwitchElem').prop('checked', s.radarSiteLegacyStyle);
     $('#armrRadarSweepBtnSwitchElem').prop('checked', s.radarSweep);
     $('#armrRadarRadiusBtnSwitchElem').prop('checked', s.radarRadius);
@@ -429,32 +373,8 @@ function applySavedSettings() {
     change_map_style(s.mapStyle);
 
     // Apply layer visibility
-    $('#dataDiv').data('stormTracksVisibility', s.stormTracks);
     applyUSRadarMode(false);
     setRadarVisibility(s.radar);
-    if (map.getLayer('lightningLayer')) {
-        map.setLayoutProperty('lightningLayer', 'visibility', s.lightning ? 'visible' : 'none');
-    }
-    var st_layers = window.stormTrackData.storm_track_layers;
-    var tvs_layers = window.stormTrackData.tvs_layers;
-    if (st_layers) {
-        for (var item in st_layers) {
-            map.setLayoutProperty(st_layers[item], 'visibility', s.stormTracks ? 'visible' : 'none');
-        }
-    }
-    if (tvs_layers) {
-        for (var item in tvs_layers) {
-            map.setLayoutProperty(tvs_layers[item], 'visibility', s.stormTracks ? 'visible' : 'none');
-        }
-    }
-    var stormTrackLayers = window.stormTrackData.stormTrackLayers;
-    if (stormTrackLayers) {
-        for (var i in stormTrackLayers) {
-            if (map.getLayer(stormTrackLayers[i])) {
-                map.setLayoutProperty(stormTrackLayers[i], 'visibility', s.stormTracks ? 'visible' : 'none');
-            }
-        }
-    }
     $('#alertFillOpacitySlider').val(s.alertFillOpacity);
     $('#alertFillOpacityValue').text(s.alertFillOpacity + '%');
     applyAlertFillOpacity(s.alertFillOpacity);

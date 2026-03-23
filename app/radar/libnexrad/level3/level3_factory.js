@@ -8,8 +8,6 @@ const { get_date_diff_obj } = require('../../../core/misc/get_date_diff');
 const luxon = require('luxon');
 const ut = require('../../../core/utils');
 
-const plot_storm_tracks = require('../../libnexrad_helpers/level3/storm_tracks/plot_storm_tracks');
-const plot_tornado_vortex_signature = require('../../libnexrad_helpers/level3/storm_tracks/plot_tornado_vortex_signature');
 
 // https://stackoverflow.com/a/8043061
 function _zero_pad(num) {
@@ -154,18 +152,9 @@ class Level3Factory {
      * No parameters are needed since this is a Level 3 file, and nothing is returned.
      */
     plot() {
-        // 58 = storm tracks (NST)
-        // 141 = mesocyclone detection (NMD)
-        // 61 = tornado vortex signature (TVS)
-        if (this.product_code == 58) {
-            plot_storm_tracks(this);
-        } else if (this.product_code == 61) {
-            plot_tornado_vortex_signature(this);
-        } else {
-            this.display_file_info();
-            window.stormTrackData.nexrad_factory = this;
-            calculate_coordinates(this);
-        }
+        this.display_file_info();
+        window.stormTrackData.nexrad_factory = this;
+        calculate_coordinates(this);
     }
 
     /**

@@ -108,7 +108,6 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
     }
 
     if (
-        product != 'NTV' && product != 'NMD' && product != 'NST' &&
         product != '134il' && product.slice(0, 3) != 'p94' && product.slice(0, 3) != 'p99'
     ) {
         /* we need to slice(1) here (remove the first letter) because the level 3 source we
@@ -165,7 +164,7 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
             } catch(e) {
                 // we don't want to go back days for storm tracking - most of the time an empty directory
                 // of storm track files means there are no storm tracks avaliable at the time (e.g. clear skies / no storms)
-                if ((product != 'NTV' && product != 'NMD' && product != 'NST') && timesGoneBack < 15) {
+                if (timesGoneBack < 15) {
                     // error checking - if nothing exists for this date, fetch the directory listing for the previous day
                     var d = curTime;
                     d.setDate(d.getDate() - 1);
@@ -181,9 +180,6 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
             callback(null);
         })
     } else {
-        if (product == 'NST') { product = '58sti' }
-        if (product == 'NTV') { product = '61tvs' }
-        if (product == 'NMD') { product = '141md' }
         var fileUrl = `https://tgftp.nws.noaa.gov/SL.us008001/DF.of/DC.radar/DS.${product}/SI.${station.toLowerCase()}/sn.last#`;
         fileUrl = ut.preventFileCaching(fileUrl);
 
@@ -197,7 +193,7 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
         .then(response => {
             if (signal?.aborted) return;
             if (!response.ok) {
-                console.warn('[storm data] HTTP ' + response.status + ' for ' + product + '/' + station);
+                console.warn('[tgftp] HTTP ' + response.status + ' for ' + product + '/' + station);
                 callback(null);
                 return;
             }
@@ -206,7 +202,7 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
         })
         .catch((error) => {
             if (error?.name === 'AbortError') return;
-            console.warn('[storm data]', error.message || error);
+            console.warn('[tgftp]', error.message || error);
             callback(null);
         })
     }
@@ -237,7 +233,6 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
 
 function _is_special_level_3_product(product) {
     return (
-        product == 'NTV' || product == 'NMD' || product == 'NST' ||
         product == '134il' || product.slice(0, 3) == 'p94' || product.slice(0, 3) == 'p99'
     );
 }

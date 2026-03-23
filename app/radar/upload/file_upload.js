@@ -2,7 +2,7 @@ const ut = require('../../core/utils');
 const loaders_nexrad = require('../libnexrad/loaders_nexrad');
 const map_funcs = require('../../core/map/mapFunctions');
 const detect_level = require('../libnexrad/detect_level');
-const { deal_with_storm_track_layers, deal_with_tvs_layers } = require('../libnexrad_helpers/level3/storm_tracks/init_storm_tracks');
+
 
 function reset_everything() {
     // $('#drop_zone').off();
@@ -35,10 +35,7 @@ function load_file(files_obj) {
                 console.log(L3Factory);
 
                 map_funcs.removeMapLayer('baseReflectivity');
-                deal_with_storm_track_layers();
-                deal_with_tvs_layers();
 
-                // L3Factory.display_file_info();
                 L3Factory.plot();
 
                 reset_everything();
@@ -50,10 +47,7 @@ function load_file(files_obj) {
                 // console.log(L2Factory.list_elevations_and_products())
 
                 map_funcs.removeMapLayer('baseReflectivity');
-                deal_with_storm_track_layers();
-                deal_with_tvs_layers();
 
-                // L2Factory.display_file_info();
                 L2Factory.plot('REF', 1);
 
                 reset_everything();

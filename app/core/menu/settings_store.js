@@ -8,8 +8,6 @@ const DEFAULTS = {
     radar: true,
     usRadar: false,
     radarOpacity: 85,
-    stormTracks: true,
-    lightning: false,
     radarSiteLegacyStyle: false,
     radarSweep: true,
     radarRadius: false,
@@ -87,8 +85,6 @@ function get_settings_from_dom() {
     s.radar = $('#armrRadarVisBtnSwitchElem').length && $('#armrRadarVisBtnSwitchElem').is(':checked');
     s.usRadar = false;
     s.radarOpacity = $('#armrRadarOpacitySlider').length ? parseInt($('#armrRadarOpacitySlider').val(), 10) : DEFAULTS.radarOpacity;
-    s.stormTracks = $('#armrSTVisBtnSwitchElem').length && $('#armrSTVisBtnSwitchElem').is(':checked');
-    s.lightning = $('#armrLightningVisBtnSwitchElem').length && $('#armrLightningVisBtnSwitchElem').is(':checked');
     s.radarSiteLegacyStyle = $('#armrRadarSiteLegacyStyleBtnSwitchElem').length && $('#armrRadarSiteLegacyStyleBtnSwitchElem').is(':checked');
     s.radarSweep = $('#armrRadarSweepBtnSwitchElem').length && $('#armrRadarSweepBtnSwitchElem').is(':checked');
     s.radarRadius = $('#armrRadarRadiusBtnSwitchElem').length && $('#armrRadarRadiusBtnSwitchElem').is(':checked');

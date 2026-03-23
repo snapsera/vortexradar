@@ -47,25 +47,8 @@ function setLayerOrder() {
     move_layer_to_top('alertsLayer', before_layer);
     move_layer_to_top('alertsLayerFill', before_layer);
 
-    // storm tracks layers
-    const storm_track_layers = window.stormTrackData.storm_track_layers;
-    if (storm_track_layers != undefined) {
-        for (var i = 0; i < storm_track_layers.length; i++) {
-            move_layer_to_top(storm_track_layers[i]);
-        }
-    }
-    const tvs_layers = window.stormTrackData.tvs_layers;
-    if (tvs_layers != undefined) {
-        for (var i = 0; i < tvs_layers.length; i++) {
-            move_layer_to_top(tvs_layers[i]);
-        }
-    }
-
     // metar layer
     move_layer_to_top('metarSymbolLayer');
-
-    // lightning layer
-    move_layer_to_top('lightningLayer');
 
     // station marker layer
     move_layer_to_top('stationSymbolLayer');

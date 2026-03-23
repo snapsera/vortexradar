@@ -1,8 +1,6 @@
 const product_colors = require('../colormaps/colormaps');
 const ut = require('../../core/utils')
 const map_funcs = require('../../core/map/mapFunctions');
-// const initStormTracks = require('../level3/stormTracking/fetchData');
-const init_storm_tracks = require('../libnexrad_helpers/level3/storm_tracks/init_storm_tracks');
 const setLayerOrder = require('../../core/map/setLayerOrder');
 const create_and_show_colorbar = require('./create_and_show_colorbar');
 const create_WebGL_texture = require('./create_WebGL_texture');
@@ -11,8 +9,6 @@ const fragment_source = require('./glsl/fragment.glsl');
 const fragment_framebuffer_source = require('./glsl/fragment_framebuffer.glsl');
 const map = require('../../core/map/map');
 const RadarUpdater = require('../updater/RadarUpdater');
-const filter_lightning = require('../../lightning/filter_lightning');
-const load_lightning = require('../../lightning/load_lightning');
 const turf = require('@turf/turf');
 const radar_scan_animation = require('../station_markers/radar_scan_animation');
 
@@ -371,30 +367,7 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
     map.addLayer(layer, map_funcs.get_base_layer());
     map.triggerRepaint();
 
-    var isInFileUploadMode = window.stormTrackData.from_file_upload; /* $('#armrModeBtnSwitchElem').is(':checked'); */
-    if (!isInFileUploadMode) {
-        init_storm_tracks.fetch_data();
-        // STstuff.loadAllStormTrackingStuff();
-
-        function _after() {
-            filter_lightning();
-            const isLightningVisChecked = $('#armrLightningVisBtnSwitchElem').is(':checked');
-            if (!isLightningVisChecked) {
-                if (map.getLayer('lightningLayer')) {
-                    map.setLayoutProperty('lightningLayer', 'visibility', 'none');
-                }
-            }
-        }
-        if (!map.getLayer('lightningLayer')) {
-            load_lightning(() => {
-                _after();
-            });
-        } else {
-            _after();
-        }
-    } else {
-        filter_lightning(true);
-    }
+    var isInFileUploadMode = window.stormTrackData.from_file_upload;
 
     const range = nexrad_factory?.initial_radar_obj?.max_range;
     window.stormTrackData._radarMaxRangeKm = range || 230;

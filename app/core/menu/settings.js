@@ -22,9 +22,6 @@ const iconElem = '#settingsItemClass';
 function saveSettings() {
     const settings = settings_store.get_settings_from_dom();
     settings_store.save(settings);
-    if (window.stormTrackProDesktop && settings.devAutoUpdateMode) {
-        window.stormTrackProDesktop.setDevAutoUpdateMode(settings.devAutoUpdateMode).catch(() => {});
-    }
 }
 
 function setRadarVisibility(isVisible) {
@@ -395,8 +392,6 @@ armFunctions.toggleswitchFunctions($('#armrHurricaneLegendVisBtnSwitchElem'), fu
     }
 })
 
-$('#appDevAutoUpdateModeSelect').on('change', saveSettings);
-
 function applySavedSettings() {
     const s = settings_store.load();
 
@@ -424,8 +419,6 @@ function applySavedSettings() {
     $('#tornadoBeepEnabledSwitchElem').prop('checked', s.tornadoWarningBeep);
     $('#tornadoBeepVolumeSlider').val(s.tornadoWarningBeepVolume);
     $('#tornadoBeepVolumeValue').text(s.tornadoWarningBeepVolume + '%');
-    $('#appDevAutoUpdateModeSelect').val(s.devAutoUpdateMode === 'restartApp' ? 'restartApp' : s.devAutoUpdateMode === 'off' ? 'off' : 'reloadWindow');
-
     // Map style (mutually exclusive)
     $('.map_style_button').prop('checked', false);
     $('#armrDarkMapBtnSwitchElem').prop('checked', s.mapStyle === 'dark');
@@ -476,9 +469,6 @@ function applySavedSettings() {
     applyAlertBlinkDuration(s.alertBlinkDuration);
     if (!s.focusNewAlerts) {
         require('../../alerts/focus_new_alerts').hide_focus_panel();
-    }
-    if (window.stormTrackProDesktop && s.devAutoUpdateMode) {
-        window.stormTrackProDesktop.setDevAutoUpdateMode(s.devAutoUpdateMode).catch(() => {});
     }
     station_markers.setStationMarkerStyle(s.radarSiteLegacyStyle);
     if (!s.radarSweep) {

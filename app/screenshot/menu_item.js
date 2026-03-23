@@ -4,8 +4,6 @@ const map = require('../core/map/map');
 const div_elem = '#screenshotMenuItemDiv';
 const icon_elem = '#screenshotMenuItemIcon';
 
-var _isDesktop = !!(window.stormTrackProDesktop && window.stormTrackProDesktop.captureScreenshot);
-
 var _active = false;
 var _selectMode = false;
 var _overlay = null;
@@ -20,14 +18,6 @@ var _hasSelection = false;
 // ---------- mode picker toolbar (slide-out like draw tool) ----------
 
 function _build_mode_toolbar() {
-    var folderBtn = '';
-    if (_isDesktop) {
-        folderBtn =
-            '<div class="drawToolDivider"></div>' +
-            '<button type="button" id="ssOpenFolderBtn" class="drawToolBtn" title="Open Screenshot Folder">' +
-                '<i class="fa-solid fa-folder-open"></i>' +
-            '</button>';
-    }
     return '<div id="screenshotModeToolbar" class="screenshotModeToolbar">' +
         '<div class="screenshotModeToolbarInner">' +
             '<button type="button" id="ssSelectAreaBtn" class="drawToolBtn" title="Select Area">' +
@@ -36,7 +26,6 @@ function _build_mode_toolbar() {
             '<button type="button" id="ssFullScreenBtn" class="drawToolBtn" title="Full Screen">' +
                 '<i class="fa-solid fa-expand"></i>' +
             '</button>' +
-            folderBtn +
             '<div class="drawToolDivider"></div>' +
             '<button type="button" id="ssCloseBtn" class="drawToolBtn drawToolBtn-close" title="Close">' +
                 '<i class="fa-solid fa-xmark"></i>' +
@@ -58,11 +47,6 @@ function _enter_screenshot_mode() {
 
     $('#ssSelectAreaBtn').on('click', function () { _enter_select_mode(); });
     $('#ssFullScreenBtn').on('click', function () { _capture_full_screen(); });
-    $('#ssOpenFolderBtn').on('click', function () {
-        if (window.stormTrackProDesktop && window.stormTrackProDesktop.openScreenshotFolder) {
-            window.stormTrackProDesktop.openScreenshotFolder();
-        }
-    });
     $('#ssCloseBtn').on('click', function () { _exit_screenshot_mode(); });
 
     document.addEventListener('keydown', _on_keydown);
@@ -208,24 +192,12 @@ function _show_action_bar(x, y, w, h) {
     saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
     saveBtn.addEventListener('click', function () { _save_area(x, y, w, h); });
 
-    var openFolderBtn = document.createElement('button');
-    openFolderBtn.className = 'screenshotToolbarBtn screenshotToolbarBtn-folder';
-    openFolderBtn.innerHTML = '<i class="fa-solid fa-folder-open"></i> Open Folder';
-    openFolderBtn.addEventListener('click', function () {
-        if (window.stormTrackProDesktop && window.stormTrackProDesktop.openScreenshotFolder) {
-            window.stormTrackProDesktop.openScreenshotFolder();
-        }
-    });
-
     var cancelBtn = document.createElement('button');
     cancelBtn.className = 'screenshotToolbarBtn screenshotToolbarBtn-cancel';
     cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancel';
     cancelBtn.addEventListener('click', function () { _clear_selection(); });
 
     _actionBar.appendChild(saveBtn);
-    if (_isDesktop) {
-        _actionBar.appendChild(openFolderBtn);
-    }
     _actionBar.appendChild(cancelBtn);
     document.body.appendChild(_actionBar);
 
@@ -365,73 +337,27 @@ function _hide_chrome() {
 
 function _do_save(base64) {
     _add_watermark(base64, function (finalBase64) {
-        if (_isDesktop) {
-            window.stormTrackProDesktop.saveScreenshotFile(finalBase64).then(function (result) {
-                if (result && result.ok) {
-                    notificationBubble.notify('Screenshot saved to ' + result.path, {
-                        icon: 'fa fa-camera', level: 'success'
-                    });
-                } else {
-                    notificationBubble.notify('Failed to save screenshot', {
-                        icon: 'fa fa-camera', level: 'warning'
-                    });
-                }
-                _exit_screenshot_mode();
-            }).catch(function () {
-                notificationBubble.notify('Failed to save screenshot', {
-                    icon: 'fa fa-camera', level: 'warning'
-                });
-                _exit_screenshot_mode();
-            });
-        } else {
-            _download_png(finalBase64);
-            notificationBubble.notify('Screenshot downloaded', {
-                icon: 'fa fa-camera', level: 'success'
-            });
-            _exit_screenshot_mode();
-        }
+        _download_png(finalBase64);
+        notificationBubble.notify('Screenshot downloaded', {
+            icon: 'fa fa-camera', level: 'success'
+        });
+        _exit_screenshot_mode();
     });
 }
 
 function _save_area(x, y, w, h) {
     _hide_chrome();
 
-    var dpr = window.devicePixelRatio || 1;
-
     requestAnimationFrame(function () {
         setTimeout(function () {
-            if (_isDesktop) {
-                var rect = {
-                    x: Math.round(x * dpr),
-                    y: Math.round(y * dpr),
-                    width: Math.round(w * dpr),
-                    height: Math.round(h * dpr)
-                };
-                window.stormTrackProDesktop.captureScreenshot(rect).then(function (r) {
-                    if (!r || !r.ok) {
-                        notificationBubble.notify('Failed to capture screenshot', {
-                            icon: 'fa fa-camera', level: 'warning'
-                        });
-                        _exit_screenshot_mode();
-                        return;
-                    }
-                    _do_save(r.base64);
-                }).catch(function () {
-                    notificationBubble.notify('Failed to capture screenshot', {
-                        icon: 'fa fa-camera', level: 'warning'
-                    });
-                    _exit_screenshot_mode();
+            try {
+                var base64 = _capture_from_map(x, y, w, h);
+                _do_save(base64);
+            } catch (err) {
+                notificationBubble.notify('Failed to capture screenshot', {
+                    icon: 'fa fa-camera', level: 'warning'
                 });
-            } else {
-                try {
-                    var base64 = _capture_from_map(x, y, w, h);
-                    _do_save(base64);
-                } catch (err) {
-                    notificationBubble.notify('Failed to capture screenshot', {
-                        icon: 'fa fa-camera', level: 'warning'
-                    });
-                    _exit_screenshot_mode();
-                }
+                _exit_screenshot_mode();
             }
         }, 80);
     });
@@ -440,42 +366,17 @@ function _save_area(x, y, w, h) {
 function _capture_full_screen() {
     _hide_chrome();
 
-    var dpr = window.devicePixelRatio || 1;
-
     requestAnimationFrame(function () {
         setTimeout(function () {
-            if (_isDesktop) {
-                var rect = {
-                    x: 0, y: 0,
-                    width: Math.round(window.innerWidth * dpr),
-                    height: Math.round(window.innerHeight * dpr)
-                };
-                window.stormTrackProDesktop.captureScreenshot(rect).then(function (r) {
-                    if (!r || !r.ok) {
-                        notificationBubble.notify('Failed to capture screenshot', {
-                            icon: 'fa fa-camera', level: 'warning'
-                        });
-                        _exit_screenshot_mode();
-                        return;
-                    }
-                    _do_save(r.base64);
-                }).catch(function () {
-                    notificationBubble.notify('Failed to capture screenshot', {
-                        icon: 'fa fa-camera', level: 'warning'
-                    });
-                    _exit_screenshot_mode();
+            try {
+                var mapRect = map.getCanvas().getBoundingClientRect();
+                var base64 = _capture_from_map(mapRect.left, mapRect.top, mapRect.width, mapRect.height);
+                _do_save(base64);
+            } catch (err) {
+                notificationBubble.notify('Failed to capture screenshot', {
+                    icon: 'fa fa-camera', level: 'warning'
                 });
-            } else {
-                try {
-                    var mapRect = map.getCanvas().getBoundingClientRect();
-                    var base64 = _capture_from_map(mapRect.left, mapRect.top, mapRect.width, mapRect.height);
-                    _do_save(base64);
-                } catch (err) {
-                    notificationBubble.notify('Failed to capture screenshot', {
-                        icon: 'fa fa-camera', level: 'warning'
-                    });
-                    _exit_screenshot_mode();
-                }
+                _exit_screenshot_mode();
             }
         }, 80);
     });

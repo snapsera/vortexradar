@@ -20,7 +20,6 @@ function load() {
     require('../menu/stormTrackProMenu');
     require('../menu/productSelectionMenu');
     require('../menu/settings');
-    require('../app/stormTrackProDesktop').initDesktopLifecycleBridge();
     require('../../radar/inspector/entry');
     require('../../radar/station_markers/station_marker_menu');
     require('../../radar/radar_message/radar_message');

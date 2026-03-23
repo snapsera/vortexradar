@@ -2,17 +2,12 @@
   "name": "stormtrack-pro",
   "version": "1.0.0",
   "productName": "StormTrack Pro",
-  "main": "main.js",
   "scripts": {
     "build": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
     "start": "node server.js",
-    "start:desktop": "electron .",
-    "dev:browser": "npm run build && node server.js",
+    "dev": "npm run build && node server.js",
     "generate:icon": "node scripts/generate_app_icon.js",
-    "serve": "watchify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js -v",
-    "dev": "node scripts/build_css.js && npm run build && concurrently -k -n BUNDLE,ELECTRON \"npm run serve\" \"electron .\"",
-    "package:win": "npm run build && npm run generate:icon && electron-packager . \"StormTrack Pro\" --platform=win32 --arch=x64 --icon=images/STP_icon.ico --out=release --overwrite",
-    "release": "npm run build && npm run generate:icon && electron-builder --win"
+    "serve": "watchify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js -v"
   },
   "dependencies": {
     "@turf/turf": "^6.5.0",
@@ -32,10 +27,6 @@
   "devDependencies": {
     "brfs": "^2.0.2",
     "browserify": "^17.0.1",
-    "concurrently": "^9.2.1",
-    "electron": "^21.2.0",
-    "electron-builder": "^26.8.1",
-    "electron-packager": "^17.0.0",
     "eslint": "^8.0.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.22.1",

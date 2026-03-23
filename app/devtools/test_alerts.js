@@ -125,11 +125,7 @@ if (_saved.testAlerts) {
 }
 
 $('#devOpenAlertEditorBtn').on('click', function() {
-    if (window.stormTrackProDesktop && window.stormTrackProDesktop.openAlertEditor) {
-        window.stormTrackProDesktop.openAlertEditor();
-    } else {
-        window.open('/devtools/alert_editor.html', '_blank', 'noopener');
-    }
+    window.open('/devtools/alert_editor.html', '_blank', 'noopener');
 });
 
 $('#devTestAlertBannerBtn').on('click', function() {

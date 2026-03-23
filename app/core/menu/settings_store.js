@@ -18,7 +18,6 @@ const DEFAULTS = {
     dealiasRegionBased: true,
     dealiasTornadic: false,
     currentStation: null,
-    devAutoUpdateMode: 'reloadWindow',
     gateFilterMin: 10,
     gateFilterMax: 85,
     alertFillOpacity: 10,
@@ -99,8 +98,6 @@ function get_settings_from_dom() {
     s.focusNewAlerts = $('#armrFocusNewAlertsBtnSwitchElem').length && $('#armrFocusNewAlertsBtnSwitchElem').is(':checked');
     s.dealiasRegionBased = true;
     s.dealiasTornadic = false;
-    const selectedMode = $('#appDevAutoUpdateModeSelect').val();
-    s.devAutoUpdateMode = (selectedMode === 'restartApp' || selectedMode === 'off') ? selectedMode : 'reloadWindow';
     s.gateFilterMin = $('#gateFilterMinSlider').length ? parseInt($('#gateFilterMinSlider').val(), 10) : DEFAULTS.gateFilterMin;
     s.gateFilterMax = $('#gateFilterMaxSlider').length ? parseInt($('#gateFilterMaxSlider').val(), 10) : DEFAULTS.gateFilterMax;
     s.alertFillOpacity = $('#alertFillOpacitySlider').length ? parseInt($('#alertFillOpacitySlider').val(), 10) : DEFAULTS.alertFillOpacity;

@@ -84,14 +84,20 @@ class AlertUpdater {
     }
 
     _on_new_alerts(features) {
+        const alerts_display_state = require('../alerts_display_state');
+        const enabled = features.filter(f => {
+            const event = f.properties?.event || '';
+            return alerts_display_state.get_alert_type_enabled(event);
+        });
+
         const focusNewAlerts = require('../../core/menu/settings_store').load().focusNewAlerts;
-        if (focusNewAlerts && features.length > 0) {
+        if (focusNewAlerts && enabled.length > 0) {
             const focus_new_alerts = require('../focus_new_alerts');
-            focus_new_alerts.focus_on_new_alerts(features);
+            focus_new_alerts.focus_on_new_alerts(enabled);
         }
 
         const eventCounts = {};
-        for (const f of features) {
+        for (const f of enabled) {
             var event = f.properties?.event || 'Weather Alert';
             eventCounts[event] = (eventCounts[event] || 0) + 1;
         }
@@ -101,9 +107,9 @@ class AlertUpdater {
             }));
         }
 
-        if (features.length > 0) {
+        if (enabled.length > 0) {
             window.dispatchEvent(new CustomEvent('headerAlertBanner', {
-                detail: { features: features }
+                detail: { features: enabled }
             }));
         }
     }

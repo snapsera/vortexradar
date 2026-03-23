@@ -77,6 +77,10 @@ npm run dev            # builds first, then starts the server
 
 Open `http://localhost:3000` in your browser.
 
+## Credits
+
+This project was built using [AtticRadar](https://github.com/SteepAtticStairs/AtticRadar) by [SteepAtticStairs](https://github.com/SteepAtticStairs) as a base and reference. AtticRadar is a clean, powerful weather toolkit for the browser that includes NEXRAD parsing and plotting, doppler velocity dealiasing, weather alerts, real-time lightning data, METAR station data, and more. Much of the foundational architecture, NEXRAD decoding logic, and WebGL radar rendering in StormTrack Pro originates from or was inspired by AtticRadar's codebase.
+
 ## License
 
 Not currently published under an open-source license. All rights reserved.

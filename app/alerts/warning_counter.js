@@ -19,6 +19,16 @@ const SPC_RISK_LEVELS = [
 ];
 
 let _cachedSpcRisk = null;
+let _prevSvr = -1;
+let _prevTor = -1;
+let _prevSpcLevel = -1;
+
+function _trigger_shine(el) {
+    if (!el) return;
+    el.classList.remove('warningCounterRow-shine');
+    void el.offsetWidth;
+    el.classList.add('warningCounterRow-shine');
+}
 
 function _count_warnings(features) {
     let tor = 0;
@@ -67,15 +77,29 @@ function _refresh() {
     document.getElementById('warningCounterSvr').textContent = svr;
     document.getElementById('warningCounterTor').textContent = tor;
 
+    if (svr !== _prevSvr && _prevSvr !== -1) {
+        _trigger_shine(document.querySelector('.warningCounterRow-svr'));
+    }
+    if (tor !== _prevTor && _prevTor !== -1) {
+        _trigger_shine(document.querySelector('.warningCounterRow-tor'));
+    }
+    _prevSvr = svr;
+    _prevTor = tor;
+
     const spcRow = document.getElementById('warningCounterSpcRow');
     const spcName = document.getElementById('warningCounterSpcName');
     const spcLevel = document.getElementById('warningCounterSpcLevel');
 
     if (_cachedSpcRisk) {
+        const newLevel = _cachedSpcRisk.level;
         spcRow.style.display = '';
         spcRow.style.background = _cachedSpcRisk.color;
         spcName.textContent = _cachedSpcRisk.label.charAt(0) + _cachedSpcRisk.label.slice(1).toLowerCase();
-        spcLevel.textContent = _cachedSpcRisk.level + '/5';
+        spcLevel.textContent = newLevel + '/5';
+        if (newLevel !== _prevSpcLevel && _prevSpcLevel !== -1) {
+            _trigger_shine(spcRow);
+        }
+        _prevSpcLevel = newLevel;
     } else {
         spcRow.style.display = 'none';
     }

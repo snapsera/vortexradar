@@ -220,6 +220,17 @@ function set_mesoscale_enabled(enabled) {
     try { localStorage.setItem(MD_STORAGE_KEY, String(!!enabled)); } catch (_) {}
 }
 
+function reset_to_defaults() {
+    _savedStateCache = {};
+    _categoryStateCache = {};
+    _resolvedDisplayStateCache = null;
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(CATEGORY_STORAGE_KEY);
+        localStorage.removeItem(MD_STORAGE_KEY);
+    } catch (_) {}
+}
+
 module.exports = {
     get_display_state,
     get_alert_type_enabled,
@@ -231,5 +242,6 @@ module.exports = {
     is_granular_event,
     get_mesoscale_enabled,
     set_mesoscale_enabled,
+    reset_to_defaults,
     ALERT_TYPES_BY_CATEGORY
 };

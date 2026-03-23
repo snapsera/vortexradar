@@ -8,6 +8,7 @@ const apply_alerts_display = require('../../alerts/apply_visibility').apply_aler
 const fetch_spc_data = require('../../spc/fetch_data');
 const change_map_style = require('../map/styles');
 const settings_store = require('./settings_store');
+const alerts_display_state = require('../../alerts/alerts_display_state');
 const station_markers = require('../../radar/station_markers/station_markers');
 const radar_scan_animation = require('../../radar/station_markers/radar_scan_animation');
 const national_radar_layer = require('../../radar/national/national_radar_layer');
@@ -50,11 +51,28 @@ function closeLoadDefaultsConfirm() {
 }
 
 function applySiteDefaults() {
+    try {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.indexOf('stormTrackPro_') === 0) {
+                keys.push(key);
+            }
+        }
+        for (const key of keys) {
+            localStorage.removeItem(key);
+        }
+    } catch (_) {}
+
     const defaults = Object.assign({}, settings_store.DEFAULTS, {
         currentStation: window.stormTrackData?.currentStation || null
     });
+
+    alerts_display_state.reset_to_defaults();
     settings_store.save(defaults);
     applySavedSettings();
+    apply_alerts_display();
+    $(document).trigger('alertsDataLoaded', [window.stormTrackData?.alerts_data]);
     closeLoadDefaultsConfirm();
 }
 
@@ -364,7 +382,7 @@ $('#armrLoadSiteDefaultsBtn').on('click', function() {
     openLoadDefaultsConfirm();
 });
 
-$('#loadDefaultsConfirmClose, #loadDefaultsCancelBtn').on('click', function() {
+$('#loadDefaultsCancelBtn').on('click', function() {
     closeLoadDefaultsConfirm();
 });
 

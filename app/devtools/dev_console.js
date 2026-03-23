@@ -29,6 +29,11 @@ var COMMANDS = {
         usage: 'save-defaults',
         run: _cmd_save_defaults
     },
+    'show-defaults-payload': {
+        description: 'Preview full defaults payload without saving',
+        usage: 'show-defaults-payload',
+        run: _cmd_show_defaults_payload
+    },
     banner: {
         description: 'Test the alert banner with a random enabled alert',
         usage: 'banner',
@@ -315,27 +320,68 @@ function _cmd_focus() {
     _log('Focus panel opened with <strong>' + event + '</strong>', 'success');
 }
 
-function _cmd_save_defaults() {
-    var settings = settings_store.get_settings_from_dom();
+function _try_parse_storage(raw) {
+    if (raw == null) return null;
+    try {
+        return JSON.parse(raw);
+    } catch (_) {
+        return raw;
+    }
+}
 
-    _log('Saving current settings as site defaults...', 'info');
+function _snapshot_stormtrack_local_state() {
+    var snapshot = {};
+    try {
+        for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (!key || key.indexOf('stormTrackPro_') !== 0) continue;
+            snapshot[key] = _try_parse_storage(localStorage.getItem(key));
+        }
+    } catch (_) {}
+    return snapshot;
+}
+
+function _cmd_save_defaults() {
+    settings_store.saveFromDom();
+    var settings = settings_store.load();
+    var localState = _snapshot_stormtrack_local_state();
+    var payload = {
+        settings: settings,
+        localStorage: localState
+    };
+
+    _log('Saving full current settings state as site defaults...', 'info');
 
     fetch('/api/save-defaults', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
+        body: JSON.stringify(payload)
     })
     .then(function(res) {
         if (!res.ok) throw new Error('Server returned ' + res.status);
         return res.json();
     })
     .then(function(data) {
-        _log('Site defaults saved successfully to <span class="devConsoleCmd">site_defaults.json</span>', 'success');
+        var keyCount = Object.keys(localState).length;
+        _log('Site defaults saved successfully to <span class="devConsoleCmd">site_defaults.json</span> (' + keyCount + ' StormTrack state keys captured)', 'success');
         notification.notify('Site defaults saved', { icon: 'fa fa-floppy-disk', level: 'success' });
     })
     .catch(function(err) {
         _log('Failed to save defaults: ' + err.message, 'error');
     });
+}
+
+function _cmd_show_defaults_payload() {
+    settings_store.saveFromDom();
+    var settings = settings_store.load();
+    var localState = _snapshot_stormtrack_local_state();
+    var payload = {
+        settings: settings,
+        localStorage: localState
+    };
+    var pretty = JSON.stringify(payload, null, 2);
+    _log('Defaults payload preview (<span class="devConsoleCmd">' + Object.keys(localState).length + '</span> StormTrack state keys):', 'info');
+    _log('<pre class="devConsoleJson">' + _escapeHtml(pretty) + '</pre>');
 }
 
 function _execute(input) {

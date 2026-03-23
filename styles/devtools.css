@@ -132,6 +132,19 @@
 .devConsoleMuted {
     color: var(--color-text-muted);
 }
+.devConsoleJson {
+    margin: 4px 0 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
 
 .devConsoleInputRow {
     display: flex;

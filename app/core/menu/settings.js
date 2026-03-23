@@ -25,55 +25,129 @@ function saveSettings() {
     settings_store.save(settings);
 }
 
-const _loadDefaultsOverlay = $('#loadDefaultsConfirmOverlay');
 let _loadDefaultsHideTimeout = null;
 
+function _getLoadDefaultsOverlay() {
+    let $overlay = $('#loadDefaultsConfirmOverlay');
+    if ($overlay.length) return $overlay;
+
+    const html = `
+<div id="loadDefaultsConfirmOverlay" class="defaultsConfirmOverlay" style="display: none;">
+    <div class="defaultsConfirmCard" role="dialog" aria-modal="true" aria-labelledby="loadDefaultsConfirmTitle">
+        <div class="defaultsConfirmShine"></div>
+        <div class="defaultsConfirmBody">
+            <div id="loadDefaultsConfirmTitle" class="defaultsConfirmTitle">Load Site Defaults?</div>
+            <div class="defaultsConfirmSub">This action will replace your current settings with the website defaults.</div>
+            <div class="defaultsConfirmWarning">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                This cannot be undone. You will need to customize your settings again afterward.
+            </div>
+            <div class="defaultsConfirmActions">
+                <button type="button" class="defaultsConfirmBtn defaultsConfirmBtn-cancel" id="loadDefaultsCancelBtn">Cancel</button>
+                <button type="button" class="defaultsConfirmBtn defaultsConfirmBtn-danger" id="loadDefaultsApplyBtn">Load Site Defaults</button>
+            </div>
+        </div>
+    </div>
+</div>`;
+
+    $('body').append(html);
+    $overlay = $('#loadDefaultsConfirmOverlay');
+    return $overlay;
+}
+
 function openLoadDefaultsConfirm() {
-    if (!_loadDefaultsOverlay.length) return;
+    const $overlay = _getLoadDefaultsOverlay();
+    if (!$overlay.length) return;
     if (_loadDefaultsHideTimeout) {
         clearTimeout(_loadDefaultsHideTimeout);
         _loadDefaultsHideTimeout = null;
     }
-    _loadDefaultsOverlay.show();
+    $overlay.css('display', 'flex');
     requestAnimationFrame(function() {
-        _loadDefaultsOverlay.addClass('defaultsConfirmOverlay-visible');
+        $overlay.addClass('defaultsConfirmOverlay-visible');
     });
 }
 
 function closeLoadDefaultsConfirm() {
-    if (!_loadDefaultsOverlay.length) return;
-    _loadDefaultsOverlay.removeClass('defaultsConfirmOverlay-visible');
+    const $overlay = _getLoadDefaultsOverlay();
+    if (!$overlay.length) return;
+    $overlay.removeClass('defaultsConfirmOverlay-visible');
     if (_loadDefaultsHideTimeout) clearTimeout(_loadDefaultsHideTimeout);
     _loadDefaultsHideTimeout = setTimeout(function() {
-        _loadDefaultsOverlay.hide();
+        $overlay.css('display', 'none');
         _loadDefaultsHideTimeout = null;
     }, 200);
 }
 
-function applySiteDefaults() {
+function _setLocalStorageSnapshotValue(key, value) {
+    if (!key || key.indexOf('stormTrackPro_') !== 0) return;
     try {
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.indexOf('stormTrackPro_') === 0) {
-                keys.push(key);
-            }
-        }
-        for (const key of keys) {
+        if (value === undefined || value === null) {
             localStorage.removeItem(key);
+            return;
         }
+        if (typeof value === 'string') {
+            localStorage.setItem(key, value);
+            return;
+        }
+        localStorage.setItem(key, JSON.stringify(value));
     } catch (_) {}
+}
 
-    const defaults = Object.assign({}, settings_store.DEFAULTS, {
-        currentStation: window.stormTrackData?.currentStation || null
-    });
+function applySiteDefaults() {
+    const $applyBtn = $('#loadDefaultsApplyBtn');
+    const originalBtnText = $applyBtn.text();
+    $applyBtn.prop('disabled', true).text('Loading...');
 
-    alerts_display_state.reset_to_defaults();
-    settings_store.save(defaults);
-    applySavedSettings();
-    apply_alerts_display();
-    $(document).trigger('alertsDataLoaded', [window.stormTrackData?.alerts_data]);
-    closeLoadDefaultsConfirm();
+    fetch('/site_defaults.json?_=' + Date.now(), { cache: 'no-store' })
+        .then(function(res) {
+            if (!res.ok) throw new Error('Unable to load site defaults');
+            return res.json();
+        })
+        .then(function(payload) {
+            const isWrappedPayload = payload && typeof payload === 'object' &&
+                (payload.settings || payload.localStorage);
+            const settingsPayload = isWrappedPayload ? payload.settings : payload;
+            const localStoragePayload = isWrappedPayload ? payload.localStorage : null;
+
+            try {
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.indexOf('stormTrackPro_') === 0) {
+                        keys.push(key);
+                    }
+                }
+                for (const key of keys) {
+                    localStorage.removeItem(key);
+                }
+            } catch (_) {}
+
+            alerts_display_state.reset_to_defaults();
+
+            if (localStoragePayload && typeof localStoragePayload === 'object') {
+                for (const [key, value] of Object.entries(localStoragePayload)) {
+                    _setLocalStorageSnapshotValue(key, value);
+                }
+            }
+
+            if (settingsPayload && typeof settingsPayload === 'object') {
+                settings_store.save(settingsPayload);
+            } else {
+                settings_store.save(Object.assign({}, settings_store.DEFAULTS));
+            }
+
+            closeLoadDefaultsConfirm();
+            setTimeout(function() {
+                window.location.reload();
+            }, 120);
+        })
+        .catch(function(err) {
+            console.error('Failed to load site defaults:', err);
+        })
+        .finally(function() {
+            $applyBtn.prop('disabled', false).text(originalBtnText);
+        });
 }
 
 function setRadarVisibility(isVisible) {
@@ -378,20 +452,22 @@ $('#tornadoBeepTestBtn').on('click', function() {
     audible_alerts.testTornadoWarningBeep();
 });
 
-$('#armrLoadSiteDefaultsBtn').on('click', function() {
-    openLoadDefaultsConfirm();
-});
-
-$('#loadDefaultsCancelBtn').on('click', function() {
-    closeLoadDefaultsConfirm();
-});
-
-$('#loadDefaultsApplyBtn').on('click', function() {
+$(document).on('click', '#armrLoadSiteDefaultsBtn', function() {
     applySiteDefaults();
 });
 
-_loadDefaultsOverlay.on('click', function(e) {
-    if (e.target === this) closeLoadDefaultsConfirm();
+$(document).on('click', '#loadDefaultsCancelBtn', function() {
+    closeLoadDefaultsConfirm();
+});
+
+$(document).on('click', '#loadDefaultsApplyBtn', function() {
+    applySiteDefaults();
+});
+
+$(document).on('click', '#loadDefaultsConfirmOverlay', function(e) {
+    if (e.target === this) {
+        closeLoadDefaultsConfirm();
+    }
 });
 
 armFunctions.toggleswitchFunctions($('#armrHurricaneLegendVisBtnSwitchElem'), function() {

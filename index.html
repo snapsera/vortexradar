@@ -320,6 +320,25 @@
         <div class="focusNewAlertsContent"></div>
     </div>
 
+    <div id="loadDefaultsConfirmOverlay" class="defaultsConfirmOverlay" style="display: none;">
+        <div class="defaultsConfirmCard" role="dialog" aria-modal="true" aria-labelledby="loadDefaultsConfirmTitle">
+            <div class="defaultsConfirmShine"></div>
+            <button type="button" class="defaultsConfirmClose" id="loadDefaultsConfirmClose" aria-label="Close"><i class="fa fa-xmark"></i></button>
+            <div class="defaultsConfirmBody">
+                <div id="loadDefaultsConfirmTitle" class="defaultsConfirmTitle">Load Site Defaults?</div>
+                <div class="defaultsConfirmSub">This action will replace your current settings with the website defaults.</div>
+                <div class="defaultsConfirmWarning">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    This cannot be undone. You will need to customize your settings again afterward.
+                </div>
+                <div class="defaultsConfirmActions">
+                    <button type="button" class="defaultsConfirmBtn defaultsConfirmBtn-cancel" id="loadDefaultsCancelBtn">Cancel</button>
+                    <button type="button" class="defaultsConfirmBtn defaultsConfirmBtn-danger" id="loadDefaultsApplyBtn">Load Site Defaults</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Right-side alerts panel (RadarOmega-style) -->
     <div id="alertsPanel" class="alertsPanel alertsPanel-closed">
         <button type="button" id="alertsPanelClose" class="alertsPanelClose" aria-label="Close alerts"><span class="fa fa-xmark"></span></button>
@@ -724,10 +743,14 @@
                                 Audible Alerts
                                 <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                             </div>
-                            <div class="menu-row armrBottom" id="armrThemeBtn">
+                            <div class="menu-row armrMiddle" id="armrThemeBtn">
                                 <i class="armrIcon armrIcon-Blue fa-solid fa-palette"></i>
                                 Theme
                                 <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div class="menu-row armrBottom" id="armrLoadSiteDefaultsBtn">
+                                <i class="armrIcon armrIcon-Red fa-solid fa-rotate-left"></i>
+                                <span class="armrText-Red">Load Site Defaults</span>
                             </div>
                         </div>
                     </div>

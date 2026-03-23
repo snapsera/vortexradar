@@ -24,6 +24,40 @@ function saveSettings() {
     settings_store.save(settings);
 }
 
+const _loadDefaultsOverlay = $('#loadDefaultsConfirmOverlay');
+let _loadDefaultsHideTimeout = null;
+
+function openLoadDefaultsConfirm() {
+    if (!_loadDefaultsOverlay.length) return;
+    if (_loadDefaultsHideTimeout) {
+        clearTimeout(_loadDefaultsHideTimeout);
+        _loadDefaultsHideTimeout = null;
+    }
+    _loadDefaultsOverlay.show();
+    requestAnimationFrame(function() {
+        _loadDefaultsOverlay.addClass('defaultsConfirmOverlay-visible');
+    });
+}
+
+function closeLoadDefaultsConfirm() {
+    if (!_loadDefaultsOverlay.length) return;
+    _loadDefaultsOverlay.removeClass('defaultsConfirmOverlay-visible');
+    if (_loadDefaultsHideTimeout) clearTimeout(_loadDefaultsHideTimeout);
+    _loadDefaultsHideTimeout = setTimeout(function() {
+        _loadDefaultsOverlay.hide();
+        _loadDefaultsHideTimeout = null;
+    }, 200);
+}
+
+function applySiteDefaults() {
+    const defaults = Object.assign({}, settings_store.DEFAULTS, {
+        currentStation: window.stormTrackData?.currentStation || null
+    });
+    settings_store.save(defaults);
+    applySavedSettings();
+    closeLoadDefaultsConfirm();
+}
+
 function setRadarVisibility(isVisible) {
     const visibility = isVisible ? 'visible' : 'none';
     if (map.getLayer('baseReflectivity')) {
@@ -324,6 +358,22 @@ $('#tornadoBeepVolumeSlider').on('input', function() {
 
 $('#tornadoBeepTestBtn').on('click', function() {
     audible_alerts.testTornadoWarningBeep();
+});
+
+$('#armrLoadSiteDefaultsBtn').on('click', function() {
+    openLoadDefaultsConfirm();
+});
+
+$('#loadDefaultsConfirmClose, #loadDefaultsCancelBtn').on('click', function() {
+    closeLoadDefaultsConfirm();
+});
+
+$('#loadDefaultsApplyBtn').on('click', function() {
+    applySiteDefaults();
+});
+
+_loadDefaultsOverlay.on('click', function(e) {
+    if (e.target === this) closeLoadDefaultsConfirm();
 });
 
 armFunctions.toggleswitchFunctions($('#armrHurricaneLegendVisBtnSwitchElem'), function() {

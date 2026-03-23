@@ -519,5 +519,9 @@ th.spcTable { text-align: center; }
   opacity: 1;
 }
 
+.fullscreenToggleBtn--devConsole {
+  right: 50px;
+}
+
 /* Radar scan animation is now handled by canvas overlay in radar_scan_animation.js */
 

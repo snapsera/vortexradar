@@ -29,6 +29,16 @@ var COMMANDS = {
         usage: 'save-defaults',
         run: _cmd_save_defaults
     },
+    banner: {
+        description: 'Test the alert banner with a random enabled alert',
+        usage: 'banner',
+        run: _cmd_banner
+    },
+    focus: {
+        description: 'Test the Focus New Alerts spotlight panel with a random enabled alert',
+        usage: 'focus',
+        run: _cmd_focus
+    },
     help: {
         description: 'List available commands',
         usage: 'help',
@@ -268,6 +278,43 @@ function _cmd_tornado() {
     notification.notify('DEV: Tornado Warning injected', { icon: 'fa fa-tornado', level: 'danger' });
 }
 
+function _get_enabled_alerts() {
+    var filter_alerts = require('../alerts/filter_alerts');
+    var alertsData = window.stormTrackData && window.stormTrackData.alerts_data;
+    if (!alertsData || !alertsData.features || !alertsData.features.length) return null;
+    var eligible = alertsData.features.filter(function(f) {
+        return filter_alerts.should_show_alert_feature(f);
+    });
+    return eligible.length ? eligible : null;
+}
+
+function _cmd_banner() {
+    var eligible = _get_enabled_alerts();
+    if (!eligible) {
+        _log('No enabled alerts to test with. Check Alerts Display settings.', 'error');
+        return;
+    }
+    var pick = eligible[Math.floor(Math.random() * eligible.length)];
+    var event = (pick.properties && pick.properties.event) || 'Unknown';
+    window.dispatchEvent(new CustomEvent('headerAlertBanner', {
+        detail: { features: [pick], _devtest: true }
+    }));
+    _log('Alert banner triggered with <strong>' + event + '</strong>', 'success');
+}
+
+function _cmd_focus() {
+    var focus_new_alerts = require('../alerts/focus_new_alerts');
+    var eligible = _get_enabled_alerts();
+    if (!eligible) {
+        _log('No enabled alerts to test with. Check Alerts Display settings.', 'error');
+        return;
+    }
+    var pick = eligible[Math.floor(Math.random() * eligible.length)];
+    var event = (pick.properties && pick.properties.event) || 'Unknown';
+    focus_new_alerts.test_focus_alert(pick);
+    _log('Focus panel opened with <strong>' + event + '</strong>', 'success');
+}
+
 function _cmd_save_defaults() {
     var settings = settings_store.get_settings_from_dom();
 
@@ -375,6 +422,13 @@ function init() {
         toggle();
         require('../core/menu/stormTrackProMenu').hideARMwindow();
     });
+
+    var host = window.location.hostname;
+    var quickBtn = document.getElementById('devConsoleQuickBtn');
+    if (quickBtn && (host === 'localhost' || host === '127.0.0.1')) {
+        quickBtn.style.display = '';
+        quickBtn.addEventListener('click', function() { toggle(); });
+    }
 
     _log('<span class="devConsoleAccent">StormTrack Developer Console</span> — type <span class="devConsoleCmd">help</span> for commands', 'info');
 }

@@ -1,5 +1,4 @@
 const filter_alerts = require('../filter_alerts');
-const is_severe_or_statement = filter_alerts.is_severe_or_statement || (() => false);
 
 class AlertUpdater {
     constructor() {
@@ -58,10 +57,9 @@ class AlertUpdater {
 
                 const new_alert_features = (alerts_data.features || []).filter((f) => {
                     const id = this._get_alert_id(f);
-                    const event = f.properties?.event || '';
-                    return id && new_ids.has(id) && is_severe_or_statement(event);
+                    return id && new_ids.has(id);
                 });
-                const new_severe_ids = new Set(new_alert_features.map((f) => this._get_alert_id(f)));
+                const new_alert_ids = new Set(new_alert_features.map((f) => this._get_alert_id(f)));
 
                 const focusNewAlerts = require('../../core/menu/settings_store').load().focusNewAlerts;
                 let plot_data = alerts_data;
@@ -71,7 +69,7 @@ class AlertUpdater {
                 }
 
                 this.plot_func(plot_data, {
-                    new_alert_ids: new_severe_ids,
+                    new_alert_ids: new_alert_ids,
                     new_alert_features,
                     focus_new_alerts: focusNewAlerts,
                     on_new_alerts: this._on_new_alerts.bind(this)
@@ -84,11 +82,7 @@ class AlertUpdater {
     }
 
     _on_new_alerts(features) {
-        const alerts_display_state = require('../alerts_display_state');
-        const enabled = features.filter(f => {
-            const event = f.properties?.event || '';
-            return alerts_display_state.get_alert_type_enabled(event);
-        });
+        const enabled = features.filter((f) => filter_alerts.should_show_alert_feature(f));
 
         const focusNewAlerts = require('../../core/menu/settings_store').load().focusNewAlerts;
         if (focusNewAlerts && enabled.length > 0) {

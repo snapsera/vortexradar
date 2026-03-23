@@ -128,39 +128,6 @@ $('#devOpenAlertEditorBtn').on('click', function() {
     window.open('/devtools/alert_editor.html', '_blank', 'noopener');
 });
 
-$('#devTestAlertBannerBtn').on('click', function() {
-    var alerts_display_state = require('../alerts/alerts_display_state');
-    var filter_alerts = require('../alerts/filter_alerts');
-    var is_severe = filter_alerts.is_severe_or_statement || (function() { return false; });
-    var alertsData = window.stormTrackData && window.stormTrackData.alerts_data;
-    if (!alertsData || !alertsData.features || !alertsData.features.length) {
-        var notif = require('../core/notifications/notification_bubble');
-        notif.notify('No active alerts to test with', { icon: 'fa fa-circle-xmark', level: 'warning' });
-        return;
-    }
-    var eligible = alertsData.features.filter(function(f) {
-        var event = f.properties && f.properties.event;
-        if (!event) return false;
-        if (!alerts_display_state.get_alert_type_enabled(event)) return false;
-        return is_severe(event);
-    });
-    if (!eligible.length) {
-        eligible = alertsData.features.filter(function(f) {
-            var event = f.properties && f.properties.event;
-            return event && alerts_display_state.get_alert_type_enabled(event);
-        });
-    }
-    if (!eligible.length) {
-        var notif = require('../core/notifications/notification_bubble');
-        notif.notify('No enabled alerts to test with', { icon: 'fa fa-circle-xmark', level: 'warning' });
-        return;
-    }
-    var pick = eligible[Math.floor(Math.random() * eligible.length)];
-    window.dispatchEvent(new CustomEvent('headerAlertBanner', {
-        detail: { features: [pick], _devtest: true }
-    }));
-});
-
 module.exports = {
     enable,
     disable,

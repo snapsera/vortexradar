@@ -2,9 +2,29 @@ const map = require('../../core/map/map');
 const nexrad_locations = require('../libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
 
 var SWEEP_PERIOD_MS = 20000;
-var TWO_PI = Math.PI * 2;
 var DEG = 180 / Math.PI;
 var EARTH_RADIUS_KM = 6371;
+
+var TRAIL_DEG = 22;
+var TRAIL_RAD = TRAIL_DEG * Math.PI / 180;
+var NUM_ARCS = 14;
+var INNER_GAP_PX = 14;
+var MAX_CANVAS_DIM = 2048;
+
+// Angular-fade mask: trail fades from transparent at the trailing edge to
+// fully opaque at the leading edge, then a sharp cutoff past the leading edge.
+// Leading edge sits at CSS 0° (top); trail extends 22° counter-clockwise (338°→360°).
+var _MASK = 'conic-gradient(from ' + (360 - TRAIL_DEG) + 'deg at 50% 50%,' +
+    'transparent 0deg,' +
+    'rgba(255,255,255,0.01) 6deg,' +
+    'rgba(255,255,255,0.04) 11deg,' +
+    'rgba(255,255,255,0.14) 16deg,' +
+    'rgba(255,255,255,0.40) 19deg,' +
+    'rgba(255,255,255,0.75) 21deg,' +
+    'white ' + TRAIL_DEG + 'deg,' +
+    'white ' + (TRAIL_DEG + 0.3) + 'deg,' +
+    'transparent ' + (TRAIL_DEG + 0.5) + 'deg,' +
+    'transparent 360deg)';
 
 var _currentStation = null;
 var _sweepEnabled = false;
@@ -13,9 +33,7 @@ var _radarLng = 0;
 var _animationId = null;
 
 var _container = null;
-var _trailEl = null;
-var _beamEl = null;
-var _dotEl = null;
+var _canvas = null;
 
 var _cachedCx = 0;
 var _cachedCy = 0;
@@ -51,7 +69,82 @@ function _update_position() {
             _container.style.width = diameter + 'px';
             _container.style.height = diameter + 'px';
         }
+        _draw_beam();
     }
+}
+
+function _draw_beam() {
+    if (!_canvas) return;
+
+    var diameter = _lastAppliedDiameter;
+    if (diameter < 20) return;
+
+    var dpr = window.devicePixelRatio || 1;
+    var pixDiam = Math.min(Math.round(diameter * dpr), MAX_CANVAS_DIM);
+    if (pixDiam < 20) return;
+
+    _canvas.width = pixDiam;
+    _canvas.height = pixDiam;
+
+    var ctx = _canvas.getContext('2d');
+    var s = pixDiam / diameter;
+    var cx = pixDiam / 2;
+    var cy = pixDiam / 2;
+    var r = pixDiam / 2;
+    var innerR = Math.max(INNER_GAP_PX * s, 4);
+
+    var aLeading = -Math.PI / 2;
+    var aTrailing = aLeading - TRAIL_RAD;
+
+    ctx.clearRect(0, 0, pixDiam, pixDiam);
+
+    // ---- Cone fill (radial gradient, angular fade handled by CSS mask) ----
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, innerR, aTrailing, aLeading);
+    ctx.arc(cx, cy, r, aLeading, aTrailing, true);
+    ctx.closePath();
+    ctx.clip();
+
+    var grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, r);
+    grad.addColorStop(0, 'rgba(195, 215, 230, 0.26)');
+    grad.addColorStop(0.12, 'rgba(195, 215, 230, 0.18)');
+    grad.addColorStop(0.30, 'rgba(195, 215, 230, 0.10)');
+    grad.addColorStop(0.55, 'rgba(195, 215, 230, 0.04)');
+    grad.addColorStop(0.80, 'rgba(195, 215, 230, 0.01)');
+    grad.addColorStop(1, 'rgba(195, 215, 230, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, pixDiam, pixDiam);
+    ctx.restore();
+
+    // ---- Concentric arcs ----
+    var arcLw = Math.max(1, s);
+    for (var i = 1; i <= NUM_ARCS; i++) {
+        var t = i / (NUM_ARCS + 1);
+        var arcR = innerR + (r - innerR) * t;
+        var opacity = 0.20 * Math.pow(1 - t, 0.7);
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, arcR, aTrailing, aLeading);
+        ctx.strokeStyle = 'rgba(210, 230, 240, ' + opacity.toFixed(3) + ')';
+        ctx.lineWidth = arcLw;
+        ctx.stroke();
+    }
+
+    // ---- Beam line at leading edge ----
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - innerR);
+    ctx.lineTo(cx, cy - r);
+    var lineGrad = ctx.createLinearGradient(cx, cy - innerR, cx, cy - r);
+    lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+    lineGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.16)');
+    lineGrad.addColorStop(0.60, 'rgba(255, 255, 255, 0.04)');
+    lineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.strokeStyle = lineGrad;
+    ctx.lineWidth = Math.max(1.5, 1.5 * s);
+    ctx.stroke();
+    ctx.restore();
 }
 
 function _apply_transform() {
@@ -72,28 +165,14 @@ function _create_elements() {
 
     _container = document.createElement('div');
     _container.id = 'radarSweepContainer';
-    _container.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:2;will-change:transform;border-radius:50%;opacity:0;';
+    _container.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:2;will-change:transform;opacity:0;';
 
-    _trailEl = document.createElement('div');
-    _trailEl.style.cssText =
-        'position:absolute;inset:0;border-radius:50%;' +
-        'background:conic-gradient(from 353deg, transparent 0deg, rgba(255,255,255,0.14) 0.5deg, rgba(255,255,255,0.05) 4deg, transparent 7deg, transparent 360deg);' +
-        '-webkit-mask-image:radial-gradient(circle, white 0%, transparent 70%);' +
-        'mask-image:radial-gradient(circle, white 0%, transparent 70%);';
+    _canvas = document.createElement('canvas');
+    _canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;' +
+        '-webkit-mask-image:' + _MASK + ';' +
+        'mask-image:' + _MASK + ';';
 
-    _beamEl = document.createElement('div');
-    _beamEl.style.cssText =
-        'position:absolute;left:50%;bottom:50%;width:2px;height:50%;margin-left:-1px;' +
-        'background:linear-gradient(to top, rgba(255,255,255,0.9), rgba(255,255,255,0.35) 40%, transparent);' +
-        'transform-origin:bottom center;';
-
-    _dotEl = document.createElement('div');
-    _dotEl.style.cssText =
-        'position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,0.7);';
-
-    _container.appendChild(_trailEl);
-    _container.appendChild(_beamEl);
-    _container.appendChild(_dotEl);
+    _container.appendChild(_canvas);
 
     var parent = document.getElementById('bodyDiv') || document.body;
     parent.appendChild(_container);
@@ -103,9 +182,7 @@ function _remove_elements() {
     if (_container) {
         _container.remove();
         _container = null;
-        _trailEl = null;
-        _beamEl = null;
-        _dotEl = null;
+        _canvas = null;
     }
 }
 

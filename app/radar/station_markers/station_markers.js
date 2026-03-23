@@ -30,7 +30,7 @@ function _build_legacy_icon_expression() {
     return [
         'case',
         ['==', ['get', 'selected'], 'yes'],
-        'green_station',
+        'blue_station',
         ['==', ['get', 'clicked'], 'yes'],
         'blue_station',
         ['==', ['get', 'status'], 'down'],
@@ -45,7 +45,7 @@ function _build_circle_icon_expression() {
     return [
         'case',
         ['==', ['get', 'selected'], 'yes'],
-        'green_station_circle',
+        'blue_station_circle',
         ['==', ['get', 'clicked'], 'yes'],
         'blue_station_circle',
         ['==', ['get', 'status'], 'down'],

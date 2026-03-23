@@ -1972,178 +1972,279 @@ a:hover { color: var(--color-accent-hover); }
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
+/* ── Focus New Alerts — floating card ── */
 .focusNewAlertsPanel {
   position: fixed;
   z-index: calc(var(--z-panel) - 1);
-  top: var(--header-height);
-  bottom: 0;
-  left: 0;
-  width: 360px;
-  max-width: 90vw;
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transform: translateX(-100%);
-  transition: transform var(--transition-normal), box-shadow var(--transition-normal), opacity 0.5s ease-out;
+  top: calc(var(--header-height) + 16px);
+  left: 16px;
+  width: 390px;
+  max-width: calc(100vw - 32px);
   pointer-events: none;
-  opacity: 1;
+  opacity: 0;
 }
 .focusNewAlertsPanel.focusNewAlertsPanel-visible {
-  transform: translateX(0);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
+  opacity: 1;
 }
 .focusNewAlertsPanel.focusNewAlertsPanel-fading {
-  opacity: 0;
-  transition: opacity 0.5s ease-out;
+  opacity: 1;
 }
-.focusNewAlertsClose {
+
+.fnAlert {
+  --fn-accent: #fff;
+  --fn-chamfer: 30px;
+  --fn-accent-stroke: 1px;
+  background: rgba(12, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--fn-chamfer)),
+    calc(100% - var(--fn-chamfer)) 100%,
+    0 100%
+  );
+  transform-origin: 0 0;
+}
+.focusNewAlertsPanel.focusNewAlertsPanel-visible .fnAlert {
+  animation: fnAlertDrawIn 560ms cubic-bezier(0.18, 0.84, 0.33, 1) both;
+}
+.focusNewAlertsPanel.focusNewAlertsPanel-visible.focusNewAlertsPanel-fading .fnAlert {
+  animation: fnAlertDrawOut 500ms cubic-bezier(0.6, 0, 0.9, 0.2) both;
+}
+.focusNewAlertsPanel.focusNewAlertsPanel-visible .fnAlertBody {
+  opacity: 0;
+  animation: fnAlertBodyIn 220ms ease-out 420ms both;
+}
+.focusNewAlertsPanel.focusNewAlertsPanel-visible.focusNewAlertsPanel-fading .fnAlertBody {
+  animation: fnAlertBodyOut 160ms ease-in both;
+}
+.fnAlertShine {
   position: absolute;
-  left: 100%;
-  margin-left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 40px;
-  margin: 0;
-  padding: 0;
+  inset: -30%;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.03) 42%,
+    rgba(255, 255, 255, 0.08) 47%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.08) 53%,
+    rgba(255, 255, 255, 0.03) 58%,
+    transparent 65%
+  );
+  transform: translate(30%, 30%);
+  z-index: 1;
+}
+.focusNewAlertsPanel.focusNewAlertsPanel-visible .fnAlertShine {
+  animation: fnAlertShinePeriodic 3.6s ease-out 620ms infinite;
+}
+.focusNewAlertsPanel.focusNewAlertsPanel-visible.focusNewAlertsPanel-fading .fnAlertShine {
+  animation: none;
+}
+@keyframes fnAlertDrawIn {
+  0% {
+    clip-path: polygon(0 0, 0 0, 0 0, 0 0, 0 0);
+    box-shadow: 0 0 0 1px var(--fn-accent), 0 0 24px rgba(115, 223, 255, 0.45);
+  }
+  35% {
+    clip-path: polygon(0 0, 26% 0, 26% 27%, 0 27%, 0 29%);
+    box-shadow: 0 0 0 1px var(--fn-accent), 0 0 18px rgba(115, 223, 255, 0.3);
+  }
+  100% {
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      100% calc(100% - var(--fn-chamfer)),
+      calc(100% - var(--fn-chamfer)) 100%,
+      0 100%
+    );
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  }
+}
+@keyframes fnAlertDrawOut {
+  0% {
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      100% calc(100% - var(--fn-chamfer)),
+      calc(100% - var(--fn-chamfer)) 100%,
+      0 100%
+    );
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  }
+  65% {
+    clip-path: polygon(0 0, 26% 0, 26% 27%, 0 27%, 0 29%);
+    box-shadow: 0 0 0 1px var(--fn-accent), 0 0 16px rgba(115, 223, 255, 0.26);
+  }
+  100% {
+    clip-path: polygon(0 0, 0 0, 0 0, 0 0, 0 0);
+    box-shadow: 0 0 0 1px var(--fn-accent), 0 0 20px rgba(115, 223, 255, 0.36);
+  }
+}
+@keyframes fnAlertBodyIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fnAlertBodyOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes fnAlertShinePeriodic {
+  0%   { opacity: 0; transform: translate(30%, 30%); }
+  4%   { opacity: 1; transform: translate(24%, 24%); }
+  18%  { opacity: 0; transform: translate(-30%, -30%); }
+  100% { opacity: 0; transform: translate(-30%, -30%); }
+}
+.fnAlert::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 36px;
+  height: 36px;
+  border-top: 2px solid var(--fn-accent);
+  border-left: 2px solid var(--fn-accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.fnAlert::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--fn-chamfer);
+  height: var(--fn-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - var(--fn-accent-stroke)),
+    var(--fn-accent) calc(50% - var(--fn-accent-stroke)),
+    var(--fn-accent) calc(50% + var(--fn-accent-stroke)),
+    transparent calc(50% + var(--fn-accent-stroke))
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
+}
+.fnAlertClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
   border: none;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--color-border);
-  border-left: none;
-  color: var(--color-text-muted);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+  z-index: 3;
 }
-.focusNewAlertsClose:hover {
-  color: var(--color-accent);
-  background: var(--color-bg-elevated);
+.fnAlertClose:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
-.focusNewAlertsTitle {
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+.fnAlertBody {
+  padding: 18px 20px 20px;
+}
+.fnAlertEventName {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  margin-bottom: 3px;
+  padding-right: 30px;
+}
+.fnAlertExpires {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.35);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-primary);
-  border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.15);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono, monospace);
+  margin-bottom: 14px;
 }
-.focusNewAlertsTitle.focusNewAlertsTitle-new {
-  animation: focusNewAlertTitlePulse 2s ease-in-out infinite;
+.fnAlertPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
 }
-@keyframes focusNewAlertTitlePulse {
-  0%, 100% { color: var(--color-text-primary); }
-  50% { color: var(--color-warning); }
+.fnAlertPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
 }
-.focusNewAlertsContent {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: var(--space-3) 0 var(--space-3) var(--space-4);
-}
-.focusNewAlertCard {
-  margin-bottom: 0;
-  margin-right: 0;
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border);
-  border-right: none;
-  overflow: visible;
+.fnAlertDivider {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 14px;
   position: relative;
+  overflow: hidden;
 }
-.focusNewAlertCard::after {
+.fnAlertDivider::after {
   content: '';
   position: absolute;
   top: 0;
-  right: 0;
-  width: 2px;
-  height: 16px;
-  background: var(--alert-color, var(--color-accent));
-  border-radius: 2px 0 0 2px;
+  left: -25%;
+  width: 25%;
+  height: 100%;
+  background: var(--fn-accent);
   opacity: 0.7;
-  animation: focusAlertTrace 3s ease-in-out infinite;
+  animation: fnDividerSweep 2.1s linear infinite;
 }
-@keyframes focusAlertTrace {
-  0%, 100% { top: 0; opacity: 0.7; }
-  50% { top: calc(100% - 16px); opacity: 0.7; }
+@keyframes fnDividerSweep {
+  0%   { left: -25%; }
+  100% { left: 100%; }
 }
-.focusNewAlertHeader {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 6px rgba(0, 0, 0, 0.25);
+.fnAlertRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.focusNewAlertBody {
-  padding: var(--space-3);
-  font-size: var(--font-size-md);
-  color: var(--color-text-primary);
-  line-height: 1.5;
+.fnAlertRow {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
 }
-.focusNewAlertBody .alertInfoPanel { display: flex; flex-direction: column; gap: var(--space-4); }
-.focusNewAlertBody .alertInfoSection { margin-bottom: 0; }
-.focusNewAlertBody .alertInfoSection + .alertInfoSection {
-  margin-top: 0;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border);
-}
-.focusNewAlertBody .alertInfoSectionTitle {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.1em;
+.fnAlertRowLabel {
+  flex-shrink: 0;
+  width: 60px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-accent);
-  margin-bottom: var(--space-2);
+  color: rgba(255, 255, 255, 0.28);
 }
-.focusNewAlertBody .alertInfoWhatToExpect {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-  line-height: 1.5;
-}
-.focusNewAlertBody .alertInfoCards { gap: var(--space-2); }
-.focusNewAlertBody .alertInfoCard { min-width: 110px; padding: var(--space-2); }
-.focusNewAlertBody .alertInfoCardLabel { font-size: 9px; }
-.focusNewAlertBody .alertInfoCardValue { font-size: var(--font-size-sm); }
-.focusNewAlertBody .alertInfoRow { gap: var(--space-2); }
-.focusNewAlertBody .alertInfoRowContent { flex: 1; min-width: 0; }
-.focusNewAlertBody .alertInfoRowLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-}
-.focusNewAlertBody .alertInfoRowValue {
-  font-size: var(--font-size-md);
-  color: var(--color-text-primary);
-  line-height: 1.5;
+.fnAlertRowValue {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
   word-break: break-word;
-}
-.focusNewAlertBody .alertInfoImpact { font-size: var(--font-size-md); line-height: 1.5; color: var(--color-text-primary); }
-.focusNewAlertBody .alertInfoThreatSummary { font-size: var(--font-size-sm); line-height: 1.5; text-align: left; }
-.focusNewAlertBody .alertInfoRawSection {
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
-}
-.focusNewAlertBody .alertInfoRawText {
-  font-size: var(--font-size-xs);
-  line-height: 1.5;
-  color: var(--color-text-muted);
 }
 
 /* Warning counter floating overlay */
@@ -2240,12 +2341,12 @@ a:hover { color: var(--color-accent-hover); }
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.18) 40%,
-    rgba(255, 255, 255, 0.28) 50%,
-    rgba(255, 255, 255, 0.18) 60%,
+    rgba(255, 255, 255, 0.25) 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.25) 70%,
     transparent 100%
   );
-  animation: warningCounterShine 0.6s ease-out forwards;
+  animation: warningCounterShine 0.7s ease-in-out 2;
   pointer-events: none;
 }
 @keyframes warningCounterShine {
@@ -4839,6 +4940,10 @@ th.spcTable { text-align: center; }
   color: var(--color-text-primary);
   border-color: var(--color-border-strong);
   opacity: 1;
+}
+
+.fullscreenToggleBtn--devConsole {
+  right: 50px;
 }
 
 /* Radar scan animation is now handled by canvas overlay in radar_scan_animation.js */

@@ -315,10 +315,8 @@
         </div>
     </div>
 
-    <!-- Left-side focus new alerts panel (shown when Focus New Alerts is on and new alerts arrive) -->
+    <!-- Floating focus new alerts card (shown when Focus New Alerts is on and new alerts arrive) -->
     <div id="focusNewAlertsPanel" class="focusNewAlertsPanel">
-        <button type="button" class="focusNewAlertsClose" aria-label="Close"><span class="fa fa-xmark"></span></button>
-        <div class="focusNewAlertsTitle">New Alert</div>
         <div class="focusNewAlertsContent"></div>
     </div>
 
@@ -935,15 +933,11 @@
                             <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="devTestAlertsSwitchElem">
                         </div>
                     </div>
-                    <div class="menu-row armrWide devtools-action-row" id="devOpenAlertEditorBtn">
+                    <div class="menu-row armrBottom armrWide devtools-action-row" id="devOpenAlertEditorBtn">
                         <i class="armrIcon armrIcon-Blue fa-solid fa-draw-polygon"></i>
                         Open Alert Polygon Editor
                         <span class="betaTag">BETA</span>
                         <i class="armrIconArrowRight fa-solid fa-arrow-up-right-from-square"></i>
-                    </div>
-                    <div class="menu-row armrBottom armrWide devtools-action-row" id="devTestAlertBannerBtn">
-                        <i class="armrIcon armrIcon-Blue fa-solid fa-tv"></i>
-                        Test Alert Banner <span style="color: var(--color-text-muted); font-size: 11px; font-weight: normal; margin-left: 4px;">(Click once to test)</span>
                     </div>
                 </div>
                 <div id="appMenuSPCScreen" class="armScreen" style="display: none">
@@ -1167,6 +1161,9 @@
     </div>
 
     <!-- Fullscreen toggle button (bottom-right, outside bodyDiv for z-index) -->
+    <button type="button" id="devConsoleQuickBtn" class="fullscreenToggleBtn fullscreenToggleBtn--devConsole" title="Developer Console" style="display:none">
+        <i class="fa fa-terminal"></i>
+    </button>
     <button type="button" id="fullscreenToggleBtn" class="fullscreenToggleBtn" title="Toggle fullscreen">
         <i class="fa fa-expand" id="fullscreenToggleIcon"></i>
     </button>

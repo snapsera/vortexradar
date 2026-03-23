@@ -1,12 +1,12 @@
 # StormTrack Pro
 
-Browser-based weather radar and alerts. Pulls live data from the NWS and other public sources — radar, warnings, surface obs, lightning, and more.
+Browser based weather radar and alerts. Pulls live data from the NWS and other public sources. Radar, warnings, surface obs, lightning, and more.
 
 ## Website
 
-Live at **https://stormtrack.snapsera.com/**
+You can view the live version here: **https://stormtrack.snapsera.com/**
 
-## Screenshot
+## Screenshots
 
 ![StormTrack Pro](images/screenshot.png)
 
@@ -23,8 +23,7 @@ Live at **https://stormtrack.snapsera.com/**
 - **Radio** — NWR and scanner streams.
 - **Drawing** — Freehand annotation on the map.
 - **Screenshots** — Save any region of the map.
-- **7-Day Forecast** — City/state/zip search, current conditions, hourly out to 72h, day-by-day text forecasts, favorites, recent history.
-- **Timezones** — Toggle between local time and radar site time.
+- **7-Day Forecast** — City/state/zip, current conditions, hourly out to 72h, day-by-day text forecasts.
 
 ## Project layout
 

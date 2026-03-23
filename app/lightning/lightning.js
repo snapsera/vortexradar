@@ -7,8 +7,8 @@ var LAYER_CORE = 'lightningCore';
 var SOURCE_ID = 'lightningSource';
 var LAYERS = [LAYER_GLOW, LAYER_CORE];
 
-var STRIKE_LIFETIME_MS = 6000;
-var ANIMATION_INTERVAL_MS = 75;
+var STRIKE_LIFETIME_MS = 4000;
+var ANIMATION_INTERVAL_MS = 60;
 var WS_RECONNECT_MS = 3000;
 var WS_SERVERS = [
     'ws1.blitzortung.org',
@@ -18,6 +18,7 @@ var WS_SERVERS = [
 ];
 
 var strikes = [];
+var recentKeys = {};
 var ws = null;
 var animationTimer = null;
 var active = false;
@@ -70,9 +71,9 @@ function createLayers() {
         source: SOURCE_ID,
         paint: {
             'circle-radius': ['get', 'gr'],
-            'circle-color': '#eeeeff',
+            'circle-color': '#dde4ff',
             'circle-opacity': ['get', 'go'],
-            'circle-blur': 0.85,
+            'circle-blur': 1,
         },
     });
 
@@ -84,6 +85,7 @@ function createLayers() {
             'circle-radius': ['get', 'cr'],
             'circle-color': '#ffffff',
             'circle-opacity': ['get', 'co'],
+            'circle-blur': 0.6,
         },
     });
 
@@ -95,23 +97,21 @@ function createLayers() {
 function getStrikeVisuals(ageMs) {
     if (ageMs >= STRIKE_LIFETIME_MS) return { co: 0, go: 0, cr: 0, gr: 0 };
 
+    var t = ageMs / STRIKE_LIFETIME_MS;
+
+    // Single bright flash then smooth exponential fade — no looping
     var intensity;
-    if (ageMs < 120) {
+    if (ageMs < 80) {
         intensity = 1.0;
-    } else if (ageMs < 400) {
-        var t = (ageMs - 120) / 280;
-        intensity = 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.5));
     } else {
-        var fadeProgress = (ageMs - 400) / (STRIKE_LIFETIME_MS - 400);
-        intensity = Math.max(0, 1 - fadeProgress);
-        intensity = intensity * intensity;
+        intensity = Math.exp(-3.5 * t);
     }
 
     return {
-        co: Math.min(1, intensity * 0.95),
-        go: Math.min(0.55, intensity * 0.45),
-        cr: 2 + intensity * 1.5,
-        gr: 5 + intensity * 9,
+        co: intensity * 0.7,
+        go: intensity * 0.35,
+        cr: 3 + intensity * 3,
+        gr: 10 + intensity * 12,
     };
 }
 
@@ -124,7 +124,7 @@ function updateAnimation() {
         var s = strikes[i];
         var age = now - s.t;
         var v = getStrikeVisuals(age);
-        if (v.co <= 0 && v.go <= 0) continue;
+        if (v.co < 0.01 && v.go < 0.01) continue;
         features.push({
             type: 'Feature',
             geometry: { type: 'Point', coordinates: [s.ln, s.lt] },
@@ -135,6 +135,23 @@ function updateAnimation() {
     var source = map.getSource(SOURCE_ID);
     if (source) {
         source.setData({ type: 'FeatureCollection', features: features });
+    }
+}
+
+// ── Deduplication ──
+
+function isDuplicate(lat, lon, timeNs) {
+    var key = (lat * 1000 | 0) + ',' + (lon * 1000 | 0) + ',' + (timeNs ? Math.floor(timeNs / 1e9) : 0);
+    if (recentKeys[key]) return true;
+    recentKeys[key] = Date.now();
+    return false;
+}
+
+function pruneRecentKeys() {
+    var cutoff = Date.now() - 10000;
+    var keys = Object.keys(recentKeys);
+    for (var i = 0; i < keys.length; i++) {
+        if (recentKeys[keys[i]] < cutoff) delete recentKeys[keys[i]];
     }
 }
 
@@ -178,7 +195,10 @@ function connectWebSocket() {
                 var lon = data.lon;
                 if (typeof data.latc === 'number') lat += data.latc;
                 if (typeof data.lonc === 'number') lon += data.lonc;
-                strikes.push({ lt: lat, ln: lon, t: Date.now() });
+
+                if (!isDuplicate(lat, lon, data.time)) {
+                    strikes.push({ lt: lat, ln: lon, t: Date.now() });
+                }
             }
         } catch (e) { /* skip malformed messages */ }
     };
@@ -207,6 +227,7 @@ function scheduleReconnect() {
 function startAnimationLoop() {
     if (animationTimer) return;
     animationTimer = setInterval(updateAnimation, ANIMATION_INTERVAL_MS);
+    setInterval(pruneRecentKeys, 10000);
 }
 
 function stopAnimationLoop() {
@@ -244,6 +265,7 @@ function stop() {
     if (ws) { try { ws.close(); } catch (e) { /* */ } ws = null; }
 
     strikes = [];
+    recentKeys = {};
 
     var source = map.getSource(SOURCE_ID);
     if (source) {

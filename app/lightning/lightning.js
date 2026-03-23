@@ -1,6 +1,7 @@
 var map = require('../core/map/map');
 var map_funcs = require('../core/map/mapFunctions');
 var setLayerOrder = require('../core/map/setLayerOrder');
+var get_nexrad_location = require('../radar/libnexrad/nexrad_locations').get_nexrad_location;
 
 var LAYER_GLOW = 'lightningGlow';
 var LAYER_CORE = 'lightningCore';
@@ -138,6 +139,29 @@ function updateAnimation() {
     }
 }
 
+// ── Station range filter ──
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+    var R = 6371;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function isWithinRadarRange(lat, lon) {
+    var station = window.stormTrackData && window.stormTrackData.currentStation;
+    if (!station) return false;
+
+    var loc = get_nexrad_location(station);
+    if (!loc || (loc[0] === 0 && loc[1] === 0)) return false;
+
+    var rangeKm = (window.stormTrackData._radarMaxRangeKm || 230) * 1.1;
+    return haversineKm(loc[0], loc[1], lat, lon) <= rangeKm;
+}
+
 // ── Deduplication ──
 
 function isDuplicate(lat, lon, timeNs) {
@@ -196,7 +220,7 @@ function connectWebSocket() {
                 if (typeof data.latc === 'number') lat += data.latc;
                 if (typeof data.lonc === 'number') lon += data.lonc;
 
-                if (!isDuplicate(lat, lon, data.time)) {
+                if (isWithinRadarRange(lat, lon) && !isDuplicate(lat, lon, data.time)) {
                     strikes.push({ lt: lat, ln: lon, t: Date.now() });
                 }
             }

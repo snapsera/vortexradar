@@ -1,5 +1,5 @@
 const map = require('../core/map/map');
-const armFunctions = require('../core/menu/stormTrackProMenu');
+const armFunctions = require('../core/menu/vortexRadarMenu');
 const fetch_spc_data = require('./fetch_data');
 
 var _saved_layer_visibility = null;

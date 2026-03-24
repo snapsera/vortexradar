@@ -6,7 +6,7 @@ const watch_overlay = require('./watch_overlay');
 
 const fetch_discussions = require('./discussions/discussions');
 
-const url_prefix = 'https://atticradar.steepatticstairs.net/';
+const url_prefix = `${window.location.origin}/`;
 
 const new_alerts_url = `https://preview.weather.gov/edd/resource/edd/hazards/getShortFusedHazards.php?all=true`;
 const sws_alerts_url = `https://preview.weather.gov/edd/resource/edd/hazards/getSps.php`;
@@ -24,7 +24,7 @@ const zone_urls = [
 ];
 
 var headers = new Headers();
-headers.append('User-Agent', '(StormTrack Pro, https://stormtrack-pro.local)');
+headers.append('User-Agent', '(Vortex Radar, https://vortexradar.snapsera.com)');
 headers.append('Accept', 'application/geo+json');
 
 function _fetch_alerts_data(callback) {

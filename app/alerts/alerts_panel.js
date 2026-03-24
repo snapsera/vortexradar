@@ -230,7 +230,7 @@ async function _fetch_zone_geometry(zoneUrl) {
     const fetchPromise = (async () => {
         try {
             const headers = new Headers();
-            headers.append('User-Agent', '(StormTrack Pro, https://stormtrack-pro.local)');
+            headers.append('User-Agent', '(Vortex Radar, https://vortexradar.snapsera.com)');
             headers.append('Accept', 'application/geo+json');
             const response = await fetch(normalized, { headers });
             if (!response.ok) return null;

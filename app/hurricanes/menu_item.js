@@ -1,4 +1,4 @@
-const armFunctions = require('../core/menu/stormTrackProMenu');
+const armFunctions = require('../core/menu/vortexRadarMenu');
 const map = require('../core/map/map');
 const init = require('./init');
 

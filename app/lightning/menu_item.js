@@ -1,5 +1,5 @@
 const lightning = require('./lightning');
-const armFunctions = require('../core/menu/stormTrackProMenu');
+const armFunctions = require('../core/menu/vortexRadarMenu');
 const settings_store = require('../core/menu/settings_store');
 
 armFunctions.toggleswitchFunctions($('#armrLightningBtnSwitchElem'), function() {

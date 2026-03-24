@@ -1,5 +1,5 @@
 const fetch_data = require('./fetch_data');
-const armFunctions = require('../core/menu/stormTrackProMenu');
+const armFunctions = require('../core/menu/vortexRadarMenu');
 const map = require('../core/map/map');
 const settings_store = require('../core/menu/settings_store');
 

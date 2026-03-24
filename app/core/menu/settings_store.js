@@ -1,8 +1,8 @@
 /**
  * Persists settings to localStorage so they survive page reloads.
  */
-const STORAGE_KEY = 'stormTrackPro_settings';
-const LEGACY_STORAGE_KEYS = ['stormTrackPro_settings'];
+const STORAGE_KEY = 'vortexRadar_settings';
+const LEGACY_STORAGE_KEYS = ['vortexRadar_settings'];
 
 const DEFAULTS = {
     radar: true,

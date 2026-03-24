@@ -243,7 +243,7 @@ function _add_watermark(base64, callback) {
             var gap = Math.round(6 * scale);
             var margin = Math.round(10 * scale);
             var radius = Math.round(6 * scale);
-            var text = 'StormTrackPro';
+            var text = 'VortexRadar';
 
             ctx.font = '600 ' + fontSize + 'px Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
             var textW = ctx.measureText(text).width;
@@ -319,7 +319,7 @@ function _capture_from_map(x, y, w, h) {
 function _download_png(base64) {
     var timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
     var link = document.createElement('a');
-    link.download = 'StormTrackPro_' + timestamp + '.png';
+    link.download = 'VortexRadar_' + timestamp + '.png';
     link.href = 'data:image/png;base64,' + base64;
     document.body.appendChild(link);
     link.click();

@@ -355,12 +355,12 @@ function _try_parse_storage(raw) {
     }
 }
 
-function _snapshot_stormtrack_local_state() {
+function _snapshot_vortex_local_state() {
     var snapshot = {};
     try {
         for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i);
-            if (!key || key.indexOf('stormTrackPro_') !== 0) continue;
+            if (!key || key.indexOf('vortexRadar_') !== 0) continue;
             snapshot[key] = _try_parse_storage(localStorage.getItem(key));
         }
     } catch (_) {}
@@ -370,7 +370,7 @@ function _snapshot_stormtrack_local_state() {
 function _cmd_save_defaults() {
     settings_store.saveFromDom();
     var settings = settings_store.load();
-    var localState = _snapshot_stormtrack_local_state();
+    var localState = _snapshot_vortex_local_state();
     var payload = {
         settings: settings,
         localStorage: localState
@@ -389,7 +389,7 @@ function _cmd_save_defaults() {
     })
     .then(function(data) {
         var keyCount = Object.keys(localState).length;
-        _log('Site defaults saved successfully to <span class="devConsoleCmd">site_defaults.json</span> (' + keyCount + ' StormTrack state keys captured)', 'success');
+        _log('Site defaults saved successfully to <span class="devConsoleCmd">site_defaults.json</span> (' + keyCount + ' Vortex Radar state keys captured)', 'success');
         notification.notify('Site defaults saved', { icon: 'fa fa-floppy-disk', level: 'success' });
     })
     .catch(function(err) {
@@ -400,13 +400,13 @@ function _cmd_save_defaults() {
 function _cmd_show_defaults_payload() {
     settings_store.saveFromDom();
     var settings = settings_store.load();
-    var localState = _snapshot_stormtrack_local_state();
+    var localState = _snapshot_vortex_local_state();
     var payload = {
         settings: settings,
         localStorage: localState
     };
     var pretty = JSON.stringify(payload, null, 2);
-    _log('Defaults payload preview (<span class="devConsoleCmd">' + Object.keys(localState).length + '</span> StormTrack state keys):', 'info');
+    _log('Defaults payload preview (<span class="devConsoleCmd">' + Object.keys(localState).length + '</span> Vortex Radar state keys):', 'info');
     _log('<pre class="devConsoleJson">' + _escapeHtml(pretty) + '</pre>');
 }
 
@@ -492,7 +492,7 @@ function init() {
 
     document.getElementById('devConsoleOpenBtn').addEventListener('click', function() {
         toggle();
-        require('../core/menu/stormTrackProMenu').hideARMwindow();
+        require('../core/menu/vortexRadarMenu').hideARMwindow();
     });
 
     var host = window.location.hostname;
@@ -502,7 +502,7 @@ function init() {
         quickBtn.addEventListener('click', function() { toggle(); });
     }
 
-    _log('<span class="devConsoleAccent">StormTrack Developer Console</span> — type <span class="devConsoleCmd">help</span> for commands', 'info');
+    _log('<span class="devConsoleAccent">Vortex Radar Developer Console</span> — type <span class="devConsoleCmd">help</span> for commands', 'info');
 }
 
 module.exports = { init: init, toggle: toggle, open: open, close: close };

@@ -1,6 +1,6 @@
 const map = require('../core/map/map');
 
-const DRAW_SETTINGS_KEY = 'stormTrackPro_draw_settings';
+const DRAW_SETTINGS_KEY = 'vortexRadar_draw_settings';
 
 const DEFAULTS = {
     color: '#ffffff',

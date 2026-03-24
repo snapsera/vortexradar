@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>StormTrack Pro</title>
+    <title>Vortex Radar</title>
     <meta name="description" content="A clean, simple, but powerful weather toolkit for the web browser. NEXRAD radar, doppler velocity dealiasing, weather alerts, lightning, METAR data, and more.">
     <link rel="icon" href="images/STP_icon.svg">
     <link rel="apple-touch-icon" href="images/STP_icon.svg">
@@ -240,9 +240,9 @@
 
         <div id="ldHud">
             <div id="ldHudLeft">
-                <img id="loadingLogo" src="images/STP_icon.svg" alt="StormTrack Pro" draggable="false" oncontextmenu="return false;">
+                <img id="loadingLogo" src="images/STP_icon.svg" alt="Vortex Radar" draggable="false" oncontextmenu="return false;">
                 <div id="ldHudLeftText">
-                    <div id="ldTitle">StormTrack Pro</div>
+                    <div id="ldTitle">Vortex Radar</div>
                     <div id="ldSub">Weather Intelligence Platform</div>
                 </div>
             </div>
@@ -621,7 +621,7 @@
 
     <div id="attributionDiv" class="noselect">
         <b id="attributionDivContent">
-            <span class="attributionDivText">StormTrack Pro</span>
+            <span class="attributionDivText">Vortex Radar</span>
         </b>
         <span id="top-right-date" class="attributionDivScanAge"></span>
     </div>
@@ -1389,7 +1389,7 @@
         /* ── data preload helpers ── */
         function _get_station() {
             try {
-                var r = localStorage.getItem('stormTrackPro_settings');
+                var r = localStorage.getItem('vortexRadar_settings');
                 if (!r) return 'KLWX';
                 var p = JSON.parse(r);
                 if (p && typeof p.currentStation==='string' && p.currentStation.length===4)
@@ -1448,7 +1448,7 @@
             setTimeout(function() {
                 _task_done('app');
                 _set_progress(100);
-                _set_status('StormTrack Pro');
+                _set_status('Vortex Radar');
                 setTimeout(_reveal_app, 400);
             }, 300);
         }

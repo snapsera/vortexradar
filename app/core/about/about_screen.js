@@ -17,7 +17,7 @@ function build_about_html() {
         <div class="about_hero">
             <img class="about_logo" src="images/STP_icon.svg" draggable="false" oncontextmenu="return false;">
             <div>
-                <div class="about_name">StormTrack Pro</div>
+                <div class="about_name">Vortex Radar</div>
                 <div class="about_tagline">Real-time radar at your fingertips</div>
             </div>
         </div>
@@ -110,7 +110,7 @@ function build_about_html() {
         </div>
 
         <div class="about_footer">
-            <span>&copy; ${year} StormTrack Pro</span>
+            <span>&copy; ${year} Vortex Radar</span>
             <span class="about_uid">UID: 232292307833978881</span>
         </div>
     </div>

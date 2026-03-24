@@ -3,7 +3,7 @@
 */
 
 function _setLocalStorageSnapshotValue(key, value) {
-    if (!key || key.indexOf('stormTrackPro_') !== 0) return;
+    if (!key || key.indexOf('vortexRadar_') !== 0) return;
     try {
         if (value === undefined || value === null) {
             localStorage.removeItem(key);
@@ -20,7 +20,7 @@ function _setLocalStorageSnapshotValue(key, value) {
 function _seed_site_defaults_if_needed(done) {
     let hasSettings = false;
     try {
-        hasSettings = localStorage.getItem('stormTrackPro_settings') !== null;
+        hasSettings = localStorage.getItem('vortexRadar_settings') !== null;
     } catch (_) {}
     if (hasSettings) {
         done();
@@ -46,7 +46,7 @@ function _seed_site_defaults_if_needed(done) {
 
             if (settingsPayload && typeof settingsPayload === 'object') {
                 try {
-                    localStorage.setItem('stormTrackPro_settings', JSON.stringify(settingsPayload));
+                    localStorage.setItem('vortexRadar_settings', JSON.stringify(settingsPayload));
                 } catch (_) {}
             }
         })
@@ -72,7 +72,7 @@ function load() {
         require('../../alerts/warning_counter').init();
 
         require('../../metars/entry');
-        require('../menu/stormTrackProMenu');
+        require('../menu/vortexRadarMenu');
         require('../menu/productSelectionMenu');
         require('../menu/settings');
         require('../../radar/inspector/entry');

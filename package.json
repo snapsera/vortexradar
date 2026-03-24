@@ -1,7 +1,7 @@
 {
-  "name": "stormtrack-pro",
+  "name": "vortex-radar",
   "version": "1.0.0",
-  "productName": "StormTrack Pro",
+  "productName": "Vortex Radar",
   "scripts": {
     "build": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
     "start": "node server.js",

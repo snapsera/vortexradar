@@ -1,6 +1,6 @@
 const ut = require('../utils');
 const map = require('../map/map');
-const armFunctions = require('./stormTrackProMenu');
+const armFunctions = require('./vortexRadarMenu');
 const setLayerOrder = require('../map/setLayerOrder');
 const fetchMETARData = require('../../metars/fetch_data');
 const fetch_alerts_data = require('../../alerts/fetch_data');
@@ -93,7 +93,7 @@ function closeLoadDefaultsConfirm() {
 }
 
 function _setLocalStorageSnapshotValue(key, value) {
-    if (!key || key.indexOf('stormTrackPro_') !== 0) return;
+    if (!key || key.indexOf('vortexRadar_') !== 0) return;
     try {
         if (value === undefined || value === null) {
             localStorage.removeItem(key);
@@ -127,7 +127,7 @@ function applySiteDefaults() {
                 const keys = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
-                    if (key && key.indexOf('stormTrackPro_') === 0) {
+                    if (key && key.indexOf('vortexRadar_') === 0) {
                         keys.push(key);
                     }
                 }

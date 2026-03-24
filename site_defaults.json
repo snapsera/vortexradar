@@ -38,7 +38,7 @@
     "colortableDVL": "DVL1"
   },
   "localStorage": {
-    "stormTrackPro_settings": {
+    "vortexRadar_settings": {
       "currentStation": "KEAX",
       "radar": true,
       "usRadar": false,
@@ -76,7 +76,7 @@
       "colortableKDP": "KDP1",
       "colortableDVL": "DVL1"
     },
-    "stormTrackPro_forecastHistory": [
+    "vortexRadar_forecastHistory": [
       {
         "name": "San Antonio, Texas",
         "lat": 29.4246002,
@@ -90,7 +90,7 @@
         "ts": 1774231830144
       }
     ],
-    "stormTrackPro_alerts_display_types": {
+    "vortexRadar_alerts_display_types": {
       "Tornado Warning": true,
       "Severe Thunderstorm Warning": true,
       "Special Weather Statement": true,
@@ -164,7 +164,7 @@
       "High Wind Watch": false,
       "Excessive Heat Watch": false
     },
-    "stormTrackPro_alerts_display_collapsed": {
+    "vortexRadar_alerts_display_collapsed": {
       "Winter": true,
       "Other": true,
       "Watches": true,
@@ -174,7 +174,7 @@
       "Tropical": true,
       "Severe Weather": false
     },
-    "stormTrackPro_alerts_display_categories": {
+    "vortexRadar_alerts_display_categories": {
       "Severe Weather": true,
       "Winter": false,
       "Other": false,

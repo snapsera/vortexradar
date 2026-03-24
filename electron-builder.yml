@@ -1,5 +1,5 @@
-appId: com.stormtrackpro.app
-productName: StormTrack Pro
+appId: com.vortexradar.app
+productName: Vortex Radar
 
 directories:
   output: release-build
@@ -22,4 +22,4 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   include: build/installer.nsh
-  artifactName: "StormTrack Pro Setup.${ext}"
+  artifactName: "Vortex Radar Setup.${ext}"

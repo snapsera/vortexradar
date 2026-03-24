@@ -4,7 +4,7 @@
  * Right: single-column collapsible category cards with toggles.
  */
 const apply_alerts_display = require('./apply_visibility').apply_alerts_display;
-const armFunctions = require('../core/menu/stormTrackProMenu');
+const armFunctions = require('../core/menu/vortexRadarMenu');
 const alerts_display_state = require('./alerts_display_state');
 const get_polygon_colors = require('./colors/polygon_colors');
 
@@ -107,8 +107,8 @@ const PRIORITY_ORDER = [
     'Excessive Heat Warning', 'Gale Warning'
 ];
 
-const COLLAPSE_KEY = 'stormTrackPro_alerts_display_collapsed';
-const LEGACY_COLLAPSE_KEY = 'stormTrackPro_alerts_display_collapsed';
+const COLLAPSE_KEY = 'vortexRadar_alerts_display_collapsed';
+const LEGACY_COLLAPSE_KEY = 'vortexRadar_alerts_display_collapsed';
 
 function _load_collapsed() {
     try {
@@ -259,7 +259,7 @@ function _fetch_most_dangerous() {
     }
     const url = 'https://api.weather.gov/alerts/active?status=actual&message_type=alert&limit=500';
     const headers = new Headers();
-    headers.append('User-Agent', '(StormTrack Pro, https://stormtrack-pro.local)');
+    headers.append('User-Agent', '(Vortex Radar, https://vortexradar.snapsera.com)');
     headers.append('Accept', 'application/geo+json');
     fetch(url, { headers })
         .then(r => r.json())

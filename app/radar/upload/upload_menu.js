@@ -1,5 +1,5 @@
 const ut = require('../../core/utils');
-const arm_functions = require('../../core/menu/stormTrackProMenu');
+const arm_functions = require('../../core/menu/vortexRadarMenu');
 const init_event_listeners = require('./file_upload');
 
 const upload_dialog_content = 

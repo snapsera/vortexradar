@@ -27,7 +27,7 @@ async function main() {
     const rootDir = path.resolve(__dirname, '..');
     const sourceSvg = path.join(rootDir, 'images', 'STP_icon.svg');
     const rootIco = path.join(rootDir, 'images', 'STP_icon.ico');
-    const releaseIco = path.join(rootDir, 'release', 'StormTrack Pro-win32-x64', 'resources', 'app', 'STP_icon.ico');
+    const releaseIco = path.join(rootDir, 'release', 'Vortex Radar-win32-x64', 'resources', 'app', 'STP_icon.ico');
 
     await generateIcoFromSvg(sourceSvg, rootIco);
     try {

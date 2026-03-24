@@ -1,14 +1,16 @@
-# StormTrack Pro
+# Vortex Radar
 
 Browser based weather radar and alerts. Pulls live data from the NWS and other public sources. Radar, warnings, surface obs, lightning, and more.
 
+> **Project rename:** This project was renamed from **StormTrack Pro** to **Vortex Radar**.
+
 ## Website
 
-You can view the live version here: **https://stormtrack.snapsera.com/**
+You can view the live version here: [vortexradar.snapsera.com](https://vortexradar.snapsera.com/)
 
 ## Screenshots
 
-![StormTrack Pro](images/screenshot.png)
+![Vortex Radar](images/screenshot.png)
 
 ## Features
 
@@ -27,7 +29,7 @@ You can view the live version here: **https://stormtrack.snapsera.com/**
 
 ## Project layout
 
-```
+```text
 app/                Source, organized by feature
   alerts/           Alert fetching, parsing, rendering, polygons
   core/             App shell, map, menus, popups, clock, entry point

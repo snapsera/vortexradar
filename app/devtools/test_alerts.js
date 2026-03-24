@@ -1,6 +1,6 @@
 const plot_alerts = require('../alerts/plot_alerts');
 const watch_overlay = require('../alerts/watch_overlay');
-const armFunctions = require('../core/menu/stormTrackProMenu');
+const armFunctions = require('../core/menu/vortexRadarMenu');
 const settings_store = require('../core/menu/settings_store');
 
 let _enabled = false;
@@ -92,7 +92,7 @@ function _on_message(event) {
 
 function _init_channel() {
     if (_channel) return;
-    _channel = new BroadcastChannel('stormtrack-test-alerts');
+    _channel = new BroadcastChannel('vortex-radar-test-alerts');
     _channel.onmessage = _on_message;
 }
 

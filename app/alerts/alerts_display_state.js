@@ -2,10 +2,10 @@
  * Alerts display state - which alert types are enabled for map polygons and alerts list.
  * Stored in localStorage. Used by filter_alerts and alerts_display_popup.
  */
-const STORAGE_KEY = 'stormTrackPro_alerts_display_types';
-const CATEGORY_STORAGE_KEY = 'stormTrackPro_alerts_display_categories';
-const LEGACY_STORAGE_KEY = 'stormTrackPro_alerts_display_types';
-const LEGACY_CATEGORY_STORAGE_KEY = 'stormTrackPro_alerts_display_categories';
+const STORAGE_KEY = 'vortexRadar_alerts_display_types';
+const CATEGORY_STORAGE_KEY = 'vortexRadar_alerts_display_categories';
+const LEGACY_STORAGE_KEY = 'vortexRadar_alerts_display_types';
+const LEGACY_CATEGORY_STORAGE_KEY = 'vortexRadar_alerts_display_categories';
 let _savedStateCache = null;
 let _categoryStateCache = null;
 let _resolvedDisplayStateCache = null;
@@ -208,7 +208,7 @@ function is_granular_event(event) {
     return ALL_GRANULAR_EVENTS.has(event);
 }
 
-const MD_STORAGE_KEY = 'stormTrackPro_mesoscale_enabled';
+const MD_STORAGE_KEY = 'vortexRadar_mesoscale_enabled';
 function get_mesoscale_enabled() {
     try {
         const v = localStorage.getItem(MD_STORAGE_KEY);

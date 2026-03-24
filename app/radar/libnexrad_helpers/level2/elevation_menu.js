@@ -1,4 +1,4 @@
-const armFunctions = require('../../../core/menu/stormTrackProMenu');
+const armFunctions = require('../../../core/menu/vortexRadarMenu');
 
 function _generateBtnTemplate(angle, number) {
     return `<div class="col">

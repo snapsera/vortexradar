@@ -83,7 +83,7 @@ async function _fetch_zone_feature(zoneUrl) {
 
     try {
         const headers = new Headers();
-        headers.append('User-Agent', '(StormTrack Pro, https://stormtrack-pro.local)');
+        headers.append('User-Agent', '(Vortex Radar, https://vortexradar.snapsera.com)');
         headers.append('Accept', 'application/geo+json');
         const response = await fetch(normalized, { headers });
         if (!response.ok) throw new Error(`Zone API ${response.status}`);

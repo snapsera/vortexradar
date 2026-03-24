@@ -11,9 +11,9 @@ var _currentName = null;
 var _cachedData = null;
 var _activeTab = 'overview';
 
-var NWS_UA = '(StormTrack Pro, https://stormtrack-pro.local)';
-var STORAGE_KEY_HISTORY = 'stormTrackPro_forecastHistory';
-var STORAGE_KEY_FAVORITES = 'stormTrackPro_forecastFavorites';
+var NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
+var STORAGE_KEY_HISTORY = 'vortexRadar_forecastHistory';
+var STORAGE_KEY_FAVORITES = 'vortexRadar_forecastFavorites';
 var MAX_HISTORY = 15;
 
 // ── Persistence helpers ──

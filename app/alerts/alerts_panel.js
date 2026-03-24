@@ -106,7 +106,6 @@ function _extract_storm_info(p) {
     const desc = (p.description || '').toUpperCase();
     const parts = [];
 
-    // Flash Flood specific
     if (event === 'Flash Flood Warning') {
         const threat = params.flashFloodDamageThreat;
         const source = params.flashFloodDetection;
@@ -124,7 +123,6 @@ function _extract_storm_info(p) {
 
     const isTornadoWarning = ['Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning'].includes(event);
 
-    // Tornado - only for Tornado Warnings; "Radar indicated" in Severe Tstorm = source of wind/hail, not tornado
     if (isTornadoWarning) {
         const tornadoDet = params.tornadoDetection;
         if (tornadoDet && Array.isArray(tornadoDet) && tornadoDet[0]) {
@@ -136,7 +134,6 @@ function _extract_storm_info(p) {
         }
     }
 
-    // Hail
     const hail = params.maxHailSize;
     if (hail && Array.isArray(hail) && hail[0]) {
         const n = parseFloat(hail[0]);
@@ -146,7 +143,6 @@ function _extract_storm_info(p) {
         parts.push('Hail: 0.00IN');
     }
 
-    // Wind
     const wind = params.maxWindGust;
     if (wind && Array.isArray(wind) && wind[0]) {
         parts.push(`Wind: <b>${wind[0]}</b>`);

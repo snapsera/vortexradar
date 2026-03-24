@@ -1,4 +1,4 @@
-# Vortex Radar
+![Vortex Radar](images/readmelogo.png)
 
 Browser based weather radar and alerts. Pulls live data from the NWS and other public sources. Radar, warnings, surface obs, lightning, and more.
 

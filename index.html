@@ -627,7 +627,7 @@
         <div id="appMenuContainer">
             <div id="appMenuBody">
                 <div id="appMenuMainScreen" class="armScreen">
-                    <div class="armsHeader"><img class="armsMenuLogo" src="images/STP_full.svg" alt="StormTrack Pro" draggable="false" oncontextmenu="return false;"></div>
+                    <div class="armsHeader armsHeader--main"><span class="armsHeaderTitle">Menu</span></div>
 
                     <div class="menu-category" id="menuCategoryOverlays">
                         <div class="menu-category-header">
@@ -778,67 +778,67 @@
                         <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                     </div>
                 </div>
-                <div id="appMenuSettingsScreen" class="armScreen" style="display: none">
-                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsSettingsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Radar Settings<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                <div id="appMenuSettingsScreen" class="armScreen">
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsSettingsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Radar Settings</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">RADAR</div>
-                    <div class="menu-row armrTop armrWide menu-row-slider" id="armrRadarOpacityBtn">
+                    <div class="armrHeader">RADAR</div>
+                    <div class="menu-row armrTop" id="armrRadarOpacityBtn">
                         Radar Opacity
                         <div class="slider-container">
                             <input type="range" min="10" max="100" value="85" step="5" class="opacity-slider" id="armrRadarOpacitySlider">
                             <span class="slider-value" id="armrRadarOpacityValue">85%</span>
                         </div>
                     </div>
-                    <div class="menu-row armrMiddle armrWide" id="armrRadarSiteLegacyStyleBtn">
+                    <div class="menu-row armrMiddle" id="armrRadarSiteLegacyStyleBtn">
                         Detailed Radar Sites
                         <div class="form-check form-switch">
-                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarSiteLegacyStyleBtnSwitchElem">
+                            <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarSiteLegacyStyleBtnSwitchElem">
                         </div>
                     </div>
-                    <div class="menu-row armrMiddle armrWide" id="armrRadarSweepBtn">
+                    <div class="menu-row armrMiddle" id="armrRadarSweepBtn">
                         Radar Sweep
                         <span class="betaTag">BETA</span>
                         <div class="form-check form-switch">
-                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarSweepBtnSwitchElem" checked>
+                            <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarSweepBtnSwitchElem" checked>
                         </div>
                     </div>
-                    <div class="menu-row armrBottom armrWide" id="armrRadarRadiusBtn">
+                    <div class="menu-row armrBottom" id="armrRadarRadiusBtn">
                         Radar Radius
                         <div class="form-check form-switch">
-                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarRadiusBtnSwitchElem">
+                            <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrRadarRadiusBtnSwitchElem">
                         </div>
                     </div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">ALERT POLYGONS</div>
-                    <div class="menu-row armrTop armrWide menu-row-slider">
+                    <div class="armrHeader">ALERT POLYGONS</div>
+                    <div class="menu-row armrTop">
                         Fill Opacity
                         <div class="slider-container">
                             <input type="range" min="0" max="100" value="10" step="5" class="opacity-slider" id="alertFillOpacitySlider">
                             <span class="slider-value" id="alertFillOpacityValue">10%</span>
                         </div>
                     </div>
-                    <div class="menu-row armrMiddle armrWide menu-row-slider">
+                    <div class="menu-row armrMiddle">
                         Border Thickness
                         <div class="slider-container">
                             <input type="range" min="50" max="300" value="75" step="25" class="opacity-slider" id="alertBorderScaleSlider">
                             <span class="slider-value" id="alertBorderScaleValue">75%</span>
                         </div>
                     </div>
-                    <div class="menu-row armrMiddle armrWide">
+                    <div class="menu-row armrMiddle">
                         Blink Color
                         <div class="color-picker-container">
                             <input type="color" value="#000000" id="alertBlinkColorPicker" class="color-picker-input">
                         </div>
                     </div>
-                    <div class="menu-row armrMiddle armrWide">
+                    <div class="menu-row armrMiddle">
                         Blink New Alerts
                         <div class="form-check form-switch">
-                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="alertBlinkEnabledSwitchElem" checked>
+                            <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="alertBlinkEnabledSwitchElem" checked>
                         </div>
                     </div>
-                    <div class="menu-row armrBottom armrWide">
+                    <div class="menu-row armrBottom">
                         Blink Duration
                         <select id="alertBlinkDurationSelect" class="armrModeSelect">
                             <option value="5">5 seconds</option>
@@ -849,8 +849,8 @@
                     </div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">DATA FILTERING</div>
-                    <div class="menu-row armrWide gate-filter-section">
+                    <div class="armrHeader">DATA FILTERING</div>
+                    <div class="menu-row gate-filter-section">
                         <div class="gate-filter-title">Reflectivity Gate Filter <span class="betaTag">BETA</span></div>
                         <div class="gate-filter-subtitle">Use the slider to declutter low reflectivity values.</div>
                         <div class="dual-range-wrap">
@@ -866,8 +866,8 @@
                     </div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">COLORTABLES</div>
-                    <div class="menu-row armrWide" id="armrColortablesBtn">
+                    <div class="armrHeader">COLORTABLES</div>
+                    <div class="menu-row" id="armrColortablesBtn">
                         <i class="armrIcon armrIcon-Blue fa-solid fa-palette"></i>
                         Colortables
                         <span class="betaTag">BETA</span>
@@ -875,18 +875,18 @@
                     </div>
 
                 </div>
-                <div id="appMenuTTSAlertsScreen" class="armScreen" style="display: none">
-                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsTTSAlertsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>TTS Alerts<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                <div id="appMenuTTSAlertsScreen" class="armScreen">
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsTTSAlertsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">TTS Alerts</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">TEXT-TO-SPEECH</div>
-                    <div class="menu-row armrTop armrWide" id="armrTTSEnabledRow">
+                    <div class="armrHeader">TEXT-TO-SPEECH</div>
+                    <div class="menu-row armrTop" id="armrTTSEnabledRow">
                         Enabled
                         <div class="form-check form-switch">
-                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrAudibleAlertsBtnSwitchElem">
+                            <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrAudibleAlertsBtnSwitchElem">
                         </div>
                     </div>
-                    <div class="menu-row armrBottom armrWide menu-row-slider" id="armrTTSVolumeRow">
+                    <div class="menu-row armrBottom" id="armrTTSVolumeRow">
                         Volume
                         <div class="slider-container">
                             <input type="range" min="0" max="100" value="100" step="5" class="opacity-slider" id="ttsVolumeSlider">
@@ -894,76 +894,76 @@
                         </div>
                     </div>
                 </div>
-                <div id="appMenuThemeScreen" class="armScreen" style="display: none">
-                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsThemeBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Theme<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                <div id="appMenuThemeScreen" class="armScreen">
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsThemeBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Theme</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">MAP STYLE</div>
-                    <div class="menu-row armrTop armrWide" id="armrLightMapBtn">
+                    <div class="armrHeader">MAP STYLE</div>
+                    <div class="menu-row armrTop" id="armrLightMapBtn">
                         <i class="armrIcon armrIcon-Blue fa-solid fa-sun"></i>
                         Light
                         <div class="form-check form-switch">
-                            <input class="map_style_button form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrLightMapBtnSwitchElem">
+                            <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrLightMapBtnSwitchElem">
                         </div>
                     </div>
-                    <div class="menu-row armrMiddle armrWide" id="armrDarkMapBtn">
+                    <div class="menu-row armrMiddle" id="armrDarkMapBtn">
                         <i class="armrIcon armrIcon-Blue fa-solid fa-moon"></i>
                         Dark
                         <div class="form-check form-switch">
-                            <input class="map_style_button form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrDarkMapBtnSwitchElem" checked>
+                            <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrDarkMapBtnSwitchElem" checked>
                         </div>
                     </div>
-                    <div class="menu-row armrBottom armrWide" id="armrSatelliteMapBtn">
+                    <div class="menu-row armrBottom" id="armrSatelliteMapBtn">
                         <i class="armrIcon armrIcon-Blue fa-solid fa-earth-americas"></i>
                         Satellite
                         <div class="form-check form-switch">
-                            <input class="map_style_button form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="armrSatelliteMapBtnSwitchElem">
+                            <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrSatelliteMapBtnSwitchElem">
                         </div>
                     </div>
                 </div>
-                <div id="appMenuAudibleAlertsScreen" class="armScreen" style="display: none">
-                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsAudibleAlertsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Audible Alerts<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                <div id="appMenuAudibleAlertsScreen" class="armScreen">
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsAudibleAlertsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Audible Alerts</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">TORNADO WARNING</div>
-                    <div class="menu-row armrTop armrWide" id="armrTornadoBeepEnabledRow">
+                    <div class="armrHeader">TORNADO WARNING</div>
+                    <div class="menu-row armrTop" id="armrTornadoBeepEnabledRow">
                         Enabled
                         <div class="form-check form-switch">
-                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="tornadoBeepEnabledSwitchElem">
+                            <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="tornadoBeepEnabledSwitchElem">
                         </div>
                     </div>
-                    <div class="menu-row armrMiddle armrWide menu-row-slider" id="armrTornadoBeepVolumeRow">
+                    <div class="menu-row armrMiddle" id="armrTornadoBeepVolumeRow">
                         Volume
                         <div class="slider-container">
                             <input type="range" min="0" max="100" value="100" step="5" class="opacity-slider" id="tornadoBeepVolumeSlider">
                             <span class="slider-value" id="tornadoBeepVolumeValue">100%</span>
                         </div>
                     </div>
-                    <div class="menu-row armrBottom armrWide devtools-action-row" id="tornadoBeepTestBtn">
+                    <div class="menu-row armrBottom devtools-action-row" id="tornadoBeepTestBtn">
                         <i class="armrIcon armrIcon-Blue fa-solid fa-play"></i>
                         Test Sound
                     </div>
                 </div>
-                <div id="appMenuDevToolsScreen" class="armScreen" style="display: none">
-                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsDevToolsBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>Developer Tools<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                <div id="appMenuDevToolsScreen" class="armScreen">
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsDevToolsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Developer Tools</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
                     <br>
 
-                    <div class="armrHeader armrHeaderWide">TEST ALERTS</div>
-                    <div class="menu-row armrTop armrWide" id="devTestAlertsRow">
+                    <div class="armrHeader">TEST ALERTS</div>
+                    <div class="menu-row armrTop" id="devTestAlertsRow">
                         Enable Test Alerts
                         <div class="form-check form-switch">
-                            <input class="form-check-input toggleSwitchContainter tscWide" onfocus="this.blur();" type="checkbox" role="switch" id="devTestAlertsSwitchElem">
+                            <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="devTestAlertsSwitchElem">
                         </div>
                     </div>
-                    <div class="menu-row armrBottom armrWide devtools-action-row" id="devOpenAlertEditorBtn">
+                    <div class="menu-row armrBottom devtools-action-row" id="devOpenAlertEditorBtn">
                         <i class="armrIcon armrIcon-Blue fa-solid fa-draw-polygon"></i>
                         Open Alert Polygon Editor
                         <span class="betaTag">BETA</span>
                         <i class="armrIconArrowRight fa-solid fa-arrow-up-right-from-square"></i>
                     </div>
                 </div>
-                <div id="appMenuSPCScreen" class="armScreen" style="display: none">
-                    <div class="armsHeader"><div class="armsHeaderBackBtn" id="armsSPCBackBtn"><i class="fa fa-chevron-left"></i>&nbsp;Back</div>SPC Outlooks<div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                <div id="appMenuSPCScreen" class="armScreen">
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsSPCBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">SPC Outlooks</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
 
                     <br>
                     <div id="spcDataInfo"></div>

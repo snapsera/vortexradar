@@ -1,10 +1,10 @@
 function _resetAllScreens() {
-    $('.armScreen').removeClass('armScreen-slide-out armScreen-slide-in').css({ transform: '', opacity: '', display: '' }).hide();
+    $('.armScreen').removeClass('armScreen--active armScreen--sliding').css({ transform: '' });
 }
 
 function showARMwindow() {
     _resetAllScreens();
-    $('#appMenuMainScreen').show();
+    $('#appMenuMainScreen').addClass('armScreen--active');
     currentScreen = '#appMenuMainScreen';
     _sliding = false;
     $('#leftPanel').removeClass('leftPanel-closed').addClass('leftPanel-open');
@@ -12,7 +12,7 @@ function showARMwindow() {
 function hideARMwindow() {
     $('#leftPanel').removeClass('leftPanel-open').addClass('leftPanel-closed');
     _resetAllScreens();
-    $('#appMenuMainScreen').show();
+    $('#appMenuMainScreen').addClass('armScreen--active');
     currentScreen = '#appMenuMainScreen';
     _sliding = false;
 }
@@ -23,6 +23,9 @@ $(function() {
         body.appendTo('#leftPanelContent');
         $('#appMenu').hide();
     }
+
+    _resetAllScreens();
+    $('#appMenuMainScreen').addClass('armScreen--active');
 
     var host = window.location.hostname;
     if (host !== 'localhost' && host !== '127.0.0.1') {
@@ -120,7 +123,7 @@ $('.armrSlideDown').hover(function() {
     $(this).css('cursor', 'default');
 });
 
-var SLIDE_MS = 220;
+var SLIDE_MS = 280;
 
 var mainMenuScreen = '#appMenuMainScreen';
 var settingsScreen = '#appMenuSettingsScreen';
@@ -140,32 +143,40 @@ function slideToScreen(targetScreen, direction) {
 
     var $current = $(currentScreen);
     var $target = $(targetScreen);
+    var $body = $('#appMenuBody');
+    var $scroll = $('#leftPanelContent');
 
+    $scroll.css('overflow', 'hidden');
+
+    var startHeight = $current[0].scrollHeight;
+    $body.css({ height: startHeight + 'px' });
+
+    $current.removeClass('armScreen--active').addClass('armScreen--sliding');
+    $target.addClass('armScreen--sliding armScreen--slide-in');
+
+    var inX = direction === 'forward' ? '100%' : '-100%';
     var outX = direction === 'forward' ? '-100%' : '100%';
-    var inX  = direction === 'forward' ? '100%' : '-100%';
 
-    $current.addClass('armScreen-slide-out');
-    $target.addClass('armScreen-slide-in');
+    $current.css('transform', 'translateX(0)');
+    $target.scrollTop(0).css('transform', 'translateX(' + inX + ')');
 
-    $target.scrollTop(0).css({
-        display: 'block',
-        transform: 'translateX(' + inX + ')',
-        opacity: 0
-    });
+    $body[0].offsetWidth;
 
-    $target[0].offsetWidth;
-
-    $current.css({ transform: 'translateX(' + outX + ')', opacity: 0 });
-    $target.css({ transform: 'translateX(0)', opacity: 1 });
+    var targetHeight = $target[0].scrollHeight;
+    $body.css({ transition: 'height ' + SLIDE_MS + 'ms cubic-bezier(0.4,0,0.2,1)', height: targetHeight + 'px' });
+    $current.css('transform', 'translateX(' + outX + ')');
+    $target.css('transform', 'translateX(0)');
 
     var prev = currentScreen;
     currentScreen = targetScreen;
 
     setTimeout(function() {
-        $(prev).hide().removeClass('armScreen-slide-out').css({ transform: '', opacity: '' });
-        $target.removeClass('armScreen-slide-in').css({ transform: '', opacity: '' });
+        $(prev).removeClass('armScreen--sliding armScreen--slide-in').css('transform', '');
+        $target.removeClass('armScreen--sliding armScreen--slide-in').addClass('armScreen--active').css('transform', '');
+        $body.css({ height: '', transition: '' });
+        $scroll.css('overflow', '');
         _sliding = false;
-    }, SLIDE_MS + 30);
+    }, SLIDE_MS + 20);
 }
 
 $('#armrSettingsBtn').click(function() {

@@ -25,16 +25,18 @@ app.post('/api/save-defaults', (req, res) => {
 
 app.use(express.static(path.join(__dirname), {
     extensions: ['html'],
-    setHeaders(res, filePath) {
-        if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-            res.set('Cache-Control', 'no-cache');
-        } else {
-            res.set('Cache-Control', 'public, max-age=3600');
-        }
+    etag: false,
+    lastModified: false,
+    setHeaders(res) {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        res.set('Surrogate-Control', 'no-store');
     }
 }));
 
 app.get('*', (req, res) => {
+    res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 

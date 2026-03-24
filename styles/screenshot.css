@@ -23,17 +23,55 @@
   transition: transform 200ms cubic-bezier(0.55, 0, 1, 0.45), opacity 150ms ease !important;
 }
 .screenshotModeToolbarInner {
+  --ft-chamfer: 14px;
+  --ft-accent: rgba(14, 165, 233, 0.55);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   padding: 8px 6px;
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  background: rgba(12, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--ft-chamfer)),
+    calc(100% - var(--ft-chamfer)) 100%,
+    0 100%
+  );
+  position: relative;
+}
+.screenshotModeToolbarInner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border-top: 2px solid var(--ft-accent);
+  border-left: 2px solid var(--ft-accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.screenshotModeToolbarInner::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--ft-chamfer);
+  height: var(--ft-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--ft-accent) calc(50% - 1px),
+    var(--ft-accent) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
 }
 .screenshotMode-hidden {
   opacity: 0 !important;
@@ -66,47 +104,48 @@
   display: flex;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-md);
+  border-radius: 3px;
+  background: rgba(12, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
 }
 .screenshotToolbarBtn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border: none;
-  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-radius: 3px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.15s, border-color 0.15s;
   font-family: inherit;
 }
 .screenshotToolbarBtn-save {
-  background: var(--color-accent);
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.30);
   color: #fff;
 }
 .screenshotToolbarBtn-save:hover {
-  background: #38bdf8;
-  transform: scale(1.04);
+  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(14, 165, 233, 0.45);
 }
 .screenshotToolbarBtn-folder {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--color-text-secondary);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
 }
 .screenshotToolbarBtn-folder:hover {
-  background: rgba(255, 255, 255, 0.14);
-  transform: scale(1.04);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.85);
 }
 .screenshotToolbarBtn-cancel {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--color-text-secondary);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
 }
 .screenshotToolbarBtn-cancel:hover {
-  background: rgba(255, 255, 255, 0.14);
-  transform: scale(1.04);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
 }

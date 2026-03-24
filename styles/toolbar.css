@@ -1,4 +1,6 @@
 .floatingToolbar {
+  --ft-chamfer: 14px;
+  --ft-accent: rgba(14, 165, 233, 0.55);
   position: fixed;
   z-index: var(--z-panel);
   right: 12px;
@@ -6,45 +8,86 @@
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
+  padding: 5px;
+  gap: 2px;
+  pointer-events: auto;
   transition: right var(--transition-normal);
+  background: rgba(12, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--ft-chamfer)),
+    calc(100% - var(--ft-chamfer)) 100%,
+    0 100%
+  );
 }
-.floatingToolbar > * { pointer-events: auto; }
+.floatingToolbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border-top: 2px solid var(--ft-accent);
+  border-left: 2px solid var(--ft-accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.floatingToolbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--ft-chamfer);
+  height: var(--ft-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--ft-accent) calc(50% - 1px),
+    var(--ft-accent) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
+}
 .floatingToolBtn {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--color-border);
+  width: 36px;
+  height: 36px;
+  border-radius: 3px;
+  background: transparent;
+  border: 1px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
-  box-shadow: var(--shadow-sm);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  position: relative;
+  z-index: 1;
 }
 .floatingToolBtn:hover {
-  background: var(--color-bg-elevated);
-  border-color: var(--color-border-strong);
-  transform: scale(1.08);
-  box-shadow: var(--shadow-md);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
 }
 .floatingToolBtn span {
   font-size: 17px;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.45);
+  transition: color var(--transition-fast);
+}
+.floatingToolBtn:hover span {
+  color: rgba(255, 255, 255, 0.85);
 }
 .floatingToolBtn:has(.menu_item_selected) {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.3);
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.30);
 }
 .floatingToolBtn:has(.menu_item_selected) span {
-  color: var(--color-text-inverse);
+  color: #fff;
 }
 .floatingToolBtn-disabled {
   opacity: 0.3;
@@ -83,17 +126,55 @@
   transition: transform 200ms cubic-bezier(0.55, 0, 1, 0.45), opacity 150ms ease !important;
 }
 .drawToolbarInner {
+  --ft-chamfer: 14px;
+  --ft-accent: rgba(14, 165, 233, 0.55);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   padding: 8px 6px;
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  background: rgba(12, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--ft-chamfer)),
+    calc(100% - var(--ft-chamfer)) 100%,
+    0 100%
+  );
+  position: relative;
+}
+.drawToolbarInner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border-top: 2px solid var(--ft-accent);
+  border-left: 2px solid var(--ft-accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.drawToolbarInner::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--ft-chamfer);
+  height: var(--ft-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--ft-accent) calc(50% - 1px),
+    var(--ft-accent) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
 }
 .drawToolSection {
   display: flex;
@@ -104,10 +185,10 @@
 }
 .drawToolLabel {
   font-size: 9px;
-  font-weight: var(--font-weight-bold);
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.28);
   text-align: center;
   line-height: 1;
 }
@@ -115,9 +196,9 @@
   width: 34px;
   height: 26px;
   padding: 1px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
   outline: none;
 }
@@ -127,6 +208,8 @@
   border-radius: 3px;
 }
 .drawSizePopout {
+  --ft-chamfer: 10px;
+  --ft-accent: rgba(14, 165, 233, 0.55);
   position: absolute;
   right: calc(100% + 8px);
   top: 50%;
@@ -136,12 +219,17 @@
   align-items: center;
   gap: 2px;
   padding: 6px;
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  background: rgba(12, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--ft-chamfer)),
+    calc(100% - var(--ft-chamfer)) 100%,
+    0 100%
+  );
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease, transform 120ms ease;
@@ -157,7 +245,7 @@
   height: 30px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: 3px;
   background: transparent;
   cursor: pointer;
   display: flex;
@@ -167,11 +255,11 @@
 }
 .drawSizeDot:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: var(--color-border);
+  border-color: rgba(255, 255, 255, 0.10);
 }
 .drawSizeDot-active {
-  background: var(--color-accent-muted) !important;
-  border-color: var(--color-accent) !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  border-color: rgba(14, 165, 233, 0.30) !important;
 }
 .drawSizeDotInner {
   display: block;
@@ -182,43 +270,41 @@
 .drawToolDivider {
   width: 28px;
   height: 0;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   margin: 2px 0;
 }
 .drawToolBtn {
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 15px;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 .drawToolBtn:hover {
-  background: var(--color-bg-elevated);
-  color: var(--color-text-primary);
-  border-color: var(--color-border-strong);
-  transform: scale(1.06);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.10);
 }
 .drawToolBtn-active {
-  background: var(--color-accent) !important;
-  border-color: var(--color-accent) !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  border-color: rgba(14, 165, 233, 0.30) !important;
   color: #fff !important;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
 }
 .drawToolBtn-danger:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--color-danger);
-  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.25);
 }
 .drawToolBtn-close:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--color-danger);
-  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.25);
 }

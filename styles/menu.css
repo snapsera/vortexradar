@@ -83,7 +83,7 @@
   flex: 1;
   padding: 0;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 .leftPanelContent .leftPanelTitle {
   font-size: var(--font-size-xs);
@@ -124,7 +124,7 @@
 #appMenuBody {
   color: var(--color-text-secondary);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   padding: 0;
   background: rgba(12, 14, 20, 0.97);
 }

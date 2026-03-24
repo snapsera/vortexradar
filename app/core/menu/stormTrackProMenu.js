@@ -147,6 +147,7 @@ function slideToScreen(targetScreen, direction) {
     var $scroll = $('#leftPanelContent');
 
     $scroll.css('overflow', 'hidden');
+    $body.css('overflow', 'hidden');
 
     var startHeight = $current[0].scrollHeight;
     $body.css({ height: startHeight + 'px' });
@@ -173,7 +174,7 @@ function slideToScreen(targetScreen, direction) {
     setTimeout(function() {
         $(prev).removeClass('armScreen--sliding armScreen--slide-in').css('transform', '');
         $target.removeClass('armScreen--sliding armScreen--slide-in').addClass('armScreen--active').css('transform', '');
-        $body.css({ height: '', transition: '' });
+        $body.css({ height: '', transition: '', overflow: '' });
         $scroll.css('overflow', '');
         _sliding = false;
     }, SLIDE_MS + 20);

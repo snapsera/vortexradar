@@ -3003,113 +3003,181 @@ a:hover { color: var(--color-accent-hover); }
 }
 .adpOverlay-visible { opacity: 1; }
 .adpModal {
+  --adp-chamfer: 30px;
+  --adp-accent: var(--color-accent);
   width: 920px; height: 960px; max-width: 96vw; max-height: 98vh;
   display: flex; flex-direction: column;
-  background: var(--color-bg-primary); border-radius: var(--radius-xl); overflow: hidden;
-  box-shadow: var(--shadow-xl);
-  border: 1px solid var(--color-border);
+  background: rgba(12, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--adp-chamfer)),
+    calc(100% - var(--adp-chamfer)) 100%,
+    0 100%
+  );
+}
+.adpModal::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px;
+  width: 36px; height: 36px;
+  border-top: 2px solid var(--adp-accent);
+  border-left: 2px solid var(--adp-accent);
+  pointer-events: none;
+  z-index: 10;
+}
+.adpModal::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: var(--adp-chamfer); height: var(--adp-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--adp-accent) calc(50% - 1px),
+    var(--adp-accent) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 10;
 }
 .adpHeader {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-3) var(--space-5);
-  background: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
 }
 .adpHeaderLeft { display: flex; flex-direction: column; gap: 2px; }
-.adpHeaderTitle { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
-.adpHeaderSub { font-size: var(--font-size-xs); color: var(--color-text-muted); font-weight: var(--font-weight-medium); }
+.adpHeaderTitle {
+  font-size: 22px; font-weight: 900; color: #fff;
+  letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.1;
+}
+.adpHeaderSub {
+  font-size: 11px; color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;
+}
 .adpHeaderActions { display: flex; align-items: center; gap: var(--space-2); }
 .adpBtnAll {
-  padding: 4px var(--space-3); border-radius: var(--radius-md);
-  border: 1px solid var(--color-border); background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
-  cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast);
+  padding: 3px 10px; border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  cursor: pointer; transition: background .15s, color .15s;
 }
-.adpBtnAll:hover { background: var(--color-bg-elevated); color: var(--color-text-primary); }
-.adpBtnAllOff { border-color: rgba(239, 68, 68, 0.3); color: var(--color-danger); }
-.adpBtnAllOff:hover { background: rgba(239, 68, 68, 0.08); }
-.adpBtnMd { border-color: rgba(0, 0, 245, 0.3); color: var(--color-text-muted); }
-.adpBtnMd:hover { background: rgba(0, 0, 245, 0.1); color: var(--color-text-primary); }
-.adpBtnMd-active { background: rgba(0, 0, 245, 0.18); border-color: rgba(0, 0, 245, 0.5); color: rgb(120, 120, 255); }
-.adpBtnMd-active:hover { background: rgba(0, 0, 245, 0.25); }
+.adpBtnAll:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.adpBtnAllOff { border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
+.adpBtnAllOff:hover { background: rgba(239, 68, 68, 0.1); }
+.adpBtnMd { border-color: rgba(100, 100, 255, 0.3); color: rgba(255, 255, 255, 0.5); }
+.adpBtnMd:hover { background: rgba(100, 100, 255, 0.1); color: #fff; }
+.adpBtnMd-active { background: rgba(100, 100, 255, 0.18); border-color: rgba(100, 100, 255, 0.5); color: rgb(140, 140, 255); }
+.adpBtnMd-active:hover { background: rgba(100, 100, 255, 0.25); }
 .adpCloseBtn {
-  width: 30px; height: 30px; padding: 0; border: none;
-  border-radius: 50%; background: rgba(255, 255, 255, 0.05);
-  color: var(--color-text-muted); font-size: 14px; cursor: pointer;
+  width: 22px; height: 22px; padding: 0; border: none;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.35); font-size: 10px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: background .15s, color .15s;
+  z-index: 3;
 }
-.adpCloseBtn:hover { background: rgba(255, 255, 255, 0.1); color: var(--color-accent); }
+.adpCloseBtn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 .adpContent { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 .adpInfo {
   width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-3);
-  padding: var(--space-4); background: var(--color-bg-primary);
-  border-right: 1px solid var(--color-border); overflow-y: auto;
+  padding: var(--space-4); background: transparent;
+  border-right: 1px solid rgba(255, 255, 255, 0.06); overflow-y: auto;
 }
 .adpToggleCol { flex: 1; overflow-y: auto; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 @media (max-width: 740px) {
   .adpContent { flex-direction: column; }
-  .adpInfo { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid var(--color-border); }
+  .adpInfo { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
   .adpModal { max-width: 99vw; }
 }
 .adpInfoHint {
-  background: var(--color-bg-secondary); border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03); border-radius: 4px;
   padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);
-  border: 1px solid var(--color-border); min-height: 120px;
+  border: 1px solid rgba(255, 255, 255, 0.08); min-height: 120px;
 }
-.adpInfoHintIcon { font-size: 20px; color: var(--color-accent); }
-.adpInfoHintTitle { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
-.adpInfoHintText { font-size: var(--font-size-sm); color: var(--color-text-muted); line-height: 1.5; }
+.adpInfoHintIcon { font-size: 20px; color: rgba(255, 255, 255, 0.5); }
+.adpInfoHintTitle { font-size: 14px; font-weight: 700; color: #fff; }
+.adpInfoHintText { font-size: 13px; color: rgba(255, 255, 255, 0.45); line-height: 1.5; }
 .adpInfoDanger {
-  background: var(--color-bg-secondary); border-radius: var(--radius-md); overflow: hidden;
-  border: 1px solid var(--color-border); flex: 1; display: flex; flex-direction: column;
+  background: rgba(255, 255, 255, 0.03); border-radius: 4px; overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08); flex: 1; display: flex; flex-direction: column;
 }
 .adpInfoDangerHeader {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.06); border-bottom: 1px solid rgba(239, 68, 68, 0.1);
+  font-size: var(--font-size-sm); font-weight: 700; color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.1);
+  position: relative; overflow: hidden;
+}
+.adpInfoDangerHeader::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -40%;
+  width: 40%; height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(239, 68, 68, 0.12) 25%,
+    rgba(239, 68, 68, 0.28) 50%,
+    rgba(239, 68, 68, 0.12) 75%,
+    transparent 100%
+  );
+  animation: adpDangerSweep 2.4s ease-in-out infinite;
+}
+@keyframes adpDangerSweep {
+  0%   { left: -40%; }
+  100% { left: 100%; }
 }
 .adpInfoDangerBody { padding: var(--space-2) var(--space-3); flex: 1; overflow-y: auto; }
-.adpInfoDangerLoading { color: var(--color-text-muted); font-size: var(--font-size-md); }
-.adpInfoDangerNone { color: var(--color-text-muted); font-size: var(--font-size-md); font-style: italic; }
+.adpInfoDangerLoading { color: rgba(255, 255, 255, 0.4); font-size: 13px; }
+.adpInfoDangerNone { color: rgba(255, 255, 255, 0.4); font-size: 13px; font-style: italic; }
 .adpDangerAlert { display: flex; flex-direction: column; gap: var(--space-2); }
-.adpDangerBadge { display: inline-block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); width: fit-content; }
-.adpDangerCount { font-size: var(--font-size-xs); color: var(--color-text-muted); font-weight: var(--font-weight-semibold); }
-.adpDangerHeadline { font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: 1.4; font-weight: var(--font-weight-medium); }
-.adpDangerAreas { font-size: var(--font-size-xs); color: var(--color-text-muted); line-height: 1.4; }
-.adpDangerAreas i { margin-right: var(--space-1); color: var(--color-text-muted); }
-.adpDangerMeta { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.adpDangerBadge { display: inline-block; padding: var(--space-1) var(--space-2); border-radius: 4px; font-size: var(--font-size-sm); font-weight: 700; width: fit-content; }
+.adpDangerCount { font-size: 11px; color: rgba(255, 255, 255, 0.4); font-weight: 600; }
+.adpDangerHeadline { font-size: 13px; color: rgba(255, 255, 255, 0.6); line-height: 1.4; font-weight: 500; }
+.adpDangerAreas { font-size: 11px; color: rgba(255, 255, 255, 0.4); line-height: 1.4; }
+.adpDangerAreas i { margin-right: var(--space-1); color: rgba(255, 255, 255, 0.4); }
+.adpDangerMeta { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: 11px; color: rgba(255, 255, 255, 0.4); }
 .adpDangerMeta i { margin-right: 2px; }
 .adpDangerHint {
-  font-size: var(--font-size-xs); color: var(--color-text-muted); line-height: 1.5;
-  padding: var(--space-2); background: var(--color-bg-tertiary); border-radius: var(--radius-md); margin-top: 2px;
+  font-size: 11px; color: rgba(255, 255, 255, 0.4); line-height: 1.5;
+  padding: var(--space-2); background: rgba(255, 255, 255, 0.03); border-radius: 4px; margin-top: 2px;
 }
 .adpDangerHint i { margin-right: var(--space-1); }
 .adpCard {
-  background: var(--color-bg-secondary); border-radius: var(--radius-md);
-  overflow: visible; border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.03); border-radius: 4px;
+  overflow: visible; border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex; flex-direction: column;
 }
 .adpCardHeader {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-2) var(--space-3);
-  background: var(--color-bg-tertiary);
-  border-bottom: 1px solid var(--color-border);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px 4px 0 0;
 }
 .adpCardHeaderLeft { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; flex: 1; user-select: none; }
 .adpCardIcon { font-size: 13px; color: var(--adp-accent); width: 16px; text-align: center; }
-.adpCardTitle { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
-.adpChevron { font-size: 9px; color: var(--color-text-muted); width: 12px; text-align: center; transition: transform var(--transition-fast); }
+.adpCardTitle { font-size: 13px; font-weight: 700; color: #fff; }
+.adpChevron { font-size: 9px; color: rgba(255, 255, 255, 0.35); width: 12px; text-align: center; transition: transform var(--transition-fast); }
 .adpCardCount {
-  font-size: var(--font-size-xs); color: var(--color-text-muted);
-  background: var(--color-bg-elevated); padding: 1px 5px;
-  border-radius: var(--radius-pill); font-weight: var(--font-weight-semibold); margin-left: 2px;
+  font-size: 11px; color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.06); padding: 1px 5px;
+  border-radius: var(--radius-pill); font-weight: 600; margin-left: 2px;
 }
 .adpMasterSwitchWrap { flex-shrink: 0; margin: 0; }
-.adpCard-collapsed .adpCardHeader { border-radius: var(--radius-md); border-bottom: none; }
+.adpCard-collapsed .adpCardHeader { border-radius: 4px; border-bottom: none; }
 .adpCardBody { display: flex; flex-direction: column; gap: 0; padding: 2px 0; transition: opacity .15s; }
 .adpCardBody-disabled { opacity: .25; pointer-events: none; }
 .adpRow {
@@ -3120,7 +3188,7 @@ a:hover { color: var(--color-accent-hover); }
 .adpRow:hover { background: rgba(255, 255, 255, 0.03); }
 .adpRowLabel {
   display: flex; align-items: center; gap: 6px;
-  font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text-secondary);
+  font-size: 13px; font-weight: 500; color: rgba(255, 255, 255, 0.6);
   flex: 1; user-select: none;
 }
 .adpDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }

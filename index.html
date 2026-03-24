@@ -13,6 +13,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@500;700&display=swap">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/logos.css">
+    <script src="app/core/logos/vortex_full_logo.js"></script>
 
     <meta http-equiv="cache-control" content="max-age=0" />
     <meta http-equiv="cache-control" content="no-cache" />
@@ -48,10 +50,10 @@
             padding: 0;
             background-color: #0c0e14;
         }
-        /* ── loading screen: cinematic atmosphere ── */
+        /* ── loading screen: showcase-style shell ── */
         #loadingLibrariesDiv {
             position: fixed; inset: 0; z-index: 500000;
-            background: #08060e;
+            background: radial-gradient(120% 120% at 50% 0%, #131a25 0%, #08060e 58%, #05050a 100%);
             cursor: default; user-select: none; -webkit-user-select: none;
             overflow: hidden;
             opacity: 1; transition: opacity 0.7s cubic-bezier(.4,0,.2,1);
@@ -63,111 +65,194 @@
             top: -3%; left: -2%; width: 104%; height: 106%;
             object-fit: cover; object-position: center top;
             pointer-events: none;
-            opacity: 0.55;
+            opacity: 0.33;
         }
         #ldBgScrim {
             position: absolute; inset: 0; z-index: 1;
-            top: auto; height: 120px;
-            background: linear-gradient(to bottom, transparent 0%, rgba(8,6,14,0.6) 35%, rgba(8,6,14,0.95) 70%, #08060e 100%);
+            background:
+                radial-gradient(150% 120% at 50% 100%, rgba(112,15,15,0.2) 0%, rgba(12,14,20,0.82) 48%, rgba(8,6,14,0.95) 100%),
+                linear-gradient(to bottom, rgba(8,6,14,0.32) 0%, rgba(8,6,14,0.88) 100%);
+            pointer-events: none;
+        }
+        #ldShowcaseShell {
+            --ld-shell-chamfer: 28px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: min(940px, 94vw);
+            z-index: 3;
+            padding: 26px 28px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            background: rgba(12, 14, 20, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 16px 56px rgba(0, 0, 0, 0.58);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            clip-path: polygon(
+                0 0,
+                100% 0,
+                100% calc(100% - var(--ld-shell-chamfer)),
+                calc(100% - var(--ld-shell-chamfer)) 100%,
+                0 100%
+            );
+        }
+        #ldShowcaseShell::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            width: 36px;
+            height: 36px;
+            border-top: 2px solid #700f0f;
+            border-left: 2px solid #700f0f;
+            pointer-events: none;
+        }
+        #ldShowcaseShell::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: var(--ld-shell-chamfer);
+            height: var(--ld-shell-chamfer);
+            background: linear-gradient(
+                to bottom right,
+                transparent calc(50% - 1px),
+                #700f0f calc(50% - 1px),
+                #700f0f calc(50% + 1px),
+                transparent calc(50% + 1px)
+            );
+            opacity: 0.78;
             pointer-events: none;
         }
 
         #loadingLogo {
-            width: 28px; height: 28px; object-fit: contain;
-            margin-right: 10px; flex-shrink: 0;
+            width: clamp(180px, 28vw, 290px);
+            height: auto;
+            margin-right: 14px;
+            flex-shrink: 0;
+            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.42));
         }
 
         /* center tip area */
         #ldCenterTip {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2;
+            position: relative;
+            z-index: 4;
             display: flex; flex-direction: column; align-items: center;
-            gap: 14px; max-width: 520px; width: 90%;
+            gap: 8px; max-width: 720px; width: 100%;
             text-align: center;
             opacity: 0; transition: opacity 0.5s ease;
+            padding: 2px 10px 6px;
         }
         #ldCenterTip.visible { opacity: 1; }
         #ldTagline {
-            font-size: 15px; font-weight: 600;
-            color: rgba(255,255,255,0.85);
-            letter-spacing: 0.06em;
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.78);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
         }
         #ldTipText {
-            font-size: 13px; color: rgba(255,255,255,0.5);
+            font-size: 12px;
+            color: rgba(255,255,255,0.52);
             font-family: var(--bs-font-monospace);
             letter-spacing: 0.02em; line-height: 1.6;
             min-height: 22px;
-            border-right: 2px solid rgba(167,139,250,0.6);
+            border-right: 2px solid rgba(112,15,15,0.82);
             padding-right: 2px;
             white-space: nowrap; overflow: hidden;
         }
 
-        /* bottom HUD strip */
+        /* HUD strip */
         #ldHud {
-            position: absolute; bottom: 52px; left: 40px; right: 40px;
-            z-index: 3;
+            position: relative;
+            z-index: 4;
             display: flex; justify-content: space-between; align-items: flex-end;
+            gap: 18px;
             opacity: 0; transition: opacity 0.4s ease 0.15s;
         }
         #ldHud.visible { opacity: 1; }
 
         #ldHudLeft {
-            display: flex; align-items: center; gap: 0;
+            display: flex; align-items: center; gap: 2px;
+            min-width: 0;
         }
-        #ldHudLeftText { display: flex; flex-direction: column; gap: 2px; }
+        #ldHudLeftText {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
         #ldTitle {
-            font-size: 22px; font-weight: 800; letter-spacing: 0.2em;
-            color: #f1f5f9; text-transform: uppercase; line-height: 1;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            color: #f1f5f9;
+            text-transform: uppercase;
+            line-height: 1;
         }
         #ldSub {
-            font-size: 10px; color: #475569; letter-spacing: 0.14em;
+            font-size: 10px;
+            color: #64748b;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
         }
 
         #ldHudRight {
-            display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            flex-shrink: 0;
         }
         #ldStatus {
-            font-size: 11px; color: #94a3b8; letter-spacing: 0.03em;
+            font-size: 11px;
+            color: #94a3b8;
+            letter-spacing: 0.03em;
             font-weight: 500; font-family: var(--bs-font-monospace);
             text-align: right; white-space: nowrap;
             overflow: hidden; text-overflow: ellipsis; max-width: 340px;
         }
         #ldPct {
-            font-size: 13px; font-weight: 700; color: #a78bfa;
+            font-size: 14px;
+            font-weight: 800;
+            color: #a8b3c7;
             letter-spacing: 0.1em;
             font-family: var(--bs-font-monospace);
         }
 
-        /* progress bar — full width at bottom */
+        /* progress bar */
         #ldBarWrap {
-            position: absolute; bottom: 38px; left: 40px; right: 40px;
-            height: 3px; border-radius: 2px;
-            background: rgba(255,255,255,0.04);
-            z-index: 3; overflow: visible;
+            position: relative;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.06);
+            z-index: 4;
+            overflow: hidden;
         }
         #ldBar {
             position: absolute; top: 0; bottom: 0; left: 0;
             width: 0%; border-radius: 2px;
-            background: linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd);
+            background: linear-gradient(90deg, #700f0f, #9f1a1a, #c73333);
             transition: width 0.3s ease;
-            box-shadow: 0 0 12px rgba(167,139,250,0.35);
+            box-shadow: 0 0 12px rgba(159, 26, 26, 0.4);
         }
 
-        /* task dots — row below bar */
+        /* task dots */
         #ldDots {
-            position: absolute; bottom: 14px; left: 40px;
-            z-index: 3;
+            position: relative;
+            z-index: 4;
             display: flex; gap: 18px; align-items: center;
             opacity: 0; transition: opacity 0.4s ease 0.25s;
+            flex-wrap: wrap;
         }
         #ldDots.visible { opacity: 1; }
 
         .ldDot {
             display: flex; align-items: center; gap: 5px;
-            font-size: 9px; color: #334155; letter-spacing: 0.04em;
+            font-size: 9px; color: #475569; letter-spacing: 0.05em;
             text-transform: uppercase; font-weight: 600;
             transition: color 0.3s;
         }
@@ -177,10 +262,10 @@
             background: #1e293b;
             transition: all 0.3s; flex-shrink: 0;
         }
-        .ldDot.ld-active { color: #94a3b8; }
+        .ldDot.ld-active { color: #cbd5e1; }
         .ldDot.ld-active::before {
-            background: #a78bfa;
-            box-shadow: 0 0 8px rgba(167,139,250,0.6);
+            background: #9f1a1a;
+            box-shadow: 0 0 8px rgba(159,26,26,0.62);
             animation: ldDotPulse 1.2s ease-in-out infinite;
         }
         .ldDot.ld-done { color: #64748b; }
@@ -190,8 +275,27 @@
             animation: none;
         }
         @keyframes ldDotPulse {
-            0%,100% { box-shadow: 0 0 4px rgba(167,139,250,0.3); }
-            50%     { box-shadow: 0 0 12px rgba(167,139,250,0.7); }
+            0%,100% { box-shadow: 0 0 4px rgba(159,26,26,0.32); }
+            50%     { box-shadow: 0 0 12px rgba(159,26,26,0.7); }
+        }
+        @media (max-width: 760px) {
+            #ldShowcaseShell { padding: 18px 16px 14px; }
+            #ldHud {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            #ldHudRight { align-items: flex-start; }
+            #ldStatus { text-align: left; max-width: none; white-space: normal; }
+            #loadingLogo { width: min(76vw, 290px); margin-right: 0; }
+            #ldHudLeft { flex-direction: column; align-items: flex-start; gap: 10px; }
+            #ldDots { gap: 10px 14px; }
+            #ldTipText {
+                max-width: 92%;
+                white-space: normal;
+                border-right: none;
+                min-height: 40px;
+            }
         }
         .progress_bar {
             position: absolute;
@@ -233,35 +337,48 @@
         <img id="ldBgVideo" src="images/stpload.gif" alt="" draggable="false" aria-hidden="true">
         <div id="ldBgScrim" aria-hidden="true"></div>
 
-        <div id="ldCenterTip">
-            <div id="ldTagline">Keeping you aware since 2025.</div>
-            <div id="ldTipText"></div>
-        </div>
+        <div id="ldShowcaseShell">
+            <div id="ldCenterTip">
+                <div id="ldTagline">Keeping you aware since 2025.</div>
+                <div id="ldTipText"></div>
+            </div>
 
-        <div id="ldHud">
-            <div id="ldHudLeft">
-                <img id="loadingLogo" src="images/STP_icon.svg" alt="Vortex Radar" draggable="false" oncontextmenu="return false;">
-                <div id="ldHudLeftText">
-                    <div id="ldTitle">Vortex Radar</div>
-                    <div id="ldSub">Weather Intelligence Platform</div>
+            <div id="ldHud">
+                <div id="ldHudLeft">
+                    <div id="loadingLogo" class="vrLogoHost vrLogoHost--loadingFull" aria-label="Vortex Radar logo"></div>
+                    <div id="ldHudLeftText">
+                        <div id="ldTitle">Vortex Radar</div>
+                        <div id="ldSub">Weather Intelligence Platform</div>
+                    </div>
+                </div>
+                <div id="ldHudRight">
+                    <div id="ldStatus">Preparing startup...</div>
+                    <div id="ldPct">0%</div>
                 </div>
             </div>
-            <div id="ldHudRight">
-                <div id="ldStatus">Preparing startup...</div>
-                <div id="ldPct">0%</div>
+
+            <div id="ldBarWrap"><div id="ldBar"></div></div>
+
+            <div id="ldDots">
+                <div class="ldDot ld-active" id="ldD-libs"><span>Libraries</span></div>
+                <div class="ldDot" id="ldD-map"><span>Map</span></div>
+                <div class="ldDot" id="ldD-alerts"><span>Alerts</span></div>
+                <div class="ldDot" id="ldD-radar"><span>Radar</span></div>
+                <div class="ldDot" id="ldD-app"><span>Ready</span></div>
             </div>
         </div>
-
-        <div id="ldBarWrap"><div id="ldBar"></div></div>
-
-        <div id="ldDots">
-            <div class="ldDot ld-active" id="ldD-libs"><span>Libraries</span></div>
-            <div class="ldDot" id="ldD-map"><span>Map</span></div>
-            <div class="ldDot" id="ldD-alerts"><span>Alerts</span></div>
-            <div class="ldDot" id="ldD-radar"><span>Radar</span></div>
-            <div class="ldDot" id="ldD-app"><span>Ready</span></div>
-        </div>
     </div>
+    <script>
+        (function() {
+            var logoHost = document.getElementById('loadingLogo');
+            if (!logoHost || !window.VortexLogos || typeof window.VortexLogos.renderVortexFull !== 'function') return;
+            // Loading screen is the only place where this full logo is animated.
+            window.VortexLogos.renderVortexFull(logoHost, {
+                variant: 'animated',
+                className: 'vrLogoContext--loading'
+            });
+        })();
+    </script>
     <div id="bodyDiv">
 
     <div id="progress_bar_screen_background">

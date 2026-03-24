@@ -1,0 +1,39 @@
+/* Reusable logo design system */
+.vrLogo {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.vrLogo--vortexFull {
+  color: #b3b3b3;
+}
+
+.vrLogo__wordmark {
+  fill: #b3b3b3;
+}
+
+.vrLogo__vortexRing,
+.vrLogo__vortexCore {
+  fill: #700f0f;
+}
+
+.vrLogo--vortexFull.vrLogo--animated .vrLogo__vortexRing {
+  transform-box: view-box;
+  transform-origin: 533.65px 420.46px;
+  animation: vrLogoSpinCCW 2.8s linear infinite;
+}
+
+.vrLogo--vortexFull.vrLogo--static .vrLogo__vortexRing {
+  animation: none;
+  transform: none;
+}
+
+@keyframes vrLogoSpinCCW {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}

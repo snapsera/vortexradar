@@ -1,4 +1,6 @@
 .radarHeader {
+  --hdr-accent: var(--header-highest-alert-color, var(--color-accent));
+  --hdr-chamfer: 18px;
   position: absolute;
   z-index: var(--z-header);
   top: 0;
@@ -15,9 +17,72 @@
   justify-content: center;
   align-items: center;
   color: var(--color-text-primary);
-  border-bottom: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--hdr-chamfer)),
+    calc(100% - var(--hdr-chamfer)) 100%,
+    0 100%
+  );
+  filter: drop-shadow(0 8px 32px rgba(0, 0, 0, 0.5));
+  overflow: hidden;
 }
 .radarHeader div { text-align: center; }
+.headerSweep {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--hdr-accent) 35%,
+    var(--hdr-accent) 65%,
+    transparent 100%
+  );
+}
+.headerSweep-active {
+  animation: hdrSweep 0.65s ease-out forwards;
+}
+@keyframes hdrSweep {
+  0%   { opacity: 0.22; transform: translateX(100%); }
+  100% { opacity: 0;    transform: translateX(-100%); }
+}
+.radarHeader::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 20px;
+  height: 20px;
+  border-top: 2px solid var(--hdr-accent);
+  border-left: 2px solid var(--hdr-accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.radarHeader::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--hdr-chamfer);
+  height: var(--hdr-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--hdr-accent) calc(50% - 1px),
+    var(--hdr-accent) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
+}
 #top-left {
   position: absolute;
   left: var(--space-3);
@@ -32,6 +97,29 @@
 }
 #top-left #radarInfoSpan div {
   text-align: left;
+}
+#radarInfoSpan > div:first-child {
+  font-size: var(--font-size-md) !important;
+  font-family: var(--font-family);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+#radarStation {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+#radarLocation {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.03em;
+}
+#radarInfoSpan > div:last-child {
+  font-size: var(--font-size-xs) !important;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted) !important;
 }
 .headerBrandWrap { display: flex; align-items: center; }
 .headerBrandInner {
@@ -76,7 +164,7 @@
   right: var(--space-3);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-4);
 }
 .headerClock {
   display: flex;
@@ -89,10 +177,11 @@
   text-align: right;
 }
 .headerClockLine {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .headerClockLabel {
   color: var(--color-text-muted);
@@ -219,47 +308,81 @@
   position: absolute;
   z-index: calc(var(--z-header) + 2);
   left: 50%;
-  transform: translateX(-50%) translateY(-100%);
+  width: auto;
+  max-width: calc(100vw - 24px);
+  transform: translateX(-50%);
   opacity: 0;
   pointer-events: none;
+  cursor: pointer;
+  --nb-accent: #38bdf8;
+}
+.notificationBubbleAlert {
+  --fn-accent: var(--nb-accent);
+  --fn-chamfer: 14px;
+  --fn-accent-stroke: 1px;
+  transform-origin: 0 0;
+  clip-path: polygon(0 0, 0 0, 0 0, 0 0, 0 0);
+  box-shadow: 0 0 0 1px var(--fn-accent), 0 0 20px rgba(115, 223, 255, 0.32);
+  width: fit-content;
+  max-width: 100%;
+  background: rgba(10, 14, 20, 0.52);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.notificationBubbleBody {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
-  background: rgba(15, 15, 18, 0.85);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1px solid #f5f0e8;
-  border-radius: 0;
-  font-family: var(--font-family);
-  font-size: 12px;
-  font-weight: 500;
-  color: #f5f0e8;
-  letter-spacing: 0.3px;
+  gap: 6px;
+  padding: 5px 9px;
+  min-height: 0;
   white-space: nowrap;
-  cursor: pointer;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform, opacity;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .notificationBubble.notificationBubble-visible {
-  transform: translateX(-50%) translateY(0);
   opacity: 1;
   pointer-events: auto;
 }
-.notificationBubbleIcon {
-  font-size: 11px;
-  flex-shrink: 0;
-  color: #f5f0e8;
+.notificationBubble.notificationBubble-visible .notificationBubbleAlert {
+  animation: fnAlertDrawIn 560ms cubic-bezier(0.18, 0.84, 0.33, 1) both;
 }
-.notificationBubble-info,
-.notificationBubble-warning,
-.notificationBubble-danger,
-.notificationBubble-success { border-color: #f5f0e8; }
-.notificationBubble-info .notificationBubbleIcon,
-.notificationBubble-warning .notificationBubbleIcon,
-.notificationBubble-danger .notificationBubbleIcon,
-.notificationBubble-success .notificationBubbleIcon { color: #f5f0e8; }
+.notificationBubble.notificationBubble-visible.notificationBubble-fading .notificationBubbleAlert {
+  animation: fnAlertDrawOut 500ms cubic-bezier(0.6, 0, 0.9, 0.2) both;
+}
+.notificationBubble.notificationBubble-visible .notificationBubbleBody {
+  opacity: 0;
+  animation: fnAlertBodyIn 220ms ease-out 420ms both;
+}
+.notificationBubble.notificationBubble-visible.notificationBubble-fading .notificationBubbleBody {
+  animation: fnAlertBodyOut 160ms ease-in both;
+}
+.notificationBubble.notificationBubble-visible .fnAlertShine {
+  animation: fnAlertShinePeriodic 3.6s ease-out 620ms infinite;
+}
+.notificationBubble.notificationBubble-visible.notificationBubble-fading .fnAlertShine {
+  animation: none;
+}
+.notificationBubbleIcon {
+  font-size: 10px;
+  flex-shrink: 0;
+  color: #fff;
+}
+.notificationBubbleText {
+  font-family: var(--font-family);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notificationBubble-info { --nb-accent: #38bdf8; }
+.notificationBubble-warning { --nb-accent: #f59e0b; }
+.notificationBubble-danger { --nb-accent: #ef4444; }
+.notificationBubble-success { --nb-accent: #22c55e; }
 #radarStation:hover { filter: brightness(85%); }
 #radarStationParent {
   text-align: center;

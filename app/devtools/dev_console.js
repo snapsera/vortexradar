@@ -44,6 +44,11 @@ var COMMANDS = {
         usage: 'focus',
         run: _cmd_focus
     },
+    notify: {
+        description: 'Test the header notification bubble',
+        usage: 'notify [info|warning|danger|success] [message]',
+        run: _cmd_notify
+    },
     help: {
         description: 'List available commands',
         usage: 'help',
@@ -318,6 +323,27 @@ function _cmd_focus() {
     var event = (pick.properties && pick.properties.event) || 'Unknown';
     focus_new_alerts.test_focus_alert(pick);
     _log('Focus panel opened with <strong>' + event + '</strong>', 'success');
+}
+
+function _cmd_notify(args) {
+    var level = 'info';
+    var validLevels = { info: true, warning: true, danger: true, success: true };
+    if (args.length && validLevels[(args[0] || '').toLowerCase()]) {
+        level = args.shift().toLowerCase();
+    }
+
+    var iconByLevel = {
+        info: 'fa fa-circle-info',
+        warning: 'fa fa-triangle-exclamation',
+        danger: 'fa fa-circle-exclamation',
+        success: 'fa fa-circle-check'
+    };
+    var text = args.join(' ').trim() || 'DEV: NEW RADAR SCAN AVAILABLE FOR KLTX';
+    notification.notify(text, {
+        icon: iconByLevel[level],
+        level: level
+    });
+    _log('Notification bubble triggered (<strong>' + level + '</strong>)', 'success');
 }
 
 function _try_parse_storage(raw) {

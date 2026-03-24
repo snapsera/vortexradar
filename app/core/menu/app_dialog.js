@@ -3,8 +3,13 @@ function display_app_dialog(options) {
     var body = options.body;
     var color = options.color;
     var textColor = options.textColor;
+    var isShowcaseDialog = typeof body === 'string'
+        && (body.indexOf('alertInfoPanel') !== -1 || body.indexOf('aboutShowcasePanel') !== -1);
 
     $('#appDialog').show();
+    $('#appDialog').toggleClass('appDialog-alertShowcase', isShowcaseDialog);
+    $('#appDialogContainer').toggleClass('appDialog-alertShowcase', isShowcaseDialog);
+    $('#appDialogContainer').css('--app-alert-accent', color || 'var(--color-accent)');
 
     $('#appDialogHeaderText').html(title);
     $('#appDialogHeaderSub').html(options.subtitle || 'National Weather Service');
@@ -18,6 +23,8 @@ function display_app_dialog(options) {
 
 $('#appDialog').on('click', function(e) {
     if ($(e.target).closest('#appDialogClose').length || $(e.target).attr('id') === 'appDialog') {
+        $(this).removeClass('appDialog-alertShowcase');
+        $('#appDialogContainer').removeClass('appDialog-alertShowcase');
         $(this).hide();
     }
 })

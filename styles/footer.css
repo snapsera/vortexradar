@@ -1,4 +1,6 @@
 #productMapFooter {
+  --footer-chamfer: 20px;
+  --footer-accent: var(--color-accent);
   position: absolute;
   z-index: var(--z-controls);
   bottom: 35px;
@@ -8,18 +10,55 @@
   height: 48px;
   width: fit-content;
   max-width: calc(100% - 120px);
-  background: var(--color-surface-glass);
+  background: rgba(12, 14, 20, 0.7);
   backdrop-filter: var(--backdrop-blur);
   -webkit-backdrop-filter: var(--backdrop-blur);
   color: var(--color-text-primary);
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-md);
+  padding: 0 calc(var(--space-3) + 16px) 0 var(--space-3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
   gap: var(--space-3);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--footer-chamfer)),
+    calc(100% - var(--footer-chamfer)) 100%,
+    0 100%
+  );
+}
+#productMapFooter::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 24px;
+  height: 24px;
+  border-top: 2px solid var(--footer-accent);
+  border-left: 2px solid var(--footer-accent);
+  pointer-events: none;
+  z-index: 2;
+}
+#productMapFooter::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--footer-chamfer);
+  height: var(--footer-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--footer-accent) calc(50% - 1px),
+    var(--footer-accent) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
 }
 #radarLoopPanel {
   position: relative;
@@ -142,9 +181,10 @@
 }
 @media (max-width: 760px) {
   #productMapFooter {
+    --footer-chamfer: 14px;
     flex-wrap: wrap;
     height: auto;
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-1) calc(var(--space-2) + 10px) var(--space-1) var(--space-2);
     max-width: calc(100% - 24px);
     gap: var(--space-1);
   }

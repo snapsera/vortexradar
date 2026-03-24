@@ -2,7 +2,7 @@
 
 const { get_station_timezone } = require('../radar/libnexrad/nexrad_locations');
 
-const TIME_FMT = { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true };
+const TIME_FMT = { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true, timeZoneName: 'short' };
 
 function _format(date, timeZone) {
     try {

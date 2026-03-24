@@ -852,14 +852,14 @@ function _buildOverlay() {
             '<div class="forecastModal">' +
                 '<div class="forecastHeader">' +
                     '<div class="forecastHeaderLeft">' +
-                        '<span class="forecastHeaderTitle">7 Day Forecast</span>' +
-                        '<span class="forecastHeaderSub">National Weather Service</span>' +
+                        '<span class="forecastHeaderTitle">Forecast Center</span>' +
+                        '<span class="forecastHeaderSub">Get accurate information on your location.</span>' +
                     '</div>' +
                     '<button type="button" class="forecastCloseBtn" id="forecastCloseBtn" aria-label="Close"><i class="fa fa-xmark"></i></button>' +
                 '</div>' +
                 '<div class="forecastSearch">' +
                     '<i class="fa-solid fa-magnifying-glass forecastSearchIcon"></i>' +
-                    '<div class="forecastSearchWrap" style="flex:1;position:relative;">' +
+                    '<div class="forecastSearchWrap">' +
                         '<input type="text" class="forecastSearchInput" id="forecastSearchInput" placeholder="Search by city, state, or zip code..." autocomplete="off">' +
                         '<div class="forecastSuggestions" id="forecastSuggestions"></div>' +
                     '</div>' +

@@ -14,7 +14,9 @@
   gap: 2px;
   pointer-events: auto;
   transition: right var(--transition-normal);
-  background: rgba(12, 14, 20, 0.96);
+  background: rgba(12, 14, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
@@ -133,17 +135,12 @@
   align-items: center;
   gap: 4px;
   padding: 8px 6px;
-  background: rgba(12, 14, 20, 0.96);
+  background: rgba(12, 14, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--ft-chamfer)),
-    calc(100% - var(--ft-chamfer)) 100%,
-    0 100%
-  );
   position: relative;
 }
 .drawToolbarInner::before {
@@ -219,17 +216,12 @@
   align-items: center;
   gap: 2px;
   padding: 6px;
-  background: rgba(12, 14, 20, 0.96);
+  background: rgba(12, 14, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--ft-chamfer)),
-    calc(100% - var(--ft-chamfer)) 100%,
-    0 100%
-  );
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease, transform 120ms ease;

@@ -35,6 +35,7 @@ const ALIAS_EVENTS = {
 };
 const _zoneGeometryCache = new Map();
 const _expandedGroups = new Set();
+let _prevAlertCount = null;
 
 function _resolve_event_category(event) {
     const resolvedEvent = ALIAS_EVENTS[event] || event;
@@ -100,55 +101,49 @@ const CONVECTIVE_EVENTS = [
     'Severe Thunderstorm Warning', 'Severe Thunderstorm Watch', 'Tornado Watch'
 ];
 
-function _extract_storm_info(p) {
+function _extract_storm_pills(p) {
     const event = p.event || '';
     const params = p.parameters || {};
     const desc = (p.description || '').toUpperCase();
-    const parts = [];
+    const pills = [];
 
     if (event === 'Flash Flood Warning') {
-        const threat = params.flashFloodDamageThreat;
         const source = params.flashFloodDetection;
-        if (threat && Array.isArray(threat) && threat[0]) {
-            parts.push(`Damage Threat: <span class="alertsDetailHighlight">${threat[0]}</span>`);
-        }
-        if (source && Array.isArray(source) && source[0]) {
-            parts.push(`Source: ${source[0]}`);
-        }
-        return parts.length ? parts.join(' ') : null;
+        if (source && Array.isArray(source) && source[0]) pills.push(source[0].toUpperCase());
+        const threat = params.flashFloodDamageThreat;
+        if (threat && Array.isArray(threat) && threat[0]) pills.push(threat[0].toUpperCase());
+        return pills;
     }
 
     const isConvective = CONVECTIVE_EVENTS.includes(event);
-    if (!isConvective) return null;
+    if (!isConvective) return pills;
 
     const isTornadoWarning = ['Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning'].includes(event);
 
     if (isTornadoWarning) {
         const tornadoDet = params.tornadoDetection;
         if (tornadoDet && Array.isArray(tornadoDet) && tornadoDet[0]) {
-            parts.push(`Tornado: <span class="alertsDetailHighlight">${tornadoDet[0]}</span>`);
+            pills.push(tornadoDet[0].toUpperCase());
         } else if (desc.includes('RADAR INDICATED') || desc.includes('RADAR-INDICATED')) {
-            parts.push('Tornado: <span class="alertsDetailHighlight">RADAR INDICATED</span>');
+            pills.push('RADAR INDICATED');
         } else if (desc.includes('POSSIBLE TORNADO') || desc.includes('TORNADO POSSIBLE')) {
-            parts.push('Tornado: <span class="alertsDetailHighlight">POSSIBLE</span>');
+            pills.push('POSSIBLE');
         }
     }
 
     const hail = params.maxHailSize;
     if (hail && Array.isArray(hail) && hail[0]) {
         const n = parseFloat(hail[0]);
-        const hStr = (n === 0 || isNaN(n)) ? '0.00' : (n > 0 && n < 1 ? '<' + hail[0].replace(/^0\./, '.') : n.toFixed(2));
-        parts.push(`Hail: ${hStr}IN`);
-    } else {
-        parts.push('Hail: 0.00IN');
+        if (!isNaN(n) && n > 0) {
+            const hStr = n < 1 ? '<' + hail[0].replace(/^0\./, '.') + '"' : n.toFixed(2) + '"';
+            pills.push(hStr + ' HAIL');
+        }
     }
 
     const wind = params.maxWindGust;
-    if (wind && Array.isArray(wind) && wind[0]) {
-        parts.push(`Wind: <b>${wind[0]}</b>`);
-    }
+    if (wind && Array.isArray(wind) && wind[0]) pills.push(wind[0]);
 
-    return parts.length ? parts.join(' ') : null;
+    return pills;
 }
 
 function _format_expires(p) {
@@ -361,7 +356,7 @@ function _render_alerts_list(features) {
         const hexColor = chroma(color).hex();
 
         const isCollapsed = !_expandedGroups.has(event);
-        const card = $('<div class="alertsCard"></div>');
+        const card = $(`<div class="alertsCard" style="--alert-accent:${hexColor}"></div>`);
         if (isCollapsed) card.addClass('alertsCard-collapsed');
         const header = $(`
             <div class="alertsCardHeader alertsCardHeader-clickable">
@@ -382,12 +377,13 @@ function _render_alerts_list(features) {
             }
         });
         card.append(header);
+        card.append('<div class="alertsCardDivider"></div>');
 
         const body = $('<div class="alertsCardBody"></div>');
 
         items.forEach((f) => {
             const p = f.properties;
-            const stormInfo = _extract_storm_info(p);
+            const stormPills = _extract_storm_pills(p);
             const expiresStr = _format_expires(p);
             const pills = _get_location_pills(p);
             const displayPills = pills.length ? pills : ['Area Unknown'];
@@ -396,7 +392,7 @@ function _render_alerts_list(features) {
             const detail = $(`
                 <div class="alertsDetailCard" data-id="${f.id || ''}">
                     <div class="alertsDetailContent">
-                        ${stormInfo ? `<div class="alertsDetailStorm">${stormInfo}</div>` : ''}
+                        ${stormPills.length ? `<div class="alertsDetailPills">${stormPills.map((pill) => `<span class="alertsDetailStormPill">${pill}</span>`).join('')}</div>` : ''}
                         ${expiresStr ? `<div class="alertsDetailExpires"><span class="alertsDetailDot" style="background: ${hexColor}"></span>${expiresStr}</div>` : ''}
                         ${sender ? `<div class="alertsDetailSender">${sender}</div>` : ''}
                         <div class="alertsDetailArea">
@@ -521,6 +517,20 @@ function _get_highest_priority_alert(features) {
     return best;
 }
 
+function _trigger_header_sweep() {
+    var sweep = document.getElementById('headerSweep');
+    if (!sweep) {
+        sweep = document.createElement('div');
+        sweep.id = 'headerSweep';
+        sweep.className = 'headerSweep';
+        var hdr = document.getElementById('radarHeader');
+        if (hdr) hdr.appendChild(sweep);
+    }
+    sweep.classList.remove('headerSweep-active');
+    void sweep.offsetWidth;
+    sweep.classList.add('headerSweep-active');
+}
+
 function update_alerts_count_btn() {
     const btn = $('#alertsCountBtn');
     const data = window.stormTrackData?.alerts_data;
@@ -532,6 +542,11 @@ function update_alerts_count_btn() {
             <span class="alertsCountBtnLabel">Alert${count === 1 ? '' : 's'}</span>
         </span>
     `);
+
+    if (_prevAlertCount !== null && count !== _prevAlertCount) {
+        _trigger_header_sweep();
+    }
+    _prevAlertCount = count;
 
     if (count === 0) {
         btn.removeAttr('style').addClass('alertsCountBtn-empty');

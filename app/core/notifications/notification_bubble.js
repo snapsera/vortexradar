@@ -2,7 +2,7 @@ var _queue = [];
 var _showing = false;
 var _hideTimer = null;
 var DISPLAY_MS = 15000;
-var TRANSITION_MS = 350;
+var TRANSITION_MS = 560;
 
 function _get_top_offset() {
     var headerH = $('#radarHeader').outerHeight() || 0;
@@ -17,7 +17,11 @@ function _dismiss() {
     var bubble = document.getElementById('notificationBubble');
     if (!bubble) return;
     if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
-    bubble.classList.remove('notificationBubble-visible');
+    bubble.classList.add('notificationBubble-fading');
+    setTimeout(function() {
+        bubble.classList.remove('notificationBubble-visible');
+        bubble.classList.remove('notificationBubble-fading');
+    }, 500);
     setTimeout(_show_next, TRANSITION_MS);
 }
 
@@ -47,11 +51,16 @@ function _show_next() {
 
     textEl.textContent = item.text || '';
     bubble.style.top = _get_top_offset() + 'px';
+    bubble.classList.remove('notificationBubble-fading');
     bubble.classList.add('notificationBubble-visible');
 
     if (_hideTimer) clearTimeout(_hideTimer);
     _hideTimer = setTimeout(function() {
-        bubble.classList.remove('notificationBubble-visible');
+        bubble.classList.add('notificationBubble-fading');
+        setTimeout(function() {
+            bubble.classList.remove('notificationBubble-visible');
+            bubble.classList.remove('notificationBubble-fading');
+        }, 500);
         setTimeout(_show_next, TRANSITION_MS);
     }, DISPLAY_MS);
 }

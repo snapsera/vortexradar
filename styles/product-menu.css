@@ -1,4 +1,5 @@
 #productSelectionMenu {
+  --psm-accent: var(--color-accent);
   position: absolute;
   z-index: 997;
   bottom: 56px;
@@ -6,14 +7,12 @@
   height: auto;
   max-height: 200px;
   width: auto;
-  background: var(--color-surface-glass);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-strong);
+  background: rgba(12, 14, 20, 0.96);
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   padding: var(--space-2) var(--space-4);
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
   transform: translateY(20px);
   opacity: 0;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
@@ -22,6 +21,18 @@
 #productSelectionMenu.psm-open {
   transform: translateY(0);
   opacity: 1;
+}
+#productSelectionMenu::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 28px;
+  height: 28px;
+  border-top: 2px solid var(--psm-accent);
+  border-left: 2px solid var(--psm-accent);
+  pointer-events: none;
+  z-index: 2;
 }
 .psmRow {
   cursor: pointer;
@@ -44,7 +55,7 @@
 }
 .psmSectionBreak {
   border: 0;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   margin: var(--space-2) calc(-1 * var(--space-4));
 }
 .psmSectionTitle {

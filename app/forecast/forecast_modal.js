@@ -852,7 +852,7 @@ function _buildOverlay() {
             '<div class="forecastModal">' +
                 '<div class="forecastHeader">' +
                     '<div class="forecastHeaderLeft">' +
-                        '<span class="forecastHeaderTitle">Forecast Center</span>' +
+                        '<span class="forecastHeaderTitle">MyCast</span>' +
                         '<span class="forecastHeaderSub">Get accurate information on your location.</span>' +
                     '</div>' +
                     '<button type="button" class="forecastCloseBtn" id="forecastCloseBtn" aria-label="Close"><i class="fa fa-xmark"></i></button>' +

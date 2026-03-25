@@ -10,7 +10,13 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 
 ## Screenshots
 
-![Vortex Radar](images/screenshot.png)
+![Vortex Radar - National Map](images/readme-screenshot-1.png)
+
+![Vortex Radar - Alerts Toggle](images/readme-screenshot-2.png)
+
+![Vortex Radar - Focus Alerts](images/readme-screenshot-3.png)
+
+![Vortex Radar - Location Lookup (MyCast)](images/readme-screenshot-4.gif)
 
 ## Features
 

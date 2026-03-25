@@ -84,6 +84,7 @@ function load() {
         require('../../timezones/menu_item');
         require('../about/about_screen');
         require('../../devtools/test_alerts');
+        require('../../devtools/accent_tester');
         require('../../devtools/dev_console').init();
         require('../../screenshot/menu_item');
         require('../../draw/menu_item');

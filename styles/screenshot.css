@@ -24,7 +24,7 @@
 }
 .screenshotModeToolbarInner {
   --ft-chamfer: 14px;
-  --ft-accent: rgba(211, 121, 121, 0.55);
+  --ft-accent: rgba(14, 165, 233, 0.55);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -94,7 +94,7 @@
   position: fixed;
   z-index: 9999;
   border: 2px dashed var(--color-accent);
-  background: rgba(211, 121, 121, 0.08);
+  background: rgba(14, 165, 233, 0.08);
   pointer-events: none;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
 }
@@ -127,13 +127,13 @@
   font-family: inherit;
 }
 .screenshotToolbarBtn-save {
-  background: rgba(211, 121, 121, 0.12);
-  border-color: rgba(211, 121, 121, 0.30);
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.30);
   color: #fff;
 }
 .screenshotToolbarBtn-save:hover {
-  background: rgba(211, 121, 121, 0.22);
-  border-color: rgba(211, 121, 121, 0.45);
+  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(14, 165, 233, 0.45);
 }
 .screenshotToolbarBtn-folder {
   background: transparent;

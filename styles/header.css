@@ -140,7 +140,7 @@
 .headerLogoHost {
   width: 100%;
   height: 100%;
-  --logo-trace-color: var(--header-highest-alert-color, #df9393);
+  --logo-trace-color: var(--header-highest-alert-color, #38bdf8);
   --logo-stroke-width: 1;
   --logo-trace-duration: 4s;
 }
@@ -314,7 +314,7 @@
   opacity: 0;
   pointer-events: none;
   cursor: pointer;
-  --nb-accent: #df9393;
+  --nb-accent: #38bdf8;
 }
 .notificationBubbleAlert {
   --fn-accent: var(--nb-accent);
@@ -379,7 +379,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.notificationBubble-info { --nb-accent: #df9393; }
+.notificationBubble-info { --nb-accent: #38bdf8; }
 .notificationBubble-warning { --nb-accent: #f59e0b; }
 .notificationBubble-danger { --nb-accent: #ef4444; }
 .notificationBubble-success { --nb-accent: #22c55e; }

@@ -14,9 +14,9 @@
   --color-text-inverse: #0c0e14;
 
   /* Accent */
-  --color-accent: #d37979;
-  --color-accent-hover: #df9393;
-  --color-accent-muted: rgba(211, 121, 121, 0.12);
+  --color-accent: #0ea5e9;
+  --color-accent-hover: #38bdf8;
+  --color-accent-muted: rgba(14, 165, 233, 0.12);
 
   /* Status */
   --color-success: #22c55e;
@@ -172,9 +172,9 @@ a:hover { color: var(--color-accent-hover); }
 .new-file { color: var(--color-success); }
 .recent-file { color: var(--color-warning); }
 .old-file { color: var(--color-danger); }
-.uploaded-file { color: #df9393; }
+.uploaded-file { color: #38bdf8; }
 .blankText { color: transparent; pointer-events: none; }
-.selectedProduct { background-color: rgba(211, 121, 121, 0.35); }
+.selectedProduct { background-color: rgba(14, 165, 233, 0.35); }
 .about_box_code {
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
@@ -529,7 +529,7 @@ a:hover { color: var(--color-accent-hover); }
 .headerLogoHost {
   width: 100%;
   height: 100%;
-  --logo-trace-color: var(--header-highest-alert-color, #df9393);
+  --logo-trace-color: var(--header-highest-alert-color, #38bdf8);
   --logo-stroke-width: 1;
   --logo-trace-duration: 4s;
 }
@@ -703,7 +703,7 @@ a:hover { color: var(--color-accent-hover); }
   opacity: 0;
   pointer-events: none;
   cursor: pointer;
-  --nb-accent: #df9393;
+  --nb-accent: #38bdf8;
 }
 .notificationBubbleAlert {
   --fn-accent: var(--nb-accent);
@@ -768,7 +768,7 @@ a:hover { color: var(--color-accent-hover); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.notificationBubble-info { --nb-accent: #df9393; }
+.notificationBubble-info { --nb-accent: #38bdf8; }
 .notificationBubble-warning { --nb-accent: #f59e0b; }
 .notificationBubble-danger { --nb-accent: #ef4444; }
 .notificationBubble-success { --nb-accent: #22c55e; }
@@ -790,7 +790,7 @@ a:hover { color: var(--color-accent-hover); }
 /* ========== styles\toolbar.css ========== */
 .floatingToolbar {
   --ft-chamfer: 14px;
-  --ft-accent: rgba(211, 121, 121, 0.55);
+  --ft-accent: rgba(14, 165, 233, 0.55);
   position: fixed;
   z-index: var(--z-panel);
   right: 12px;
@@ -875,8 +875,8 @@ a:hover { color: var(--color-accent-hover); }
   color: rgba(255, 255, 255, 0.85);
 }
 .floatingToolBtn:has(.menu_item_selected) {
-  background: rgba(211, 121, 121, 0.12);
-  border-color: rgba(211, 121, 121, 0.30);
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.30);
 }
 .floatingToolBtn:has(.menu_item_selected) span {
   color: #fff;
@@ -919,7 +919,7 @@ a:hover { color: var(--color-accent-hover); }
 }
 .drawToolbarInner {
   --ft-chamfer: 14px;
-  --ft-accent: rgba(211, 121, 121, 0.55);
+  --ft-accent: rgba(14, 165, 233, 0.55);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -996,7 +996,7 @@ a:hover { color: var(--color-accent-hover); }
 }
 .drawSizePopout {
   --ft-chamfer: 10px;
-  --ft-accent: rgba(211, 121, 121, 0.55);
+  --ft-accent: rgba(14, 165, 233, 0.55);
   position: absolute;
   right: calc(100% + 8px);
   top: 50%;
@@ -1040,8 +1040,8 @@ a:hover { color: var(--color-accent-hover); }
   border-color: rgba(255, 255, 255, 0.10);
 }
 .drawSizeDot-active {
-  background: rgba(211, 121, 121, 0.12) !important;
-  border-color: rgba(211, 121, 121, 0.30) !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  border-color: rgba(14, 165, 233, 0.30) !important;
 }
 .drawSizeDotInner {
   display: block;
@@ -1076,8 +1076,8 @@ a:hover { color: var(--color-accent-hover); }
   border-color: rgba(255, 255, 255, 0.10);
 }
 .drawToolBtn-active {
-  background: rgba(211, 121, 121, 0.12) !important;
-  border-color: rgba(211, 121, 121, 0.30) !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  border-color: rgba(14, 165, 233, 0.30) !important;
   color: #fff !important;
 }
 .drawToolBtn-danger:hover {
@@ -1118,7 +1118,7 @@ a:hover { color: var(--color-accent-hover); }
 }
 .screenshotModeToolbarInner {
   --ft-chamfer: 14px;
-  --ft-accent: rgba(211, 121, 121, 0.55);
+  --ft-accent: rgba(14, 165, 233, 0.55);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1188,7 +1188,7 @@ a:hover { color: var(--color-accent-hover); }
   position: fixed;
   z-index: 9999;
   border: 2px dashed var(--color-accent);
-  background: rgba(211, 121, 121, 0.08);
+  background: rgba(14, 165, 233, 0.08);
   pointer-events: none;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
 }
@@ -1221,13 +1221,13 @@ a:hover { color: var(--color-accent-hover); }
   font-family: inherit;
 }
 .screenshotToolbarBtn-save {
-  background: rgba(211, 121, 121, 0.12);
-  border-color: rgba(211, 121, 121, 0.30);
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.30);
   color: #fff;
 }
 .screenshotToolbarBtn-save:hover {
-  background: rgba(211, 121, 121, 0.22);
-  border-color: rgba(211, 121, 121, 0.45);
+  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(14, 165, 233, 0.45);
 }
 .screenshotToolbarBtn-folder {
   background: transparent;
@@ -2237,7 +2237,7 @@ a:hover { color: var(--color-accent-hover); }
   padding: 8px 10px;
 }
 .alertsPanelList-usa .alertsCard {
-  border-top-color: rgba(211, 121, 121, 0.5);
+  border-top-color: rgba(14, 165, 233, 0.5);
 }
 
 /* ── Group card (fnAlert showcase style) ── */
@@ -3858,7 +3858,7 @@ a:hover { color: var(--color-accent-hover); }
   transition: background var(--transition-fast);
   font-size: var(--font-size-sm);
 }
-.psmRow:hover { background: rgba(211, 121, 121, 0.08); }
+.psmRow:hover { background: rgba(14, 165, 233, 0.08); }
 .psmRowDisabled {
   pointer-events: none;
   color: var(--color-text-muted) !important;
@@ -3971,7 +3971,7 @@ a:hover { color: var(--color-accent-hover); }
 #l2ElevButtonsExpander:hover { filter: brightness(90%); }
 .l2ElevButtonsExpanderSelected {
   color: #0c4a6e !important;
-  background-color: #d37979 !important;
+  background-color: #0ea5e9 !important;
   border-color: #0284c7 !important;
 }
 .l2ElevBtnSelected {
@@ -4637,7 +4637,7 @@ a:hover { color: var(--color-accent-hover); }
 .forecastTab-active {
   color: #fff;
   border-color: var(--color-accent);
-  background: rgba(211, 121, 121, 0.2);
+  background: rgba(14, 165, 233, 0.2);
 }
 .forecastTabIcon {
   font-size: 11px;
@@ -5309,7 +5309,7 @@ a:hover { color: var(--color-accent-hover); }
 .forecastLandingTab-active {
   color: #fff;
   border-color: var(--color-accent);
-  background: rgba(211, 121, 121, 0.2);
+  background: rgba(14, 165, 233, 0.2);
 }
 .forecastLandingPanel {
   display: none;

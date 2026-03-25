@@ -48,7 +48,7 @@
   transition: background var(--transition-fast);
   font-size: var(--font-size-sm);
 }
-.psmRow:hover { background: rgba(211, 121, 121, 0.08); }
+.psmRow:hover { background: rgba(14, 165, 233, 0.08); }
 .psmRowDisabled {
   pointer-events: none;
   color: var(--color-text-muted) !important;
@@ -161,7 +161,7 @@
 #l2ElevButtonsExpander:hover { filter: brightness(90%); }
 .l2ElevButtonsExpanderSelected {
   color: #0c4a6e !important;
-  background-color: #d37979 !important;
+  background-color: #0ea5e9 !important;
   border-color: #0284c7 !important;
 }
 .l2ElevBtnSelected {

@@ -27,6 +27,27 @@ var headers = new Headers();
 headers.append('User-Agent', '(Vortex Radar, https://vortexradar.snapsera.com)');
 headers.append('Accept', 'application/geo+json');
 
+function _wait_watch_overlay(alerts_data, done) {
+    var finished = false;
+    function finish() {
+        if (finished) return;
+        finished = true;
+        done();
+    }
+
+    try {
+        // watch overlay build can fetch many county/forecast zones; wait for it so
+        // watches/county polygons are present before preload reveals the app.
+        var maybePromise = watch_overlay.update_from_alerts_data(alerts_data);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+            maybePromise.then(finish).catch(finish);
+            setTimeout(finish, 8000);
+            return;
+        }
+    } catch (_) {}
+    finish();
+}
+
 function _fetch_alerts_data(callback) {
     fetch(noaa_alerts_url, {
         headers: headers
@@ -40,8 +61,9 @@ function _fetch_alerts_data(callback) {
 
         window.stormTrackData.alerts_data = alerts_data;
         $(document).trigger('alertsDataLoaded', [alerts_data]);
-        watch_overlay.update_from_alerts_data(alerts_data);
-        callback(alerts_data);
+        _wait_watch_overlay(alerts_data, function() {
+            callback(alerts_data);
+        });
     })
     .catch(err => {
         console.error('Failed to fetch alerts:', err.message);
@@ -106,8 +128,9 @@ function return_data(callback) {
 
         window.stormTrackData.alerts_data = alerts_data;
         $(document).trigger('alertsDataLoaded', [alerts_data]);
-        watch_overlay.update_from_alerts_data(alerts_data);
-        callback(alerts_data);
+        _wait_watch_overlay(alerts_data, function() {
+            callback(alerts_data);
+        });
     })
     .catch(err => {
         console.error('Failed to fetch alerts:', err.message);

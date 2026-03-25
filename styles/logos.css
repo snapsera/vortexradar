@@ -9,6 +9,12 @@
   -webkit-user-drag: none;
 }
 
+.vrLogoHost {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
 .vrLogo--vortexFull {
   color: #b3b3b3;
 }
@@ -22,6 +28,12 @@
   fill: #700f0f;
 }
 
+/* Loading-screen specific scale so the full logo reads larger */
+.vrLogoContext--loading {
+  transform: scale(1.42);
+  transform-origin: center;
+}
+
 .vrLogo--vortexFull.vrLogo--animated .vrLogo__vortexRing {
   transform-box: view-box;
   transform-origin: 533.65px 420.46px;
@@ -33,7 +45,77 @@
   transform: none;
 }
 
+/* Optional sweep shine that can be reused on any logo host */
+.vrLogoHost--sweepShine {
+  isolation: isolate;
+}
+
+.vrLogoHost--sweepShine > .vrLogo {
+  position: relative;
+  z-index: 1;
+}
+
+.vrLogoHost--sweepShine::after {
+  content: '';
+  position: absolute;
+  inset: -24% -44%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    rgba(255, 255, 255, 0) 38%,
+    rgba(255, 255, 255, 0.06) 47%,
+    rgba(255, 255, 255, 0.42) 50%,
+    rgba(255, 255, 255, 0.09) 53%,
+    rgba(255, 255, 255, 0) 62%
+  );
+  mix-blend-mode: screen;
+  transform: translateX(-160%) skewX(-14deg);
+  animation: vrLogoSweepShine 4.4s ease-in-out infinite;
+}
+
+.vrLogoHost--sweepShineSync::after {
+  animation-name: vrLogoSweepShineSync;
+  animation-duration: 7.2s;
+}
+
 @keyframes vrLogoSpinCCW {
   from { transform: rotate(0deg); }
   to { transform: rotate(-360deg); }
+}
+
+@keyframes vrLogoSweepShine {
+  0%, 18% {
+    transform: translateX(-160%) skewX(-14deg);
+    opacity: 0;
+  }
+  26% {
+    opacity: 1;
+  }
+  48% {
+    transform: translateX(170%) skewX(-14deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(170%) skewX(-14deg);
+    opacity: 0;
+  }
+}
+
+@keyframes vrLogoSweepShineSync {
+  0%, 40% {
+    transform: translateX(-160%) skewX(-14deg);
+    opacity: 0;
+  }
+  45% {
+    opacity: 1;
+  }
+  58% {
+    transform: translateX(170%) skewX(-14deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(170%) skewX(-14deg);
+    opacity: 0;
+  }
 }

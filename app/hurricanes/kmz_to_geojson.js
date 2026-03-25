@@ -3,6 +3,9 @@ function kmz_to_geojson(kmz_blob, callback, return_dom = false) {
     let getExtension = fileName => fileName.split(".").pop()
 
     let getKmlDom = (kmzFile) => {
+        if (typeof JSZip === 'undefined') {
+            return Promise.reject(new Error('JSZip not loaded yet'));
+        }
         var zip = new JSZip()
         return zip.loadAsync(kmzFile)
             .then(zip => {

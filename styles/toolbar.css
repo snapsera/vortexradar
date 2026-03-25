@@ -1,6 +1,6 @@
 .floatingToolbar {
   --ft-chamfer: 14px;
-  --ft-accent: rgba(14, 165, 233, 0.55);
+  --ft-accent: rgba(211, 121, 121, 0.55);
   position: fixed;
   z-index: var(--z-panel);
   right: 12px;
@@ -85,8 +85,8 @@
   color: rgba(255, 255, 255, 0.85);
 }
 .floatingToolBtn:has(.menu_item_selected) {
-  background: rgba(14, 165, 233, 0.12);
-  border-color: rgba(14, 165, 233, 0.30);
+  background: rgba(211, 121, 121, 0.12);
+  border-color: rgba(211, 121, 121, 0.30);
 }
 .floatingToolBtn:has(.menu_item_selected) span {
   color: #fff;
@@ -129,7 +129,7 @@
 }
 .drawToolbarInner {
   --ft-chamfer: 14px;
-  --ft-accent: rgba(14, 165, 233, 0.55);
+  --ft-accent: rgba(211, 121, 121, 0.55);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -206,7 +206,7 @@
 }
 .drawSizePopout {
   --ft-chamfer: 10px;
-  --ft-accent: rgba(14, 165, 233, 0.55);
+  --ft-accent: rgba(211, 121, 121, 0.55);
   position: absolute;
   right: calc(100% + 8px);
   top: 50%;
@@ -250,8 +250,8 @@
   border-color: rgba(255, 255, 255, 0.10);
 }
 .drawSizeDot-active {
-  background: rgba(14, 165, 233, 0.12) !important;
-  border-color: rgba(14, 165, 233, 0.30) !important;
+  background: rgba(211, 121, 121, 0.12) !important;
+  border-color: rgba(211, 121, 121, 0.30) !important;
 }
 .drawSizeDotInner {
   display: block;
@@ -286,8 +286,8 @@
   border-color: rgba(255, 255, 255, 0.10);
 }
 .drawToolBtn-active {
-  background: rgba(14, 165, 233, 0.12) !important;
-  border-color: rgba(14, 165, 233, 0.30) !important;
+  background: rgba(211, 121, 121, 0.12) !important;
+  border-color: rgba(211, 121, 121, 0.30) !important;
   color: #fff !important;
 }
 .drawToolBtn-danger:hover {

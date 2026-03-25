@@ -135,6 +135,82 @@
             pointer-events: none;
             z-index: 6;
         }
+        #ldTopAlertDrawer {
+            position: absolute;
+            left: 50%;
+            top: calc(50% + 194px);
+            width: min(760px, 84vw);
+            min-height: 44px;
+            z-index: 4;
+            transform: translate(-50%, -26px);
+            opacity: 0;
+            transition: transform 0.38s cubic-bezier(.2,.75,.2,1), opacity 0.28s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: none;
+            border-radius: 0 0 14px 14px;
+            background: linear-gradient(
+                to bottom,
+                rgba(12, 14, 20, 0.96) 0%,
+                rgba(10, 12, 18, 0.93) 100%
+            );
+            box-shadow: 0 12px 26px rgba(0, 0, 0, 0.34);
+            padding: 11px 16px 12px;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        #ldTopAlertDrawer::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(112, 15, 15, 0.12), rgba(159, 26, 26, 0.68), rgba(112, 15, 15, 0.12));
+        }
+        .ldTopAlertShine {
+            position: absolute;
+            inset: -34%;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0;
+            background: linear-gradient(
+                130deg,
+                transparent 36%,
+                rgba(255, 255, 255, 0.03) 43%,
+                rgba(255, 255, 255, 0.08) 48%,
+                rgba(255, 255, 255, 0.17) 51%,
+                rgba(255, 255, 255, 0.08) 54%,
+                rgba(255, 255, 255, 0.03) 59%,
+                transparent 66%
+            );
+            transform: translate(30%, 30%);
+        }
+        #ldTopAlertDrawer.visible {
+            transform: translate(-50%, 0);
+            opacity: 1;
+        }
+        #ldTopAlertDrawer.visible .ldTopAlertShine {
+            animation: ldTopAlertShinePeriodic 4.2s ease-out 340ms infinite;
+        }
+        #ldTopAlertText {
+            position: relative;
+            z-index: 2;
+            font-family: var(--bs-font-sans-serif);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            color: rgba(229, 235, 244, 0.9);
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @keyframes ldTopAlertShinePeriodic {
+            0%   { opacity: 0; transform: translate(30%, 30%); }
+            5%   { opacity: 1; transform: translate(23%, 23%); }
+            18%  { opacity: 0; transform: translate(-32%, -32%); }
+            100% { opacity: 0; transform: translate(-32%, -32%); }
+        }
 
         #ldUpperDeck {
             position: relative;
@@ -358,6 +434,13 @@
                 padding: 0 6px;
             }
             #ldTagline { font-size: 10px; }
+            #ldTopAlertDrawer {
+                top: calc(50% + 182px);
+                width: min(96vw, 640px);
+                min-height: 40px;
+                padding: 10px 12px 11px;
+            }
+            #ldTopAlertText { font-size: 11px; }
         }
         .progress_bar {
             position: absolute;
@@ -431,6 +514,10 @@
                 <div class="ldDot" id="ldD-radar"><span>Radar</span></div>
                 <div class="ldDot" id="ldD-app"><span>Ready</span></div>
             </div>
+        </div>
+        <div id="ldTopAlertDrawer" aria-live="polite">
+            <div class="ldTopAlertShine" aria-hidden="true"></div>
+            <div id="ldTopAlertText"></div>
         </div>
     </div>
     <script>
@@ -1701,6 +1788,157 @@
             );
         }
 
+        var _US_STATE_NAMES = {
+            AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+            CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+            HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+            KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+            MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+            MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+            NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+            OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+            SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+            VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+            DC: 'District of Columbia', PR: 'Puerto Rico', VI: 'U.S. Virgin Islands', GU: 'Guam', AS: 'American Samoa', MP: 'Northern Mariana Islands'
+        };
+        var _STATE_TO_FIPS = {
+            AL: '01', AK: '02', AZ: '04', AR: '05', CA: '06', CO: '08', CT: '09', DE: '10', DC: '11',
+            FL: '12', GA: '13', HI: '15', ID: '16', IL: '17', IN: '18', IA: '19', KS: '20', KY: '21',
+            LA: '22', ME: '23', MD: '24', MA: '25', MI: '26', MN: '27', MS: '28', MO: '29', MT: '30',
+            NE: '31', NV: '32', NH: '33', NJ: '34', NM: '35', NY: '36', NC: '37', ND: '38', OH: '39',
+            OK: '40', OR: '41', PA: '42', RI: '44', SC: '45', SD: '46', TN: '47', TX: '48', UT: '49',
+            VT: '50', VA: '51', WA: '53', WV: '54', WI: '55', WY: '56', PR: '72'
+        };
+        var _fipsPopPromise = null;
+
+        function _extract_state_name_from_alert(feature) {
+            var props = feature && feature.properties ? feature.properties : {};
+            var areaDesc = typeof props.areaDesc === 'string' ? props.areaDesc : '';
+            var seg = areaDesc.split(';')[0] || '';
+            var m = seg.match(/,\s*([A-Z]{2})\b/);
+            if (m && _US_STATE_NAMES[m[1]]) return _US_STATE_NAMES[m[1]];
+            var geocode = props.geocode || {};
+            var ugc = Array.isArray(geocode.UGC) ? geocode.UGC : [];
+            if (ugc.length) {
+                var code = String(ugc[0]).slice(0, 2).toUpperCase();
+                if (_US_STATE_NAMES[code]) return _US_STATE_NAMES[code];
+            }
+            return 'the United States';
+        }
+
+        function _alert_event_score(eventName) {
+            var t = (eventName || '').toLowerCase();
+            var score = 0;
+            if (t.indexOf('tornado emergency') >= 0) score += 130;
+            if (t.indexOf('tornado warning') >= 0) score += 120;
+            else if (t.indexOf('hurricane warning') >= 0) score += 110;
+            else if (t.indexOf('extreme wind warning') >= 0) score += 106;
+            else if (t.indexOf('flash flood warning') >= 0) score += 102;
+            else if (t.indexOf('severe thunderstorm warning') >= 0) score += 96;
+            else if (t.indexOf('blizzard warning') >= 0) score += 92;
+            else if (t.indexOf('ice storm warning') >= 0) score += 90;
+            else if (t.indexOf('red flag warning') >= 0) score += 86;
+            else if (t.indexOf('special marine warning') >= 0) score += 82;
+            else if (t.indexOf('warning') >= 0) score += 78;
+            else if (t.indexOf('watch') >= 0) score += 48;
+            else if (t.indexOf('advisory') >= 0) score += 24;
+            return score;
+        }
+
+        function _top_alert_score(feature) {
+            var p = feature && feature.properties ? feature.properties : {};
+            var severityScore = { extreme: 40, severe: 30, moderate: 20, minor: 10, unknown: 0 };
+            var urgencyScore = { immediate: 18, expected: 12, future: 6, past: 0, unknown: 0 };
+            var certaintyScore = { observed: 10, likely: 7, possible: 4, unlikely: 2, unknown: 0 };
+            var sev = String(p.severity || 'unknown').toLowerCase();
+            var urg = String(p.urgency || 'unknown').toLowerCase();
+            var cert = String(p.certainty || 'unknown').toLowerCase();
+            return _alert_event_score(p.event) +
+                (severityScore[sev] || 0) +
+                (urgencyScore[urg] || 0) +
+                (certaintyScore[cert] || 0);
+        }
+
+        function _set_top_alert_text(text) {
+            var el = document.getElementById('ldTopAlertText');
+            if (el) el.textContent = text || '';
+        }
+
+        function _show_top_alert_drawer() {
+            var drawer = document.getElementById('ldTopAlertDrawer');
+            if (drawer && !drawer.classList.contains('visible')) drawer.classList.add('visible');
+        }
+
+        function _get_fips_population_map() {
+            if (_fipsPopPromise) return _fipsPopPromise;
+            _fipsPopPromise = _fetch_json_timeout(window.location.origin + '/app/alerts/fips_population.json', 7000)
+                .then(function(map) { return map || {}; })
+                .catch(function() { return {}; });
+            return _fipsPopPromise;
+        }
+
+        function _get_showcase_style_population(properties, fipsMap) {
+            var sameCodes = (properties && properties.geocode && Array.isArray(properties.geocode.SAME))
+                ? properties.geocode.SAME : [];
+            var seen = {};
+            var total = 0;
+            var i = 0;
+            var fips = '';
+            for (i = 0; i < sameCodes.length; i++) {
+                fips = String(sameCodes[i] || '').substring(1);
+                if (!fips || seen[fips]) continue;
+                seen[fips] = true;
+                if (fipsMap[fips]) total += fipsMap[fips];
+            }
+            if (total > 0) return total;
+
+            var ugcCodes = (properties && properties.geocode && Array.isArray(properties.geocode.UGC))
+                ? properties.geocode.UGC : [];
+            for (i = 0; i < ugcCodes.length; i++) {
+                var match = /^([A-Z]{2})C(\d{3})$/i.exec(String(ugcCodes[i] || ''));
+                if (!match) continue;
+                var stateAbbr = match[1].toUpperCase();
+                var countyCode = match[2];
+                var stateFips = _STATE_TO_FIPS[stateAbbr];
+                if (!stateFips) continue;
+                var countyFips = stateFips + countyCode;
+                if (seen[countyFips]) continue;
+                seen[countyFips] = true;
+                if (fipsMap[countyFips]) total += fipsMap[countyFips];
+            }
+            return total;
+        }
+
+        function _format_people_count(n) {
+            return new Intl.NumberFormat('en-US').format(Math.max(0, Math.floor(Number(n) || 0)));
+        }
+
+        function _update_top_alert_from_payload(payload) {
+            var list = payload && Array.isArray(payload.features) ? payload.features : [];
+            if (!list.length) {
+                _set_top_alert_text('Top Alert: No active US alerts right now.');
+                _show_top_alert_drawer();
+                return Promise.resolve();
+            }
+            var top = list.reduce(function(best, cur) {
+                if (!best) return cur;
+                return _top_alert_score(cur) > _top_alert_score(best) ? cur : best;
+            }, null);
+            var props = top && top.properties ? top.properties : {};
+            var eventName = props.event || 'Weather Alert';
+            var stateName = _extract_state_name_from_alert(top);
+            return _get_fips_population_map().then(function(fipsMap) {
+                var impacted = _get_showcase_style_population(props, fipsMap);
+                var msg = 'Top Alert: ' + eventName + ' in ' + stateName + '!';
+                if (impacted > 0) {
+                    var personWord = impacted === 1 ? 'person' : 'people';
+                    msg += ' Affecting ' + _format_people_count(impacted) + ' ' + personWord + '.';
+                }
+                _set_top_alert_text(msg);
+                _show_top_alert_drawer();
+            });
+        }
+
         function _prime_geo(doneCb) {
             _task_active('geo');
             var styleUrl = 'https://api.mapbox.com/styles/v1/twalker92/cmd90758s006r01s2df82drgf?access_token=' +
@@ -1722,7 +1960,16 @@
                 base + 'app/alerts/zones/county_zones.js.gz',
                 base + 'app/alerts/zones/fire_zones.js.gz'
             ];
-            var jobs = [_fetch_json_timeout('https://api.weather.gov/alerts/active', 9000)];
+            var activeAlertsJob = _fetch_json_timeout('https://api.weather.gov/alerts/active', 9000)
+                .then(function(payload) {
+                    return _update_top_alert_from_payload(payload);
+                })
+                .catch(function() {
+                    _set_top_alert_text('Top Alert unavailable right now.');
+                    _show_top_alert_drawer();
+                    return null;
+                });
+            var jobs = [activeAlertsJob];
             zones.forEach(function(z) { jobs.push(_fetch_bin_timeout(z, 9000)); });
             Promise.all(jobs).finally(function() { _mark_extra('warnings', doneCb); });
         }

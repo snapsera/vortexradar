@@ -12,10 +12,10 @@
   --color-text-muted: #64748b;
   --color-text-inverse: #0c0e14;
 
-  /* Accent – teal/cyan */
-  --color-accent: #0ea5e9;
-  --color-accent-hover: #38bdf8;
-  --color-accent-muted: rgba(14, 165, 233, 0.12);
+  /* Accent */
+  --color-accent: #d37979;
+  --color-accent-hover: #df9393;
+  --color-accent-muted: rgba(211, 121, 121, 0.12);
 
   /* Status */
   --color-success: #22c55e;

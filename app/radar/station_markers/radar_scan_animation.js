@@ -30,6 +30,8 @@ var _currentStation = null;
 var _sweepEnabled = false;
 var _radarLat = 0;
 var _radarLng = 0;
+var _centerOverrideLat = null;
+var _centerOverrideLng = null;
 var _animationId = null;
 
 var _container = null;
@@ -45,9 +47,11 @@ var _mapMoving = false;
 function _get_pixel_radius() {
     var rangeKm = (window.stormTrackData && window.stormTrackData._radarMaxRangeKm) || 230;
     var deltaLat = (rangeKm / EARTH_RADIUS_KM) * DEG;
-    var edgeLat = _radarLat + deltaLat;
-    var center = map.project([_radarLng, _radarLat]);
-    var edge = map.project([_radarLng, edgeLat]);
+    var centerLat = (_centerOverrideLat != null) ? _centerOverrideLat : _radarLat;
+    var centerLng = (_centerOverrideLng != null) ? _centerOverrideLng : _radarLng;
+    var edgeLat = centerLat + deltaLat;
+    var center = map.project([centerLng, centerLat]);
+    var edge = map.project([centerLng, edgeLat]);
     return Math.abs(edge.y - center.y);
 }
 
@@ -57,7 +61,9 @@ function _update_cached_rect() {
 
 function _update_position() {
     if (!_cachedRect) _update_cached_rect();
-    var screenPos = map.project([_radarLng, _radarLat]);
+    var centerLat = (_centerOverrideLat != null) ? _centerOverrideLat : _radarLat;
+    var centerLng = (_centerOverrideLng != null) ? _centerOverrideLng : _radarLng;
+    var screenPos = map.project([centerLng, centerLat]);
     _cachedCx = screenPos.x + _cachedRect.left;
     _cachedCy = screenPos.y + _cachedRect.top;
     _cachedRadius = _get_pixel_radius();
@@ -75,6 +81,7 @@ function _update_position() {
 
 function _draw_beam() {
     if (!_canvas) return;
+    var isPreviewMode = !!(window?.stormTrackData?.radarPreviewMode);
 
     var diameter = _lastAppliedDiameter;
     if (diameter < 20) return;
@@ -107,12 +114,21 @@ function _draw_beam() {
     ctx.clip();
 
     var grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, r);
-    grad.addColorStop(0, 'rgba(195, 215, 230, 0.26)');
-    grad.addColorStop(0.12, 'rgba(195, 215, 230, 0.18)');
-    grad.addColorStop(0.30, 'rgba(195, 215, 230, 0.10)');
-    grad.addColorStop(0.55, 'rgba(195, 215, 230, 0.04)');
-    grad.addColorStop(0.80, 'rgba(195, 215, 230, 0.01)');
-    grad.addColorStop(1, 'rgba(195, 215, 230, 0)');
+    if (isPreviewMode) {
+        grad.addColorStop(0, 'rgba(210, 232, 248, 0.62)');
+        grad.addColorStop(0.12, 'rgba(210, 232, 248, 0.44)');
+        grad.addColorStop(0.30, 'rgba(210, 232, 248, 0.24)');
+        grad.addColorStop(0.55, 'rgba(210, 232, 248, 0.12)');
+        grad.addColorStop(0.80, 'rgba(210, 232, 248, 0.05)');
+        grad.addColorStop(1, 'rgba(210, 232, 248, 0)');
+    } else {
+        grad.addColorStop(0, 'rgba(195, 215, 230, 0.26)');
+        grad.addColorStop(0.12, 'rgba(195, 215, 230, 0.18)');
+        grad.addColorStop(0.30, 'rgba(195, 215, 230, 0.10)');
+        grad.addColorStop(0.55, 'rgba(195, 215, 230, 0.04)');
+        grad.addColorStop(0.80, 'rgba(195, 215, 230, 0.01)');
+        grad.addColorStop(1, 'rgba(195, 215, 230, 0)');
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, pixDiam, pixDiam);
     ctx.restore();
@@ -122,7 +138,7 @@ function _draw_beam() {
     for (var i = 1; i <= NUM_ARCS; i++) {
         var t = i / (NUM_ARCS + 1);
         var arcR = innerR + (r - innerR) * t;
-        var opacity = 0.20 * Math.pow(1 - t, 0.7);
+        var opacity = (isPreviewMode ? 0.36 : 0.20) * Math.pow(1 - t, 0.7);
 
         ctx.beginPath();
         ctx.arc(cx, cy, arcR, aTrailing, aLeading);
@@ -137,12 +153,18 @@ function _draw_beam() {
     ctx.moveTo(cx, cy - innerR);
     ctx.lineTo(cx, cy - r);
     var lineGrad = ctx.createLinearGradient(cx, cy - innerR, cx, cy - r);
-    lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
-    lineGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.16)');
-    lineGrad.addColorStop(0.60, 'rgba(255, 255, 255, 0.04)');
+    if (isPreviewMode) {
+        lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
+        lineGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.55)');
+        lineGrad.addColorStop(0.60, 'rgba(255, 255, 255, 0.18)');
+    } else {
+        lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+        lineGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.16)');
+        lineGrad.addColorStop(0.60, 'rgba(255, 255, 255, 0.04)');
+    }
     lineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.strokeStyle = lineGrad;
-    ctx.lineWidth = Math.max(1.5, 1.5 * s);
+    ctx.lineWidth = isPreviewMode ? Math.max(2.6, 2.6 * s) : Math.max(1.5, 1.5 * s);
     ctx.stroke();
     ctx.restore();
 }
@@ -165,7 +187,12 @@ function _create_elements() {
 
     _container = document.createElement('div');
     _container.id = 'radarSweepContainer';
-    _container.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:2;will-change:transform;opacity:0;';
+    var isPreviewMode = !!(window?.stormTrackData?.radarPreviewMode);
+    _container.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:' + (isPreviewMode ? '99999' : '2') + ';will-change:transform;opacity:0;';
+    if (isPreviewMode) {
+        _container.style.mixBlendMode = 'screen';
+        _container.style.filter = 'brightness(1.35) saturate(1.15)';
+    }
 
     _canvas = document.createElement('canvas');
     _canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;' +
@@ -274,6 +301,8 @@ function remove() {
     _unbind_events();
     _remove_elements();
     _currentStation = null;
+    _centerOverrideLat = null;
+    _centerOverrideLng = null;
     _lastAppliedDiameter = 0;
     _cachedRect = null;
 }
@@ -286,4 +315,15 @@ function get_current_station() {
     return _currentStation;
 }
 
-module.exports = { update, remove, is_active, get_current_station, SWEEP_PERIOD_MS };
+function set_center_override(lat, lng) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        _centerOverrideLat = null;
+        _centerOverrideLng = null;
+        return;
+    }
+    _centerOverrideLat = lat;
+    _centerOverrideLng = lng;
+    if (_sweepEnabled) _update_position();
+}
+
+module.exports = { update, remove, is_active, get_current_station, set_center_override, SWEEP_PERIOD_MS };

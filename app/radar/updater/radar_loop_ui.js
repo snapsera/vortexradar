@@ -77,11 +77,12 @@ function _render_controls(state) {
     const is_loop_visible = is_supported;
     const is_preloading = !!state.preloading;
     const is_playing_or_preloading = !!(state.playing || is_preloading);
+    const is_preview_mode = !!(window?.stormTrackData?.radarPreviewMode);
 
-    if (is_playing_or_preloading && !_sweepHiddenForPlayback) {
+    if (!is_preview_mode && is_playing_or_preloading && !_sweepHiddenForPlayback) {
         _sweepHiddenForPlayback = true;
         radar_scan_animation.remove();
-    } else if (!is_playing_or_preloading && _sweepHiddenForPlayback) {
+    } else if ((!is_playing_or_preloading || is_preview_mode) && _sweepHiddenForPlayback) {
         _sweepHiddenForPlayback = false;
         var sweepEnabled = settings_store.load().radarSweep;
         var station = window.stormTrackData?.currentStation;

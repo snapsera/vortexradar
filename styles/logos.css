@@ -34,6 +34,12 @@
   transform-origin: center;
 }
 
+/* Loading screen palette matches site accent */
+.vrLogoContext--loading .vrLogo__vortexRing,
+.vrLogoContext--loading .vrLogo__vortexCore {
+  fill: #0ea5e9;
+}
+
 .vrLogo--vortexFull.vrLogo--animated .vrLogo__vortexRing {
   transform-box: view-box;
   transform-origin: 533.65px 420.46px;

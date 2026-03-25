@@ -6,6 +6,11 @@ function in_iframe() {
     }
 }
 
-if (in_iframe()) {
+var _isRadarPreview = false;
+try {
+    _isRadarPreview = new URLSearchParams(window.location.search).get('radarPreview') === '1';
+} catch (_) {}
+
+if (in_iframe() && !_isRadarPreview) {
     $('#armrAboutBtn').click();
 }

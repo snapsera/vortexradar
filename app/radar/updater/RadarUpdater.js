@@ -91,7 +91,12 @@ class RadarUpdater {
 
             const radar_scan_animation = require('../station_markers/radar_scan_animation');
             if (radar_scan_animation.is_active()) {
-                window.stormTrackData._sweepRevealNextPlot = true;
+                // Preview mode wants instant frame swaps; keep sweep as a visual overlay only.
+                if (!window?.stormTrackData?.radarPreviewMode) {
+                    window.stormTrackData._sweepRevealNextPlot = true;
+                } else {
+                    window.stormTrackData._sweepRevealNextPlot = false;
+                }
             }
 
             this.plot_func(url, () => {

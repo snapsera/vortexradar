@@ -27,6 +27,14 @@
         //if (window.location.hash != '#reload') {
         //    window.location.hash += '#reload';
         //}
+        (function() {
+            try {
+                var params = new URLSearchParams(window.location.search);
+                if (params.get('radarPreview') === '1') {
+                    document.documentElement.classList.add('radarPreviewEmbed');
+                }
+            } catch (_) {}
+        })();
     </script>
 
     <!-- 
@@ -43,12 +51,81 @@
             --bs-body-color: #e2e8f0;
             --bs-gutter-x: 1.5rem;
             --bs-gutter-y: 0;
+            --ld-accent: #0ea5e9;
+            --ld-accent-rgb: 14, 165, 233;
         }
         html { overflow: hidden; }
         body {
             margin: 0;
             padding: 0;
             background-color: #0c0e14;
+        }
+        html.radarPreviewEmbed #loadingLibrariesDiv {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #050b14 !important;
+        }
+        html.radarPreviewEmbed #ldBgVideo,
+        html.radarPreviewEmbed #ldBgScrim,
+        html.radarPreviewEmbed #ldLeftInfo,
+        html.radarPreviewEmbed #ldHudRight,
+        html.radarPreviewEmbed #ldCenterTip,
+        html.radarPreviewEmbed #ldBarWrap,
+        html.radarPreviewEmbed #ldDots,
+        html.radarPreviewEmbed #ldTopAlertDrawer {
+            display: none !important;
+        }
+        html.radarPreviewEmbed #ldShowcaseShell {
+            position: static;
+            transform: none;
+            width: auto;
+            height: auto;
+            padding: 0;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            clip-path: none;
+            opacity: 1;
+        }
+        html.radarPreviewEmbed #ldShowcaseShell::before,
+        html.radarPreviewEmbed #ldShowcaseShell::after {
+            display: none;
+        }
+        html.radarPreviewEmbed #ldUpperDeck {
+            display: block;
+            opacity: 1;
+        }
+        html.radarPreviewEmbed #ldTopBrand {
+            display: block;
+            margin: 0;
+        }
+        html.radarPreviewEmbed #loadingLogo {
+            width: 280px;
+            height: 170px;
+        }
+        html.radarPreviewEmbed #ldPreviewLoading {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: rgba(226, 232, 240, 0.9);
+            font-family: var(--bs-font-sans-serif);
+        }
+        html.radarPreviewEmbed #ldPreviewLoadingDots {
+            display: inline-block;
+            min-width: 18px;
+            text-align: left;
+        }
+        html.radarPreviewEmbed #bodyDiv > *:not(#map) {
+            display: none !important;
+        }
+        html.radarPreviewEmbed #map {
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
         }
         /* ── loading screen: showcase-style shell ── */
         #loadingLibrariesDiv {
@@ -74,7 +151,7 @@
         #ldBgScrim {
             position: absolute; inset: 0; z-index: 1;
             background:
-                radial-gradient(150% 120% at 50% 100%, rgba(112,15,15,0.2) 0%, rgba(12,14,20,0.82) 48%, rgba(8,6,14,0.95) 100%),
+                radial-gradient(150% 120% at 50% 100%, rgba(14,165,233,0.2) 0%, rgba(12,14,20,0.82) 48%, rgba(8,6,14,0.95) 100%),
                 linear-gradient(to bottom, rgba(8,6,14,0.32) 0%, rgba(8,6,14,0.88) 100%);
             pointer-events: none;
         }
@@ -112,8 +189,8 @@
             left: -1px;
             width: 36px;
             height: 36px;
-            border-top: 2px solid #700f0f;
-            border-left: 2px solid #700f0f;
+            border-top: 2px solid var(--ld-accent);
+            border-left: 2px solid var(--ld-accent);
             pointer-events: none;
             z-index: 6;
         }
@@ -127,8 +204,8 @@
             background: linear-gradient(
                 to bottom right,
                 transparent calc(50% - 1px),
-                #700f0f calc(50% - 1px),
-                #700f0f calc(50% + 1px),
+                var(--ld-accent) calc(50% - 1px),
+                var(--ld-accent) calc(50% + 1px),
                 transparent calc(50% + 1px)
             );
             opacity: 0.78;
@@ -165,7 +242,12 @@
             top: 0;
             width: 100%;
             height: 2px;
-            background: linear-gradient(90deg, rgba(112, 15, 15, 0.12), rgba(159, 26, 26, 0.68), rgba(112, 15, 15, 0.12));
+            background: linear-gradient(
+                90deg,
+                rgba(var(--ld-accent-rgb), 0.12),
+                rgba(var(--ld-accent-rgb), 0.72),
+                rgba(var(--ld-accent-rgb), 0.12)
+            );
         }
         .ldTopAlertShine {
             position: absolute;
@@ -355,9 +437,9 @@
         #ldBar {
             position: absolute; top: 0; bottom: 0; left: 0;
             width: 0%; border-radius: 2px;
-            background: linear-gradient(90deg, #700f0f, #9f1a1a, #c73333);
+            background: linear-gradient(90deg, #0b7cac, #0ea5e9, #38bdf8);
             transition: width 0.3s ease;
-            box-shadow: 0 0 12px rgba(159, 26, 26, 0.4);
+            box-shadow: 0 0 12px rgba(14, 165, 233, 0.45);
         }
 
         /* task dots */
@@ -386,8 +468,8 @@
         }
         .ldDot.ld-active { color: #cbd5e1; }
         .ldDot.ld-active::before {
-            background: #9f1a1a;
-            box-shadow: 0 0 8px rgba(159,26,26,0.62);
+            background: var(--ld-accent);
+            box-shadow: 0 0 8px rgba(14,165,233,0.62);
             animation: ldDotPulse 1.2s ease-in-out infinite;
         }
         .ldDot.ld-done { color: #64748b; }
@@ -397,8 +479,8 @@
             animation: none;
         }
         @keyframes ldDotPulse {
-            0%,100% { box-shadow: 0 0 4px rgba(159,26,26,0.32); }
-            50%     { box-shadow: 0 0 12px rgba(159,26,26,0.7); }
+            0%,100% { box-shadow: 0 0 4px rgba(14,165,233,0.32); }
+            50%     { box-shadow: 0 0 12px rgba(14,165,233,0.7); }
         }
         @media (max-width: 760px) {
             #ldShowcaseShell {
@@ -524,6 +606,7 @@
 
                 <div id="ldTopBrand">
                     <div id="loadingLogo" class="vrLogoHost vrLogoHost--loadingFull" aria-label="Vortex Radar logo"></div>
+                    <div id="ldPreviewLoading" style="display:none">Loading<span id="ldPreviewLoadingDots">.</span></div>
                 </div>
 
                 <div id="ldHudRight">
@@ -563,6 +646,18 @@
                     variant: 'animated',
                     className: 'vrLogoContext--loading'
                 });
+            }
+            if (document.documentElement.classList.contains('radarPreviewEmbed')) {
+                var previewLoading = document.getElementById('ldPreviewLoading');
+                var previewLoadingDots = document.getElementById('ldPreviewLoadingDots');
+                if (previewLoading) previewLoading.style.display = 'block';
+                if (previewLoadingDots) {
+                    var dotCount = 1;
+                    setInterval(function() {
+                        dotCount = (dotCount % 3) + 1;
+                        previewLoadingDots.textContent = '.'.repeat(dotCount);
+                    }, 420);
+                }
             }
             // Reveal only after layout has settled to avoid first-paint size snap.
             requestAnimationFrame(function() {
@@ -1739,7 +1834,8 @@
          * has real dimensions. Listeners attach BEFORE bundle.js executes.
          */
 
-        var _sig = { map:false, modules:false, alerts:false, radar:false };
+        var _previewEmbedLoading = document.documentElement.classList.contains('radarPreviewEmbed');
+        var _sig = { map:false, modules:false, alerts:false, radar:false, previewRadar: !_previewEmbedLoading };
         var _extra = {
             charts:false,
             geo:false,
@@ -1751,6 +1847,7 @@
 
         function _all_ready() {
             return _sig.map && _sig.modules && _sig.alerts && _sig.radar
+                && _sig.previewRadar
                 && _extra.charts
                 && _extra.geo && _extra.stations && _extra.warnings && _extra.radar;
         }
@@ -1852,6 +1949,7 @@
             VT: '50', VA: '51', WA: '53', WV: '54', WI: '55', WY: '56', PR: '72'
         };
         var _fipsPopPromise = null;
+        var _topAlertPayloadPromise = null;
 
         function _extract_state_name_from_alert(feature) {
             var props = feature && feature.properties ? feature.properties : {};
@@ -1981,6 +2079,20 @@
             });
         }
 
+        function _start_top_alert_probe() {
+            if (_topAlertPayloadPromise) return _topAlertPayloadPromise;
+            _topAlertPayloadPromise = _fetch_json_timeout('https://api.weather.gov/alerts/active', 9000)
+                .then(function(payload) {
+                    return _update_top_alert_from_payload(payload).then(function() { return payload; });
+                })
+                .catch(function() {
+                    _set_top_alert_text('Top Alert unavailable right now.');
+                    _show_top_alert_drawer();
+                    return null;
+                });
+            return _topAlertPayloadPromise;
+        }
+
         function _prime_geo(doneCb) {
             _task_active('geo');
             var styleUrl = 'https://api.mapbox.com/styles/v1/twalker92/cmd90758s006r01s2df82drgf?access_token=' +
@@ -2002,15 +2114,7 @@
                 base + 'app/alerts/zones/county_zones.js.gz',
                 base + 'app/alerts/zones/fire_zones.js.gz'
             ];
-            var activeAlertsJob = _fetch_json_timeout('https://api.weather.gov/alerts/active', 9000)
-                .then(function(payload) {
-                    return _update_top_alert_from_payload(payload);
-                })
-                .catch(function() {
-                    _set_top_alert_text('Top Alert unavailable right now.');
-                    _show_top_alert_drawer();
-                    return null;
-                });
+            var activeAlertsJob = _start_top_alert_probe();
             var jobs = [activeAlertsJob];
             zones.forEach(function(z) { jobs.push(_fetch_bin_timeout(z, 9000)); });
             Promise.all(jobs).finally(function() { _mark_extra('warnings', doneCb); });
@@ -2114,6 +2218,14 @@
                     console.log('[loader] radar scan plotted');
                     _signal('radar');
                 });
+
+                window.addEventListener('radarPreviewReady', function() {
+                    console.log('[loader] radar preview ready');
+                    _signal('previewRadar');
+                });
+
+                /* Start top-alert drawer fetch early so it can animate in sooner. */
+                _start_top_alert_probe();
 
                 /* STEP 3b — explicit preload tasks for every loader dot */
                 _run_extra_preloads();

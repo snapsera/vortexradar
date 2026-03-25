@@ -59,6 +59,12 @@ function _seed_site_defaults_if_needed(done) {
 function load() {
     window.stormTrackData = {};
     window.stormTrackData.map_type = 'dark';
+    try {
+        const params = new URLSearchParams(window.location.search);
+        window.stormTrackData.radarPreviewMode = params.get('radarPreview') === '1';
+    } catch (_) {
+        window.stormTrackData.radarPreviewMode = false;
+    }
 
     _seed_site_defaults_if_needed(function() {
         require('../../weather_station/menu_item');
@@ -99,6 +105,7 @@ function load() {
         require('../../ui/audible_alerts').init();
         require('../../ui/fullscreen_toggle').init();
         require('../../forecast/forecast_modal').init();
+        require('../../radar/preview_embed_mode').init();
         require('../../lightning/menu_item');
 
         window.dispatchEvent(new CustomEvent('stormTrackModulesLoaded'));

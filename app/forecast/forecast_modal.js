@@ -1,20 +1,31 @@
+const { NEXRAD_LOCATIONS } = require('../radar/libnexrad/nexrad_locations');
+const { get_closest_wsr88d_radar } = require('../alerts/alert_helpers');
+
 var _overlay = null;
 var _body = null;
 var _searchInput = null;
 var _spinner = null;
 var _suggestions = null;
 var _tabBar = null;
+var _backBtn = null;
 var _debounceTimer = null;
 var _currentLat = null;
 var _currentLon = null;
 var _currentName = null;
 var _cachedData = null;
 var _activeTab = 'overview';
+var _currentBoundaryGeojson = null;
+var _currentOsmType = '';
+var _currentOsmId = '';
 
 var NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
 var STORAGE_KEY_HISTORY = 'vortexRadar_forecastHistory';
 var STORAGE_KEY_FAVORITES = 'vortexRadar_forecastFavorites';
 var MAX_HISTORY = 15;
+var URL_PARAM_MYCAST = 'mycast';
+var URL_PARAM_MYCAST_LAT = 'mycastLat';
+var URL_PARAM_MYCAST_LON = 'mycastLon';
+var URL_PARAM_MYCAST_NAME = 'mycastName';
 
 // ── Persistence helpers ──
 
@@ -182,11 +193,65 @@ function _degreesToCardinal(deg) {
 
 function _geocode(query, cb) {
     var url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(query) +
-        '&format=json&countrycodes=us&limit=5&addressdetails=1';
+        '&format=json&countrycodes=us&limit=5&addressdetails=1&polygon_geojson=1';
     fetch(url, { headers: { 'User-Agent': NWS_UA } })
         .then(function(r) { return r.json(); })
         .then(function(data) { cb(null, data); })
         .catch(function(err) { cb(err, null); });
+}
+
+function _isPolygonGeometry(geo) {
+    return !!geo && (geo.type === 'Polygon' || geo.type === 'MultiPolygon');
+}
+
+function _nominatimTypePrefix(osmType) {
+    if (osmType === 'relation') return 'R';
+    if (osmType === 'way') return 'W';
+    if (osmType === 'node') return 'N';
+    return '';
+}
+
+function _lookupBoundary(osmType, osmId, cb) {
+    var prefix = _nominatimTypePrefix(osmType);
+    if (!prefix || !osmId) {
+        cb(null);
+        return;
+    }
+    var url = 'https://nominatim.openstreetmap.org/lookup?osm_ids=' + prefix + osmId +
+        '&format=json&polygon_geojson=1';
+    fetch(url, { headers: { 'User-Agent': NWS_UA } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var first = data && data[0];
+            if (first && _isPolygonGeometry(first.geojson)) {
+                cb(first.geojson);
+                return;
+            }
+            cb(null);
+        })
+        .catch(function() { cb(null); });
+}
+
+function _resolveBoundaryFromResult(result, cb) {
+    if (result && _isPolygonGeometry(result.geojson)) {
+        cb(result.geojson);
+        return;
+    }
+    _lookupBoundary(result && result.osm_type, result && result.osm_id, cb);
+}
+
+function _resolveBoundaryFromSuggestionItem($item, cb) {
+    var rawBoundary = $item.attr('data-boundary');
+    if (rawBoundary) {
+        try {
+            var parsed = JSON.parse(decodeURIComponent(rawBoundary));
+            if (_isPolygonGeometry(parsed)) {
+                cb(parsed);
+                return;
+            }
+        } catch (_) {}
+    }
+    _lookupBoundary($item.attr('data-osm-type'), $item.attr('data-osm-id'), cb);
 }
 
 function _buildDisplayName(item) {
@@ -196,6 +261,48 @@ function _buildDisplayName(item) {
     if (city && state) return city + ', ' + state;
     if (item.display_name) return item.display_name.split(',').slice(0, 3).join(',');
     return item.display_name || 'Unknown';
+}
+
+function _setMyCastShareUrl(lat, lon, name) {
+    try {
+        var url = new URL(window.location.href);
+        url.searchParams.set(URL_PARAM_MYCAST, '1');
+        if (lat != null && lon != null) {
+            url.searchParams.set(URL_PARAM_MYCAST_LAT, Number(lat).toFixed(4));
+            url.searchParams.set(URL_PARAM_MYCAST_LON, Number(lon).toFixed(4));
+        }
+        if (name) {
+            url.searchParams.set(URL_PARAM_MYCAST_NAME, name);
+        }
+        window.history.replaceState({}, '', url.toString());
+    } catch (_) {}
+}
+
+function _clearMyCastShareUrl() {
+    try {
+        var url = new URL(window.location.href);
+        url.searchParams.delete(URL_PARAM_MYCAST);
+        url.searchParams.delete(URL_PARAM_MYCAST_LAT);
+        url.searchParams.delete(URL_PARAM_MYCAST_LON);
+        url.searchParams.delete(URL_PARAM_MYCAST_NAME);
+        window.history.replaceState({}, '', url.toString());
+    } catch (_) {}
+}
+
+function _readMyCastShareParams() {
+    try {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get(URL_PARAM_MYCAST) !== '1') return null;
+        var lat = parseFloat(params.get(URL_PARAM_MYCAST_LAT));
+        var lon = parseFloat(params.get(URL_PARAM_MYCAST_LON));
+        var name = params.get(URL_PARAM_MYCAST_NAME) || '';
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            return { openOnly: true, name: name };
+        }
+        return { lat: lat, lon: lon, name: name || null };
+    } catch (_) {
+        return null;
+    }
 }
 
 // ── NWS fetch ──
@@ -637,6 +744,69 @@ function _dRow(icon, label, value) {
         '</div>';
 }
 
+function _renderRadarAlertsSummary(alertsData) {
+    var features = (alertsData && alertsData.features) || [];
+    if (!features.length) {
+        return '<div class="forecastRadarAlertSummary forecastRadarAlertSummary-clear">' +
+            '<i class="fa-solid fa-circle-check"></i>' +
+            '<span>No active alerts near this location.</span>' +
+            '</div>';
+    }
+
+    var counts = {};
+    for (var i = 0; i < features.length; i++) {
+        var eventName = (features[i].properties && features[i].properties.event) || 'Weather Alert';
+        counts[eventName] = (counts[eventName] || 0) + 1;
+    }
+    var labels = Object.keys(counts).slice(0, 5).map(function(k) {
+        return counts[k] > 1 ? k + ' (' + counts[k] + ')' : k;
+    });
+    var hasMore = Object.keys(counts).length > 5;
+
+    return '<div class="forecastRadarAlertSummary forecastRadarAlertSummary-active">' +
+        '<i class="fa-solid fa-triangle-exclamation"></i>' +
+        '<span>' + features.length + ' active alert' + (features.length === 1 ? '' : 's') + ': ' + labels.join(' • ') + (hasMore ? ' • ...' : '') + '</span>' +
+        '</div>';
+}
+
+function _buildRadarPreviewUrl(lat, lon, boundaryGeojson, osmType, osmId) {
+    var url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('radarPreview', '1');
+    url.searchParams.set('lat', lat.toFixed(4));
+    url.searchParams.set('lon', lon.toFixed(4));
+    if (osmType) url.searchParams.set('osmType', osmType);
+    if (osmId) url.searchParams.set('osmId', String(osmId));
+    if (boundaryGeojson) {
+        try {
+            var key = 'vortexRadar_previewBoundary_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+            sessionStorage.setItem(key, JSON.stringify(boundaryGeojson));
+            url.searchParams.set('boundaryKey', key);
+        } catch (_) {}
+    }
+    return url.toString();
+}
+
+function _renderRadarPreviewCard(data) {
+    var stationId = (_currentLon != null && _currentLat != null)
+        ? get_closest_wsr88d_radar(_currentLon, _currentLat)
+        : null;
+    var stationMeta = stationId ? NEXRAD_LOCATIONS[stationId] : null;
+    var stationLabel = stationMeta
+        ? stationId + ' - ' + stationMeta.name
+        : 'Unavailable';
+
+    var html = '<div class="forecastRadarPanel">';
+    html += '<div class="forecastRadarTitle"><i class="fa-solid fa-satellite-dish"></i> Radar Preview</div>';
+    html += '<div class="forecastRadarMeta"><span class="forecastRadarMetaLabel">Radar Site</span><span class="forecastRadarMetaValue">' + stationLabel + '</span></div>';
+    html += '<div class="forecastRadarFrameWrap">';
+    html += '<iframe class="forecastRadarFrame" title="Radar Preview" src="' + _buildRadarPreviewUrl(_currentLat, _currentLon, _currentBoundaryGeojson, _currentOsmType, _currentOsmId) + '" loading="lazy" referrerpolicy="no-referrer"></iframe>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
 // ── Tab switching ──
 
 function _switchTab(tab) {
@@ -649,13 +819,27 @@ function _switchTab(tab) {
 
 // ── Load location ──
 
-function _loadForecast(lat, lon, displayName) {
+function _showLandingHome() {
+    _tabBar.hide();
+    if (_backBtn) _backBtn.hide();
+    _searchInput.val('');
+    _suggestions.removeClass('forecastSuggestions-visible');
+    _body.html(_renderLanding());
+    _clearMyCastShareUrl();
+}
+
+function _loadForecast(lat, lon, displayName, boundaryGeojson, osmType, osmId) {
     _currentLat = lat;
     _currentLon = lon;
     _currentName = displayName;
+    _currentBoundaryGeojson = boundaryGeojson || null;
+    _currentOsmType = osmType || '';
+    _currentOsmId = osmId != null ? String(osmId) : '';
     _cachedData = null;
     _activeTab = 'overview';
+    _setMyCastShareUrl(lat, lon, displayName);
 
+    if (_backBtn) _backBtn.css('display', 'inline-flex');
     _tabBar.hide();
     _body.html(
         '<div class="forecastLoading">' +
@@ -685,13 +869,19 @@ function _loadForecast(lat, lon, displayName) {
             (data.gridId ? '<span>NWS: ' + data.gridId + '</span>' : '') +
             '</span></div>';
 
+        var overviewHtml = '<div class="forecastOverviewSplit">' +
+            '<div class="forecastOverviewMain">' + _renderOverview(data) + '</div>' +
+            '<div class="forecastOverviewSide">' + _renderRadarPreviewCard(data) + '</div>' +
+            '</div>';
+
         var html = '';
-        html += '<div class="forecastTabContent forecastTabContent-active" data-tab-content="overview">' + locationHtml + _renderOverview(data) + '</div>';
+        html += '<div class="forecastTabContent forecastTabContent-active" data-tab-content="overview">' + locationHtml + overviewHtml + '</div>';
         html += '<div class="forecastTabContent" data-tab-content="hourly">' + locationHtml + _renderHourly(data.hourly) + '</div>';
         html += '<div class="forecastTabContent" data-tab-content="details">' + locationHtml + _renderDetails(data) + '</div>';
 
         _body.html(html);
-        _tabBar.show();
+        _tabBar.css('display', 'flex');
+        if (_backBtn) _backBtn.css('display', 'inline-flex');
 
         _tabBar.find('.forecastTab').removeClass('forecastTab-active');
         _tabBar.find('[data-tab="overview"]').addClass('forecastTab-active');
@@ -718,7 +908,11 @@ function _onSearchInput() {
             var html = '';
             for (var i = 0; i < results.length; i++) {
                 var r = results[i];
-                html += '<div class="forecastSuggestionItem" data-lat="' + r.lat + '" data-lon="' + r.lon + '" data-name="' + _buildDisplayName(r).replace(/"/g, '&quot;') + '">' +
+                var boundaryEncoded = '';
+                if (r.geojson) {
+                    try { boundaryEncoded = encodeURIComponent(JSON.stringify(r.geojson)); } catch (_) {}
+                }
+                html += '<div class="forecastSuggestionItem" data-lat="' + r.lat + '" data-lon="' + r.lon + '" data-name="' + _buildDisplayName(r).replace(/"/g, '&quot;') + '" data-boundary="' + boundaryEncoded.replace(/"/g, '&quot;') + '" data-osm-type="' + (r.osm_type || '') + '" data-osm-id="' + (r.osm_id || '') + '">' +
                     _buildDisplayName(r) + '</div>';
             }
             _suggestions.html(html).addClass('forecastSuggestions-visible');
@@ -731,7 +925,13 @@ function _onSuggestionClick(e) {
     if (!$item.length) return;
     _searchInput.val($item.attr('data-name'));
     _suggestions.removeClass('forecastSuggestions-visible');
-    _loadForecast(parseFloat($item.attr('data-lat')), parseFloat($item.attr('data-lon')), $item.attr('data-name'));
+    _spinner.addClass('forecastSearchSpinner-active');
+    var osmType = $item.attr('data-osm-type') || '';
+    var osmId = $item.attr('data-osm-id') || '';
+    _resolveBoundaryFromSuggestionItem($item, function(boundary) {
+        _spinner.removeClass('forecastSearchSpinner-active');
+        _loadForecast(parseFloat($item.attr('data-lat')), parseFloat($item.attr('data-lon')), $item.attr('data-name'), boundary, osmType, osmId);
+    });
 }
 
 function _onSearchKeydown(e) {
@@ -751,7 +951,9 @@ function _onSearchKeydown(e) {
             var r = results[0];
             var name = _buildDisplayName(r);
             _searchInput.val(name);
-            _loadForecast(parseFloat(r.lat), parseFloat(r.lon), name);
+            _resolveBoundaryFromResult(r, function(boundary) {
+                _loadForecast(parseFloat(r.lat), parseFloat(r.lon), name, boundary, r.osm_type || '', r.osm_id || '');
+            });
         });
     }
 }
@@ -833,15 +1035,19 @@ function _timeAgo(ts) {
 
 function _open() {
     _overlay.addClass('forecastOverlay-visible');
-    _searchInput.val('');
-    _suggestions.removeClass('forecastSuggestions-visible');
-    _tabBar.hide();
-    _body.html(_renderLanding());
+    var shared = _readMyCastShareParams();
+    if (shared && Number.isFinite(shared.lat) && Number.isFinite(shared.lon)) {
+        _searchInput.val(shared.name || '');
+        _loadForecast(shared.lat, shared.lon, shared.name || '');
+    } else {
+        _showLandingHome();
+    }
     setTimeout(function() { _searchInput.focus(); }, 100);
 }
 
 function _close() {
     _overlay.removeClass('forecastOverlay-visible');
+    _clearMyCastShareUrl();
 }
 
 // ── Build DOM ──
@@ -853,22 +1059,25 @@ function _buildOverlay() {
                 '<div class="forecastHeader">' +
                     '<div class="forecastHeaderLeft">' +
                         '<span class="forecastHeaderTitle">MyCast</span>' +
-                        '<span class="forecastHeaderSub">Get accurate information on your location.</span>' +
+                        '<span class="forecastHeaderSub">National Weather Service forecast workstation</span>' +
                     '</div>' +
-                    '<button type="button" class="forecastCloseBtn" id="forecastCloseBtn" aria-label="Close"><i class="fa fa-xmark"></i></button>' +
+                    '<button type="button" class="forecastCloseBtn" id="forecastCloseBtn" aria-label="Close">Close</button>' +
                 '</div>' +
-                '<div class="forecastSearch">' +
-                    '<i class="fa-solid fa-magnifying-glass forecastSearchIcon"></i>' +
-                    '<div class="forecastSearchWrap">' +
-                        '<input type="text" class="forecastSearchInput" id="forecastSearchInput" placeholder="Search by city, state, or zip code..." autocomplete="off">' +
-                        '<div class="forecastSuggestions" id="forecastSuggestions"></div>' +
+                '<div class="forecastSidebar">' +
+                    '<div class="forecastSearch">' +
+                        '<i class="fa-solid fa-magnifying-glass forecastSearchIcon"></i>' +
+                        '<div class="forecastSearchWrap">' +
+                            '<input type="text" class="forecastSearchInput" id="forecastSearchInput" placeholder="Search city, state, or zip..." autocomplete="off">' +
+                            '<div class="forecastSuggestions" id="forecastSuggestions"></div>' +
+                        '</div>' +
+                        '<div class="forecastSearchSpinner" id="forecastSearchSpinner"></div>' +
                     '</div>' +
-                    '<div class="forecastSearchSpinner" id="forecastSearchSpinner"></div>' +
-                '</div>' +
-                '<div class="forecastTabs" id="forecastTabs" style="display:none">' +
-                    '<button class="forecastTab forecastTab-active" data-tab="overview"><i class="fa-solid fa-cloud-sun forecastTabIcon"></i> Overview</button>' +
-                    '<button class="forecastTab" data-tab="hourly"><i class="fa-solid fa-clock forecastTabIcon"></i> Hourly</button>' +
-                    '<button class="forecastTab" data-tab="details"><i class="fa-solid fa-list forecastTabIcon"></i> Details</button>' +
+                    '<button type="button" class="forecastBackBtn" id="forecastBackBtn" style="display:none"><i class="fa-solid fa-arrow-left"></i> Back to Home</button>' +
+                    '<div class="forecastTabs" id="forecastTabs" style="display:none">' +
+                        '<button class="forecastTab forecastTab-active" data-tab="overview"><i class="fa-solid fa-cloud-sun forecastTabIcon"></i> Overview</button>' +
+                        '<button class="forecastTab" data-tab="hourly"><i class="fa-solid fa-clock forecastTabIcon"></i> Hourly</button>' +
+                        '<button class="forecastTab" data-tab="details"><i class="fa-solid fa-list forecastTabIcon"></i> Details</button>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="forecastBody" id="forecastBody"></div>' +
             '</div>' +
@@ -881,6 +1090,7 @@ function _buildOverlay() {
     _spinner = $('#forecastSearchSpinner');
     _suggestions = $('#forecastSuggestions');
     _tabBar = $('#forecastTabs');
+    _backBtn = $('#forecastBackBtn');
 
     $('#forecastCloseBtn').on('click', _close);
     _overlay.on('click', function(e) {
@@ -893,6 +1103,7 @@ function _buildOverlay() {
     _tabBar.on('click', '.forecastTab', function() {
         _switchTab($(this).attr('data-tab'));
     });
+    _backBtn.on('click', _showLandingHome);
 
     // Day row expand/collapse (delegated — registered once)
     _body.on('click', '.forecastDayRow', function() {
@@ -946,7 +1157,7 @@ function _buildOverlay() {
         var lon = parseFloat($(this).attr('data-lon'));
         var name = $(this).attr('data-name');
         _searchInput.val(name);
-        _loadForecast(lat, lon, name);
+        _loadForecast(lat, lon, name, null, '', '');
     });
 
     // Remove favorite from landing
@@ -995,6 +1206,8 @@ function _buildOverlay() {
 function init() {
     _buildOverlay();
     $('#armrForecastBtn').on('click', function() { _open(); });
+    var shared = _readMyCastShareParams();
+    if (shared) _open();
 }
 
 module.exports = { init: init };

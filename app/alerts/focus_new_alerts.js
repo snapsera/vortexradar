@@ -446,6 +446,7 @@ function _show_next() {
 }
 
 function focus_on_new_alerts(features) {
+    if (window?.stormTrackData?.radarPreviewMode) return;
     if (!features || features.length === 0) return;
 
     const enabled = features.filter((f) => filter_alerts.should_show_alert_feature(f));
@@ -474,6 +475,10 @@ function hide_focus_panel() {
 }
 
 function init() {
+    if (window?.stormTrackData?.radarPreviewMode) {
+        hide_focus_panel();
+        return;
+    }
     const panel = $('#focusNewAlertsPanel');
     if (panel.length) {
         panel.on('click', '.fnAlertClose', hide_focus_panel);

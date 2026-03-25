@@ -260,7 +260,8 @@ function _is_us_radar_enabled() {
  * Select a radar station by ID. Updates UI and loads radar data.
  * Used by both click handler and saved-station restore.
  */
-function selectStation(stationId, stationType) {
+function selectStation(stationId, stationType, options) {
+    options = options || {};
     if (_is_us_radar_enabled()) return;
     if (!stationId || !nexrad_locations[stationId]) return;
     if (window.stormTrackData.currentStation === stationId) return;
@@ -312,10 +313,12 @@ function selectStation(stationId, stationType) {
     }));
     loaders_nexrad.quick_level_3_plot(stationId, productToLoad, (L3Factory) => {});
 
-    // Persist last used station
-    const s = settings_store.load();
-    s.currentStation = stationId;
-    settings_store.save(s);
+    if (options.persist !== false) {
+        // Persist last used station
+        const s = settings_store.load();
+        s.currentStation = stationId;
+        settings_store.save(s);
+    }
 }
 
 /**

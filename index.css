@@ -6127,6 +6127,182 @@ th.spcTable { text-align: center; }
 .alertPopupBtn:hover { background: rgba(255, 255, 255, 0.12); color: var(--color-text-primary); }
 .alertPopupGlobe:hover { color: var(--color-success) !important; }
 
+.impactTimelinePopup {
+  min-width: 240px;
+  max-width: 320px;
+  white-space: normal;
+}
+.impactTimelineHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.impactTimelineTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+.impactTimelineCoords {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+.impactTimelineHeadline {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+.impactTimelineList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.impactTimelineRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+.impactTimelineDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.impactTimelineText {
+  min-width: 0;
+}
+.impactTimelineEvent {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.impactTimelineTiming {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.impactTimelineEmpty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.distanceTrackerToolbar {
+  position: fixed;
+  z-index: 10000;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0) scaleX(0.5);
+  transform-origin: center center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 180ms ease;
+  pointer-events: auto;
+}
+.distanceTrackerToolbar-visible {
+  transform: translateY(-50%) scaleY(1) scaleX(1);
+  opacity: 1;
+}
+.distanceTrackerToolbar-closing {
+  transform: translateY(-50%) scaleY(0) scaleX(0.5) !important;
+  opacity: 0 !important;
+  transition: transform 200ms cubic-bezier(0.55, 0, 1, 0.45), opacity 140ms ease !important;
+}
+.distanceTrackerToolbarInner {
+  --ft-chamfer: 14px;
+  --ft-accent: rgba(14, 165, 233, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  min-width: 88px;
+  background: rgba(12, 14, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+.distanceTrackerToolbarInner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border-top: 2px solid var(--ft-accent);
+  border-left: 2px solid var(--ft-accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.distanceTrackerToolbarInner::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--ft-chamfer);
+  height: var(--ft-chamfer);
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--ft-accent) calc(50% - 1px),
+    var(--ft-accent) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
+}
+.distanceTrackerToolbarLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  text-align: center;
+}
+.distanceTrackerSpeedRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.distanceTrackerSpeedInput {
+  width: 44px;
+  height: 26px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-primary);
+  text-align: center;
+  font-size: 12px;
+  outline: none;
+}
+.distanceTrackerSpeedInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.distanceTrackerSpeedUnit {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+.distanceTrackerSpeedSource {
+  max-width: 82px;
+  min-height: 24px;
+  text-align: center;
+  line-height: 1.1;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
 #attributionDiv {
   display: none !important;
 }

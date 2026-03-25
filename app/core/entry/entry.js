@@ -17,6 +17,28 @@ function _setLocalStorageSnapshotValue(key, value) {
     } catch (_) {}
 }
 
+function _is_local_dev_mode() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    const host = window.location.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
+function _configure_console_logging() {
+    if (_is_local_dev_mode()) return;
+    if (typeof console === 'undefined') return;
+
+    const noOp = function () {};
+    const methodsToMute = [
+        'log', 'info', 'debug', 'warn', 'error',
+        'trace', 'table', 'group', 'groupCollapsed', 'groupEnd'
+    ];
+    methodsToMute.forEach((method) => {
+        if (typeof console[method] === 'function') {
+            console[method] = noOp;
+        }
+    });
+}
+
 function _seed_site_defaults_if_needed(done) {
     let hasSettings = false;
     try {
@@ -93,6 +115,7 @@ function load() {
         require('../../devtools/accent_tester');
         require('../../devtools/dev_console').init();
         require('../../screenshot/menu_item');
+        require('../../impact_timeline/menu_item');
         require('../../draw/menu_item');
         require('../attribution/attribution');
         require('../../radar/colormaps/menu');
@@ -128,9 +151,11 @@ function _load_map() {
 }
 
 if (document.readyState == 'complete' || document.readyState == 'interactive') {
+    _configure_console_logging();
     _load_map();
 } else if (document.readyState == 'loading') {
     window.onload = function () {
+        _configure_console_logging();
         _load_map();
     }
 }

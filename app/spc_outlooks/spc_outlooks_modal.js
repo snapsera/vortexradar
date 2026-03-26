@@ -12,6 +12,8 @@ const URL_PARAM_SPC_HAZARD = 'spcHazard';
 const URL_PARAM_SPC_RADAR = 'spcRadar';
 const URL_PARAM_SPC_VALID_FROM_DATE = 'spcValidFromDate';
 const URL_PARAM_SPC_VALID_UNTIL_DATE = 'spcValidUntilDate';
+const DEFAULT_PAGE_TITLE = 'Vortex Radar | Advanced Weather';
+const SPC_PAGE_TITLE = 'Vortex Radar | SPC Outlook';
 const NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
 
 const DAY_HAZARD_LAYER_IDS = {
@@ -405,6 +407,36 @@ function _get_cig_level(props) {
     return 1;
 }
 
+function _cig_hazard_name(props) {
+    const label2 = String((props && props.label2) || '');
+    const m = label2.match(/^\s*([A-Za-z]+)\s+Conditional\s+Intensity\s+Group/i);
+    if (m && m[1]) return m[1];
+    if (_activeHazard === 'hail') return 'Hail';
+    if (_activeHazard === 'tornado') return 'Tornado';
+    if (_activeHazard === 'wind') return 'Wind';
+    return 'Severe';
+}
+
+function _format_cig_label(props) {
+    const level = _get_cig_level(props);
+    const hazard = _cig_hazard_name(props);
+    const hazardUpper = String(hazard).toUpperCase();
+    let suffix = '';
+    if (hazardUpper === 'HAIL') {
+        if (level === 1) suffix = ' >2"';
+        else if (level === 2) suffix = ' >3.5"';
+    } else if (hazardUpper === 'WIND') {
+        if (level === 1) suffix = ' 75mph+';
+        else if (level === 2) suffix = ' 85mph+';
+        else if (level === 3) suffix = ' 95mph+';
+    } else if (hazardUpper === 'TORNADO') {
+        if (level === 1) suffix = ' EF2+';
+        else if (level === 2) suffix = ' EF3+';
+        else if (level === 3) suffix = ' EF4+';
+    }
+    return `${hazard} CIG${level}${suffix}`;
+}
+
 function _build_legend_items(features) {
     const seen = new Set();
     const items = [];
@@ -413,12 +445,14 @@ function _build_legend_items(features) {
         const key = [p.label || '', p.label2 || '', p.fill || '', p.stroke || '', p.spcIsHatched || 0, p.spcIsCig || 0].join('|');
         if (seen.has(key)) continue;
         seen.add(key);
+        const isCig = p.spcIsCig === 1;
+        const displayLabel = isCig ? _format_cig_label(p) : (p.label2 || p.label || 'Risk');
         items.push({
-            label2: p.label2 || p.label || 'Risk',
+            label2: displayLabel,
             fill: p.fill || '#8dc6ff',
             stroke: p.stroke || '#59a9ff',
             isHatched: p.spcIsHatched === 1,
-            isCig: p.spcIsCig === 1,
+            isCig: isCig,
             cigLevel: Number(p.spcCigLevel) || 1
         });
     }
@@ -556,9 +590,11 @@ function _render_header_legend() {
     let html = '';
     for (let i = 0; i < _spcLegendItems.length; i++) {
         const item = _spcLegendItems[i];
-        const style = item.isHatched || item.isCig
-            ? `background:transparent;border-color:${item.stroke};`
-            : `background:${item.fill};border-color:${item.stroke};`;
+        const style = item.isCig
+            ? 'background:#ffffff;border-color:#ffffff;'
+            : (item.isHatched
+                ? `background:transparent;border-color:${item.stroke};`
+                : `background:${item.fill};border-color:${item.stroke};`);
         const hatchClass = item.isHatched
             ? ' spcOutlooksLegendSwatch-hatched'
             : (item.isCig ? ` spcOutlooksLegendSwatch-cig${item.cigLevel}` : '');
@@ -1195,6 +1231,23 @@ function _on_location_search_keydown(e) {
     });
 }
 
+function _clear_location_search() {
+    _locationAssessLat = null;
+    _locationAssessLon = null;
+    _locationAssessName = '';
+    if (_locationSearchDebounce) {
+        clearTimeout(_locationSearchDebounce);
+        _locationSearchDebounce = null;
+    }
+    $('#spcOutlooksLocationInput').val('');
+    $('#spcOutlooksLocationSpinner').removeClass('spcOutlooksSearchSpinner-active');
+    $('#spcOutlooksLocationSuggestions').removeClass('spcOutlooksSuggestions-visible').html('');
+    $('#spcOutlooksLocationResult').html(
+        '<div class="spcOutlooksSearchStatus">Search a location to check risk, hazards, and preparation guidance.</div>'
+    );
+    if (_locationMarker) _locationMarker.remove();
+}
+
 function _render_spc_overlay_canvas() {
     if (!_overlayCtx || !_overlayCanvas || !_map) return;
     _overlayCtx.clearRect(0, 0, _overlayCanvas.width, _overlayCanvas.height);
@@ -1441,6 +1494,7 @@ function _build_overlay() {
                             '<input type="text" class="spcOutlooksSearchInput" id="spcOutlooksLocationInput" placeholder="Search city, state, or zip..." autocomplete="off">' +
                             '<div class="spcOutlooksSuggestions" id="spcOutlooksLocationSuggestions"></div>' +
                         '</div>' +
+                        '<button type="button" class="spcOutlooksSearchClearBtn" id="spcOutlooksSearchClearBtn" aria-label="Clear search"><i class="fa-solid fa-trash-can"></i></button>' +
                         '<div class="spcOutlooksSearchSpinner" id="spcOutlooksLocationSpinner"></div>' +
                     '</div>' +
                     '<div class="spcOutlooksLocationResult" id="spcOutlooksLocationResult">' +
@@ -1498,6 +1552,7 @@ function _build_overlay() {
     $('#spcOutlooksScreenshotBtn').on('click', _capture_spc_screenshot);
     $('#spcOutlooksDrawToggle').on('click', function() { _set_draw_enabled(!_drawEnabled); });
     $('#spcOutlooksDrawClearBtn').on('click', _clear_draw_layer);
+    $('#spcOutlooksSearchClearBtn').on('click', _clear_location_search);
     $('#spcOutlooksLocationInput').on('input', _on_location_search_input);
     $('#spcOutlooksLocationInput').on('keydown', _on_location_search_keydown);
     $('#spcOutlooksLocationSuggestions').on('click', '.spcOutlooksSuggestionItem', function() {
@@ -1564,6 +1619,7 @@ function _init_map() {
 function _open() {
     _overlay.addClass('spcOutlooksOverlay-visible');
     _hide_global_corner_buttons();
+    document.title = SPC_PAGE_TITLE;
 
     const shared = _read_spc_share_params();
     if (shared) {
@@ -1598,6 +1654,7 @@ function _close() {
     _set_draw_enabled(false);
     _restore_global_corner_buttons();
     _clear_spc_share_url();
+    document.title = DEFAULT_PAGE_TITLE;
 }
 
 function init() {

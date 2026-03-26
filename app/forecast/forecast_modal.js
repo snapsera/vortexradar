@@ -17,6 +17,14 @@ var _activeTab = 'overview';
 var _currentBoundaryGeojson = null;
 var _currentOsmType = '';
 var _currentOsmId = '';
+var _currentTimeZone = '';
+var _headerTitleEl = null;
+var _headerTitleBaseEl = null;
+var _headerTitleSepEl = null;
+var _headerTitleSuffixEl = null;
+var _headerSubEl = null;
+var _headerClockTimer = null;
+var _headerTypeTimer = null;
 
 var NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
 var STORAGE_KEY_HISTORY = 'vortexRadar_forecastHistory';
@@ -26,6 +34,9 @@ var URL_PARAM_MYCAST = 'mycast';
 var URL_PARAM_MYCAST_LAT = 'mycastLat';
 var URL_PARAM_MYCAST_LON = 'mycastLon';
 var URL_PARAM_MYCAST_NAME = 'mycastName';
+var DEFAULT_PAGE_TITLE = 'Vortex Radar | Advanced Weather';
+var MYCAST_PAGE_TITLE = 'Vortex Radar | MyCast';
+var DEFAULT_HEADER_SUBTITLE = 'Local Forecasts by the NWS';
 
 // ── Persistence helpers ──
 
@@ -305,6 +316,103 @@ function _readMyCastShareParams() {
     }
 }
 
+function _clearHeaderTimers() {
+    if (_headerClockTimer) {
+        clearInterval(_headerClockTimer);
+        _headerClockTimer = null;
+    }
+    if (_headerTypeTimer) {
+        clearInterval(_headerTypeTimer);
+        _headerTypeTimer = null;
+    }
+}
+
+function _setHeaderTitle(text) {
+    var safe = (text || 'MyCast');
+    if (_headerTitleBaseEl && _headerTitleBaseEl.length) {
+        _headerTitleBaseEl.text(safe);
+    } else if (_headerTitleEl && _headerTitleEl.length) {
+        _headerTitleEl.text(safe);
+    }
+    if (_headerTitleSepEl && _headerTitleSepEl.length) _headerTitleSepEl.hide();
+    if (_headerTitleSuffixEl && _headerTitleSuffixEl.length) _headerTitleSuffixEl.text('');
+}
+
+function _setHeaderSubtitle(text) {
+    if (_headerSubEl && _headerSubEl.length) _headerSubEl.text(text);
+}
+
+function _renderLocalTimeSubtitle() {
+    if (_currentLat == null || _currentLon == null) {
+        _setHeaderSubtitle(DEFAULT_HEADER_SUBTITLE);
+        return;
+    }
+    try {
+        var fmt = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+            timeZone: _currentTimeZone || undefined,
+            timeZoneName: 'short'
+        });
+        _setHeaderSubtitle('Local time: ' + fmt.format(new Date()));
+    } catch (_) {
+        _setHeaderSubtitle(DEFAULT_HEADER_SUBTITLE);
+    }
+}
+
+function _startHeaderClock() {
+    if (_headerClockTimer) {
+        clearInterval(_headerClockTimer);
+        _headerClockTimer = null;
+    }
+    _renderLocalTimeSubtitle();
+    if (_currentLat == null || _currentLon == null) return;
+    _headerClockTimer = setInterval(_renderLocalTimeSubtitle, 1000);
+}
+
+function _animateHeaderTitle(locationName) {
+    var clean = (locationName || '').trim();
+    if (_headerTypeTimer) {
+        clearInterval(_headerTypeTimer);
+        _headerTypeTimer = null;
+    }
+    if (!clean) {
+        _setHeaderTitle('MyCast');
+        return;
+    }
+    var prefix = 'MyCast';
+    var idx = 0;
+    _setHeaderTitle(prefix);
+    if (_headerTitleSepEl && _headerTitleSepEl.length) _headerTitleSepEl.css('display', 'inline-block');
+    _headerTypeTimer = setInterval(function() {
+        idx++;
+        if (_headerTitleSuffixEl && _headerTitleSuffixEl.length) {
+            _headerTitleSuffixEl.text(clean.slice(0, idx));
+        }
+        if (idx >= clean.length) {
+            clearInterval(_headerTypeTimer);
+            _headerTypeTimer = null;
+        }
+    }, 28);
+}
+
+function _setHeaderHomeState() {
+    _clearHeaderTimers();
+    _setHeaderTitle('MyCast');
+    _setHeaderSubtitle(DEFAULT_HEADER_SUBTITLE);
+}
+
+function _setMyCastDocumentTitle(locationName) {
+    var clean = (locationName || '').trim();
+    if (clean) {
+        document.title = MYCAST_PAGE_TITLE + ' | ' + clean;
+        return;
+    }
+    document.title = MYCAST_PAGE_TITLE;
+}
+
 // ── NWS fetch ──
 
 function _nwsFetch(url) {
@@ -332,6 +440,7 @@ function _fetchAllData(lat, lon, cb) {
         var gridId = props.gridId || '';
         var gridX = props.gridX;
         var gridY = props.gridY;
+        var timeZone = props.timeZone || '';
 
         Promise.all([
             _nwsFetch(forecastUrl),
@@ -354,7 +463,8 @@ function _fetchAllData(lat, lon, cb) {
                 locationName: locationName,
                 gridId: gridId,
                 gridX: gridX,
-                gridY: gridY
+                gridY: gridY,
+                timeZone: timeZone
             });
         }).catch(function(err) { cb(err, null); });
     }).catch(function(err) { cb(err, null); });
@@ -820,11 +930,17 @@ function _switchTab(tab) {
 // ── Load location ──
 
 function _showLandingHome() {
+    _currentLat = null;
+    _currentLon = null;
+    _currentName = null;
+    _currentTimeZone = '';
     _tabBar.hide();
     if (_backBtn) _backBtn.hide();
     _searchInput.val('');
     _suggestions.removeClass('forecastSuggestions-visible');
     _body.html(_renderLanding());
+    _setHeaderHomeState();
+    _setMyCastDocumentTitle('');
     _clearMyCastShareUrl();
 }
 
@@ -835,6 +951,7 @@ function _loadForecast(lat, lon, displayName, boundaryGeojson, osmType, osmId) {
     _currentBoundaryGeojson = boundaryGeojson || null;
     _currentOsmType = osmType || '';
     _currentOsmId = osmId != null ? String(osmId) : '';
+    _currentTimeZone = '';
     _cachedData = null;
     _activeTab = 'overview';
     _setMyCastShareUrl(lat, lon, displayName);
@@ -843,7 +960,7 @@ function _loadForecast(lat, lon, displayName, boundaryGeojson, osmType, osmId) {
     _tabBar.hide();
     _body.html(
         '<div class="forecastLoading">' +
-        '<div class="forecastLoadingSpinner"></div>' +
+        '<img class="forecastLoadingLogo" src="images/vortexicon_rotate.svg" alt="Loading">' +
         '<div class="forecastLoadingText">Loading forecast data...</div>' +
         '</div>'
     );
@@ -858,6 +975,10 @@ function _loadForecast(lat, lon, displayName, boundaryGeojson, osmType, osmId) {
         _cachedData = data;
         var name = displayName || data.locationName || 'Unknown Location';
         _currentName = name;
+        _setMyCastDocumentTitle(name);
+        _currentTimeZone = data.timeZone || '';
+        _animateHeaderTitle(name);
+        _startHeaderClock();
         _addHistory(name, lat, lon);
 
         var favActive = _isFavorite(lat, lon);
@@ -1035,6 +1156,8 @@ function _timeAgo(ts) {
 
 function _open() {
     _overlay.addClass('forecastOverlay-visible');
+    _setMyCastDocumentTitle('');
+    _setHeaderHomeState();
     var shared = _readMyCastShareParams();
     if (shared && Number.isFinite(shared.lat) && Number.isFinite(shared.lon)) {
         _searchInput.val(shared.name || '');
@@ -1047,7 +1170,9 @@ function _open() {
 
 function _close() {
     _overlay.removeClass('forecastOverlay-visible');
+    _clearHeaderTimers();
     _clearMyCastShareUrl();
+    document.title = DEFAULT_PAGE_TITLE;
 }
 
 // ── Build DOM ──
@@ -1058,8 +1183,12 @@ function _buildOverlay() {
             '<div class="forecastModal">' +
                 '<div class="forecastHeader">' +
                     '<div class="forecastHeaderLeft">' +
-                        '<span class="forecastHeaderTitle">MyCast</span>' +
-                        '<span class="forecastHeaderSub">National Weather Service forecast workstation</span>' +
+                        '<span class="forecastHeaderTitle" id="forecastHeaderTitle">' +
+                            '<span class="forecastHeaderTitleBase" id="forecastHeaderTitleBase">MyCast</span>' +
+                            '<img class="forecastHeaderTitleSep" id="forecastHeaderTitleSep" src="images/vortexicon_rotate.svg" alt="" aria-hidden="true" style="display:none">' +
+                            '<span class="forecastHeaderTitleSuffix" id="forecastHeaderTitleSuffix"></span>' +
+                        '</span>' +
+                        '<span class="forecastHeaderSub" id="forecastHeaderSub">Local Forecasts by the NWS</span>' +
                     '</div>' +
                     '<button type="button" class="forecastCloseBtn" id="forecastCloseBtn" aria-label="Close">Close</button>' +
                 '</div>' +
@@ -1091,6 +1220,11 @@ function _buildOverlay() {
     _suggestions = $('#forecastSuggestions');
     _tabBar = $('#forecastTabs');
     _backBtn = $('#forecastBackBtn');
+    _headerTitleEl = $('#forecastHeaderTitle');
+    _headerTitleBaseEl = $('#forecastHeaderTitleBase');
+    _headerTitleSepEl = $('#forecastHeaderTitleSep');
+    _headerTitleSuffixEl = $('#forecastHeaderTitleSuffix');
+    _headerSubEl = $('#forecastHeaderSub');
 
     $('#forecastCloseBtn').on('click', _close);
     _overlay.on('click', function(e) {

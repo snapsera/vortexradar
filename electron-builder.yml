@@ -15,7 +15,7 @@ asar: true
 
 win:
   target: nsis
-  icon: images/STP_icon.ico
+  icon: images/vortexicon.ico
 
 nsis:
   oneClick: false

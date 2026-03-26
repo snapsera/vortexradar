@@ -35,6 +35,12 @@ app.use(express.static(path.join(__dirname), {
     }
 }));
 
+app.get(['/spc', '/spc/'], (req, res) => {
+    const params = new URLSearchParams(req.query || {});
+    params.set('spc', '1');
+    res.redirect(302, '/?' + params.toString());
+});
+
 app.get('*', (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, 'index.html'));

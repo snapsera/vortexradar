@@ -42,7 +42,12 @@ function _build_card_params(properties, parameters) {
                     value += `, ${_fix_value(parameters['windThreat'])}`;
                 }
             }
-            parameters_html += `<div><span class="alert_popup_lessertext">${text_value_ID}</span> <b>${value}</b></div>`;
+            parameters_html += `
+                <div class="alertPopupMetricRow">
+                    <span class="alertPopupMetricLabel">${text_value_ID}</span>
+                    <span class="alertPopupMetricValue">${value}</span>
+                </div>
+            `;
         }
     }
     add_parameter('tornadoDetection', 'Tornado:');
@@ -68,10 +73,10 @@ function _format_expires(properties) {
     if (dateDiff.h) formattedDateDiff = `${dateDiff.h}h ${dateDiff.m || 0}m`;
     if (dateDiff.d) formattedDateDiff = `${dateDiff.d}d ${dateDiff.h}h`;
     if (dateDiff.negative) {
-        thingToPrepend = 'Expired:';
+        thingToPrepend = 'Expired';
         thingToAppend = ' ago';
     }
-    return `${thingToPrepend} <b>${formattedDateDiff}</b>${thingToAppend}`;
+    return `${thingToPrepend} ${formattedDateDiff}${thingToAppend}`;
 }
 
 function _select_radar_and_fly(station, feature) {
@@ -143,14 +148,24 @@ function click_listener(e) {
 
         const hexColor = chroma(initColor).hex();
         const cardHtml = `
-<div class="alertPopupCard" data-id="${id}">
-  <div class="alertPopupCardHeader" style="background: ${hexColor}">${properties.event}</div>
+<div class="alertPopupCard" data-id="${id}" style="--alert-popup-accent: ${hexColor}">
+  <div class="alertPopupCardHeader">
+    <span class="alertPopupCardIcon fa fa-triangle-exclamation"></span>
+    <span class="alertPopupCardTitle">${properties.event}</span>
+  </div>
+  <div class="alertPopupCardDivider"></div>
   <div class="alertPopupCardBody">
-    ${parameters_html}
-    ${expiresStr ? `<div class="alert_popup_lessertext">${expiresStr}</div>` : ''}
+    <div class="alertPopupMetrics">
+      ${parameters_html}
+    </div>
+    ${expiresStr ? `<div class="alertPopupExpires"><span class="fa fa-clock-o"></span><span>${expiresStr}</span></div>` : ''}
     <div class="alertPopupCardActions">
-      <button type="button" class="alertPopupBtn alertPopupGlobe" title="Select best radar for this alert"><span class="fa fa-globe"></span></button>
-      <button type="button" class="alertPopupBtn alertPopupArrow" title="View details"><span class="fa fa-chevron-right"></span></button>
+      <button type="button" class="alertPopupBtn alertPopupGlobe" title="Select best radar for this alert">
+        <span class="fa fa-globe"></span>
+      </button>
+      <button type="button" class="alertPopupBtn alertPopupArrow" title="View details">
+        <span class="fa fa-chevron-right"></span>
+      </button>
     </div>
   </div>
 </div>`;

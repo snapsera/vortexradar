@@ -10,8 +10,8 @@ var _historyIndex = -1;
 
 var COMMANDS = {
     shine: {
-        description: 'Trigger warning counter shine effect on SVR, TOR, or SPC row',
-        usage: 'shine [svr|tor|spc]',
+        description: 'Trigger warning counter shine effect on SVR or TOR row',
+        usage: 'shine [svr|tor]',
         run: _cmd_shine
     },
     lightning: {
@@ -94,10 +94,9 @@ function _cmd_shine(args) {
     var selectors = [];
     if (target === 'svr' || target === 'all') selectors.push('.warningCounterRow-svr');
     if (target === 'tor' || target === 'all') selectors.push('.warningCounterRow-tor');
-    if (target === 'spc' || target === 'all') selectors.push('#warningCounterSpcRow');
 
     if (!selectors.length) {
-        _log('Unknown target: ' + target + '. Use svr, tor, spc, or all.', 'error');
+        _log('Unknown target: ' + target + '. Use svr, tor, or all.', 'error');
         return;
     }
 

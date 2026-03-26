@@ -273,7 +273,7 @@ function _add_watermark(base64, callback) {
             var dataUrl = canvas.toDataURL('image/png');
             callback(dataUrl.split(',')[1]);
         };
-        icon.src = '/images/STP_icon.svg';
+        icon.src = '/images/vortexicon.svg';
     };
     img.src = 'data:image/png;base64,' + base64;
 }

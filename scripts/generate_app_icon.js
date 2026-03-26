@@ -25,9 +25,9 @@ async function generateIcoFromSvg(svgPath, outputIcoPath) {
 
 async function main() {
     const rootDir = path.resolve(__dirname, '..');
-    const sourceSvg = path.join(rootDir, 'images', 'STP_icon.svg');
-    const rootIco = path.join(rootDir, 'images', 'STP_icon.ico');
-    const releaseIco = path.join(rootDir, 'release', 'Vortex Radar-win32-x64', 'resources', 'app', 'STP_icon.ico');
+    const sourceSvg = path.join(rootDir, 'images', 'vortexicon.svg');
+    const rootIco = path.join(rootDir, 'images', 'vortexicon.ico');
+    const releaseIco = path.join(rootDir, 'release', 'Vortex Radar-win32-x64', 'resources', 'app', 'vortexicon.ico');
 
     await generateIcoFromSvg(sourceSvg, rootIco);
     try {
@@ -39,6 +39,6 @@ async function main() {
 }
 
 main().catch((err) => {
-    console.error('Failed generating STP_icon.ico:', err);
+    console.error('Failed generating vortexicon.ico:', err);
     process.exit(1);
 });

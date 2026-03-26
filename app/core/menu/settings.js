@@ -5,7 +5,6 @@ const setLayerOrder = require('../map/setLayerOrder');
 const fetchMETARData = require('../../metars/fetch_data');
 const fetch_alerts_data = require('../../alerts/fetch_data');
 const apply_alerts_display = require('../../alerts/apply_visibility').apply_alerts_display;
-const fetch_spc_data = require('../../spc/fetch_data');
 const change_map_style = require('../map/styles');
 const settings_store = require('./settings_store');
 const alerts_display_state = require('../../alerts/alerts_display_state');
@@ -572,17 +571,3 @@ setTimeout(function() {
 
 // this is in app/alerts/drawAlertShapes.js
 //$('#showExtraAlertPolygonsCheckbox').on('click', function() {})
-
-// armFunctions.toggleswitchFunctions($('#armrSPCOutlooksVisBtnSwitchElem'), function() {
-//     if (map.getLayer('spc_fill')) {
-//         map.setLayoutProperty('spc_fill', 'visibility', 'visible');
-//         map.setLayoutProperty('spc_border', 'visibility', 'visible');
-//     } else {
-//         fetch_spc_data();
-//     }
-// }, function() {
-//     if (map.getLayer('spc_fill')) {
-//         map.setLayoutProperty('spc_fill', 'visibility', 'none');
-//         map.setLayoutProperty('spc_border', 'visibility', 'none');
-//     }
-// })

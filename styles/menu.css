@@ -200,6 +200,21 @@
   pointer-events: none;
   user-select: none;
 }
+.disabledTag {
+  font-size: 9px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(107, 114, 128, 0.35);
+  border: 1px solid rgba(156, 163, 175, 0.35);
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  margin-left: 6px;
+  flex-shrink: 0;
+  line-height: 1.4;
+  pointer-events: none;
+  user-select: none;
+}
 .armrSlideDown {
   border-top-left-radius: 0;
   border-top-right-radius: 0;

@@ -5,8 +5,6 @@ const getValue = require('./get_value');
 const divElem = '#colorPickerItemDiv';
 const iconElem = '#colorPickerItemClass';
 
-let lastPoint = null;
-
 function positionInspector(clientX, clientY) {
     const css = { left: clientX, top: clientY };
     $('#colorPickerBorder').css(css);
@@ -14,20 +12,27 @@ function positionInspector(clientX, clientY) {
     $('#colorPickerText').css({ left: clientX, top: clientY + 28 });
 }
 
-function onMouseMove(e) {
-    lastPoint = e.point;
-    positionInspector(e.originalEvent.clientX, e.originalEvent.clientY);
+function getViewportCenterClientCoords() {
+    return {
+        clientX: window.innerWidth / 2,
+        clientY: window.innerHeight / 2
+    };
+}
+
+function updateCenteredInspector() {
+    const { clientX, clientY } = getViewportCenterClientCoords();
+    positionInspector(clientX, clientY);
     $('.colorPicker').show();
     $('#colorPickerBorder').css('display', 'flex');
-    getValue(e.point);
+    getValue();
 }
 
 function onMapMove() {
-    if (lastPoint) getValue(lastPoint);
+    updateCenteredInspector();
 }
 
-function onMouseLeave() {
-    $('.colorPicker').hide();
+function onWindowResize() {
+    updateCenteredInspector();
 }
 
 $(iconElem).on('click', function() {
@@ -35,19 +40,18 @@ $(iconElem).on('click', function() {
         $(iconElem).addClass('menu_item_selected');
         $(iconElem).removeClass('menu_item_not_selected');
 
-        map.on('mousemove', onMouseMove);
         map.on('move', onMapMove);
-        map.getCanvas().addEventListener('mouseleave', onMouseLeave);
-        map.getCanvas().style.cursor = 'none';
+        map.on('resize', onMapMove);
+        window.addEventListener('resize', onWindowResize);
+        updateCenteredInspector();
     } else if ($(iconElem).hasClass('menu_item_selected')) {
         $(iconElem).removeClass('menu_item_selected');
         $(iconElem).addClass('menu_item_not_selected');
 
         $('.colorPicker').hide();
-        map.off('mousemove', onMouseMove);
         map.off('move', onMapMove);
-        map.getCanvas().removeEventListener('mouseleave', onMouseLeave);
+        map.off('resize', onMapMove);
+        window.removeEventListener('resize', onWindowResize);
         map.getCanvas().style.cursor = '';
-        lastPoint = null;
     }
 })

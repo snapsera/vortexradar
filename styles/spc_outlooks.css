@@ -1,0 +1,592 @@
+.spcOutlooksOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: block;
+  background: rgba(3, 6, 12, 0.92);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.spcOutlooksOverlay-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.spcOutlooksModal {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  background: radial-gradient(circle at top right, rgba(30, 41, 59, 0.4), transparent 55%), #070b13;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.spcOutlooksHeader {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.18) 0%, rgba(14, 165, 233, 0.05) 42%, rgba(14, 165, 233, 0.02) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.spcOutlooksHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.spcOutlooksHeaderTitle {
+  font-size: clamp(26px, 2.1vw, 34px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: #fff;
+}
+.spcOutlooksHeaderSub {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.spcOutlooksCloseBtn {
+  margin-left: auto;
+  position: relative;
+  z-index: 3;
+  min-width: 74px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.spcOutlooksHeaderLegend {
+  width: 100%;
+  min-height: 26px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 4px;
+}
+.spcOutlooksHeaderCenter {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 9px;
+  width: min(64vw, 900px);
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  z-index: 2;
+}
+.spcOutlooksRiskLevel {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.spcOutlooksLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 7px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+}
+.spcOutlooksLegendSwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+.spcOutlooksLegendSwatch-hatched {
+  background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0) 0 3px, rgba(255,255,255,0.6) 3px 4px);
+}
+.spcOutlooksLegendSwatch-cig1 {
+  background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0) 0 5px, rgba(255,255,255,0.72) 5px 7px, rgba(255,255,255,0) 7px 13px);
+}
+.spcOutlooksLegendSwatch-cig2 {
+  background-image: repeating-linear-gradient(-145deg, rgba(255,255,255,0) 0 4px, rgba(255,255,255,0.72) 4px 6px, rgba(255,255,255,0) 6px 12px);
+}
+.spcOutlooksLegendSwatch-cig3 {
+  background-image:
+    repeating-linear-gradient(135deg, rgba(255,255,255,0) 0 4px, rgba(255,255,255,0.72) 4px 6px, rgba(255,255,255,0) 6px 12px),
+    repeating-linear-gradient(-145deg, rgba(255,255,255,0) 0 4px, rgba(255,255,255,0.72) 4px 6px, rgba(255,255,255,0) 6px 12px);
+}
+.spcOutlooksLegendText {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.86);
+}
+.spcOutlooksCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.spcOutlooksSidebar {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  padding: var(--space-4);
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+}
+.spcOutlooksSectionLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-top: 4px;
+}
+.spcOutlooksButtonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.spcOutlooksBtn {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: rgba(255, 255, 255, 0.62);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  text-align: left;
+}
+.spcOutlooksBtn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+}
+.spcOutlooksBtn-active {
+  color: #fff;
+  border-color: var(--color-accent);
+  background: rgba(14, 165, 233, 0.18);
+}
+.spcOutlooksBtn-secondary {
+  margin-top: var(--space-1);
+}
+.spcOutlooksDivider {
+  height: 1px;
+  margin: var(--space-2) 0 0;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0), rgba(148, 163, 184, 0.35) 18%, rgba(148, 163, 184, 0.35) 82%, rgba(148, 163, 184, 0));
+}
+.spcOutlooksHint {
+  display: none;
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.45;
+}
+.spcOutlooksHint-visible {
+  display: block;
+}
+.spcOutlooksSearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.spcOutlooksSearchIcon {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+.spcOutlooksSearchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.spcOutlooksSearchInput {
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 12px;
+  padding: 0 10px;
+  outline: none;
+}
+.spcOutlooksSearchInput:focus {
+  border-color: rgba(14, 165, 233, 0.8);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.18);
+}
+.spcOutlooksSearchSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(14, 165, 233, 0.95);
+  border-radius: 999px;
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.spcOutlooksSearchSpinner-active {
+  opacity: 1;
+  transform: scale(1);
+  animation: spcOutlooksSpin .8s linear infinite;
+}
+@keyframes spcOutlooksSpin { to { transform: rotate(360deg); } }
+.spcOutlooksSuggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 170px;
+  overflow-y: auto;
+  display: none;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(6, 10, 18, 0.98);
+  z-index: 6;
+}
+.spcOutlooksSuggestions-visible {
+  display: block;
+}
+.spcOutlooksSuggestionItem {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  cursor: pointer;
+}
+.spcOutlooksSuggestionItem:last-child {
+  border-bottom: none;
+}
+.spcOutlooksSuggestionItem:hover {
+  background: rgba(14, 165, 233, 0.16);
+  color: #fff;
+}
+.spcOutlooksLocationResult {
+  margin-top: 8px;
+}
+.spcOutlooksSearchStatus,
+.spcOutlooksSearchError {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+}
+.spcOutlooksSearchError {
+  color: #fca5a5;
+}
+.spcOutlooksAssessCard {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.spcOutlooksAssessPlace {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.spcOutlooksAssessRisk {
+  font-size: 13px;
+  font-weight: 800;
+}
+.spcOutlooksAssessIn {
+  font-size: 11px;
+  font-weight: 700;
+}
+.spcOutlooksAssessYes { color: #86efac; }
+.spcOutlooksAssessNo { color: #fca5a5; }
+.spcOutlooksAssessLabel {
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(14, 165, 233, 0.95);
+  font-weight: 800;
+}
+.spcOutlooksAssessList {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.86);
+}
+.spcOutlooksAssessPrep {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.spcOutlooksBody {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: transparent;
+}
+.spcOutlooksMapWrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.spcOutlooksMap {
+  width: 100%;
+  height: 100%;
+}
+.spcOutlooksOverlayCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.spcOutlooksDrawCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.spcOutlooksSearchPin {
+  width: 44px;
+  height: 44px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+.spcOutlooksSearchPin::before,
+.spcOutlooksSearchPin::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  animation: spcOutlooksPinRipple 2.2s ease-out infinite;
+}
+.spcOutlooksSearchPin::after {
+  animation-delay: 1.1s;
+}
+.spcOutlooksSearchPinImg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.spcOutlooksSearchPin-fallback {
+  border-radius: 999px;
+  background: #22d3ee;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 5px rgba(34, 211, 238, 0.28);
+}
+.spcOutlooksMapWrap .mapboxgl-marker {
+  z-index: 6 !important;
+}
+@keyframes spcOutlooksPinRipple {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  75% {
+    opacity: 0.12;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.spcOutlooksMapTools {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+}
+.spcOutlooksValidity {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
+  width: 360px;
+  max-width: 360px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  background: rgba(4, 8, 16, 0.92);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  display: none;
+}
+.spcOutlooksValidity-visible {
+  display: block;
+}
+.spcOutlooksValidityLabel {
+  color: rgba(14, 165, 233, 0.95);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.spcOutlooksValidityDate {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.08;
+  text-align: center;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: visible;
+}
+.spcOutlooksValidityTime {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spcOutlooksValidityDivider {
+  height: 1px;
+  margin: 10px 0;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0), rgba(148, 163, 184, 0.38) 18%, rgba(148, 163, 184, 0.38) 82%, rgba(148, 163, 184, 0));
+}
+.spcOutlooksMapToolBtn {
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(7, 12, 21, 0.84);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.spcOutlooksMapToolBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.32);
+}
+.spcOutlooksMapToolBtn-active {
+  border-color: var(--color-accent);
+  background: rgba(14, 165, 233, 0.2);
+  color: #fff;
+}
+.spcOutlooksEmpty {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: min(420px, calc(100% - 24px));
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(7, 12, 21, 0.9);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  display: none;
+}
+.spcOutlooksEmpty-visible {
+  display: block;
+}
+
+.spcOutlooksModal-loading .spcOutlooksMap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  animation: spcOutlooksShimmer 1s linear infinite;
+  opacity: 0;
+}
+@keyframes spcOutlooksShimmer {
+  from { transform: translateX(-12%); }
+  to { transform: translateX(12%); }
+}
+
+@media (max-width: 980px) {
+  .spcOutlooksModal {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .spcOutlooksModal {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .spcOutlooksHeader {
+    grid-column: 1;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .spcOutlooksHeaderLegend {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+  .spcOutlooksHeaderCenter {
+    order: 3;
+    flex: 1 1 100%;
+    position: static;
+    transform: none;
+    top: auto;
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+  }
+  .spcOutlooksSidebar {
+    grid-column: 1;
+    grid-row: 2;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+  .spcOutlooksBody {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .spcOutlooksValidity {
+    width: 330px;
+    max-width: 330px;
+    left: 12px;
+    right: auto;
+  }
+  .spcOutlooksValidityDate {
+    font-size: 22px;
+  }
+  .spcOutlooksValidityTime {
+    font-size: 13px;
+  }
+}

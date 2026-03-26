@@ -3,7 +3,7 @@ const path = require('path');
 
 const order = [
     'variables', 'base', 'layout', 'header', 'toolbar', 'screenshot', 'menu',
-    'alerts', 'footer', 'dialog', 'product-menu', 'forms', 'devtools', 'auto-coverage', 'forecast', 'misc'
+    'alerts', 'footer', 'dialog', 'product-menu', 'forms', 'devtools', 'auto-coverage', 'forecast', 'spc_outlooks', 'misc'
 ];
 
 const stylesDir = path.join(__dirname, '..', 'styles');

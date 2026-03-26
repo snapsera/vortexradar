@@ -40,6 +40,12 @@
   fill: #0ea5e9;
 }
 
+/* App watermark uses accent-colored vortex glyph */
+.vrLogoContext--appCorner .vrLogo__vortexRing,
+.vrLogoContext--appCorner .vrLogo__vortexCore {
+  fill: #0ea5e9;
+}
+
 .vrLogo--vortexFull.vrLogo--animated .vrLogo__vortexRing {
   transform-box: view-box;
   transform-origin: 533.65px 420.46px;

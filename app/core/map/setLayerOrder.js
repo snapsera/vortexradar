@@ -17,10 +17,6 @@ function setLayerOrder() {
     // the circle range of the selected radar tower
     move_layer_to_top('station_range_layer', before_layer);
 
-    // SPC Outlooks layers
-    move_layer_to_top('spc_fill', before_layer);
-    move_layer_to_top('spc_border', before_layer);
-
     // the main radar layer
     move_layer_to_top('baseReflectivity', before_layer);
     move_layer_to_top('nationalRadarLayer', before_layer);
@@ -83,6 +79,7 @@ function setLayerOrder() {
         }
         move_layer_to_top('pressure_points_layer');
     }
+
 }
 
 module.exports = setLayerOrder;

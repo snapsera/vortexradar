@@ -108,7 +108,6 @@ function load() {
         require('../../radar/radar_message/radar_message');
         require('../../surface_fronts/menu_item');
         require('../../hurricanes/menu_item');
-        require('../../spc/menu_item');
         require('../../timezones/menu_item');
         require('../about/about_screen');
         require('../../devtools/test_alerts');
@@ -128,6 +127,7 @@ function load() {
         require('../../ui/audible_alerts').init();
         require('../../ui/fullscreen_toggle').init();
         require('../../forecast/forecast_modal').init();
+        require('../../spc_outlooks/spc_outlooks_modal').init();
         require('../../radar/preview_embed_mode').init();
         require('../../lightning/menu_item');
 

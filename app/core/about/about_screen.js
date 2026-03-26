@@ -15,7 +15,7 @@ function build_about_html() {
 <div class="about aboutShowcasePanel">
     <div class="about_shell">
         <div class="about_hero">
-            <img class="about_logo" src="images/STP_icon.svg" draggable="false" oncontextmenu="return false;">
+            <img class="about_logo" src="images/vortexicon_rotate.svg" draggable="false" oncontextmenu="return false;">
             <div>
                 <div class="about_name">Vortex Radar</div>
                 <div class="about_tagline">Real-time radar at your fingertips</div>
@@ -51,13 +51,6 @@ function build_about_html() {
                     <div>
                         <div class="about_featTitle">Weather Alerts</div>
                         <div class="about_featSub">Real-time NWS polygon map overlays</div>
-                    </div>
-                </div>
-                <div class="about_feat">
-                    <div class="about_featIcon about_featIcon--red"><i class="fa-solid fa-cloud-bolt"></i></div>
-                    <div>
-                        <div class="about_featTitle">SPC Outlooks</div>
-                        <div class="about_featSub">Categorical, tornado, wind, hail</div>
                     </div>
                 </div>
                 <div class="about_feat">

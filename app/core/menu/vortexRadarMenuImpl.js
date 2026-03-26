@@ -127,12 +127,11 @@ var SLIDE_MS = 280;
 
 var mainMenuScreen = '#appMenuMainScreen';
 var settingsScreen = '#appMenuSettingsScreen';
-var spcScreen = '#appMenuSPCScreen';
 var devToolsScreen = '#appMenuDevToolsScreen';
 var ttsAlertsScreen = '#appMenuTTSAlertsScreen';
 var audibleAlertsScreen = '#appMenuAudibleAlertsScreen';
 var themeScreen = '#appMenuThemeScreen';
-var allScreens = [mainMenuScreen, settingsScreen, spcScreen, devToolsScreen, ttsAlertsScreen, audibleAlertsScreen, themeScreen];
+var allScreens = [mainMenuScreen, settingsScreen, devToolsScreen, ttsAlertsScreen, audibleAlertsScreen, themeScreen];
 var currentScreen = mainMenuScreen;
 var _sliding = false;
 
@@ -184,13 +183,6 @@ $('#armrSettingsBtn').click(function() {
     slideToScreen(settingsScreen, 'forward');
 });
 $('#armsSettingsBackBtn').click(function() {
-    slideToScreen(mainMenuScreen, 'back');
-});
-
-$('#armrSPCOutlooksBtn').click(function() {
-    slideToScreen(spcScreen, 'forward');
-});
-$('#armsSPCBackBtn').click(function() {
     slideToScreen(mainMenuScreen, 'back');
 });
 

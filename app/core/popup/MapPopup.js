@@ -36,8 +36,42 @@ class MapPopup {
         const pixel_coords = map.project(this.lngLat);
 
         const triangle_height = 10;
-        const left = pixel_coords.x - (this.map_popup_div.outerWidth() / 2);
-        const top = pixel_coords.y - (this.map_popup_div.outerHeight() - $('#radarHeader').height()) - triangle_height;
+        const popupWidth = this.map_popup_div.outerWidth();
+        const popupHeight = this.map_popup_div.outerHeight();
+        const headerHeight = $('#radarHeader').height() || 0;
+        const viewportWidth = $(window).width() || 0;
+        const viewportHeight = $(window).height() || 0;
+        const viewportPadding = 6;
+        const minTop = headerHeight + viewportPadding;
+        const maxTop = Math.max(minTop, viewportHeight - popupHeight - viewportPadding);
+        const minLeft = viewportPadding;
+        const maxLeft = Math.max(minLeft, viewportWidth - popupWidth - viewportPadding);
+
+        const centeredLeft = pixel_coords.x - (popupWidth / 2);
+        const left = Math.min(maxLeft, Math.max(minLeft, centeredLeft));
+        const topAbove = pixel_coords.y - (popupHeight - headerHeight) - triangle_height;
+        const topBelow = pixel_coords.y + headerHeight + triangle_height;
+        const fitsAbove = topAbove >= minTop && (topAbove + popupHeight) <= (viewportHeight - viewportPadding);
+        const fitsBelow = topBelow >= minTop && (topBelow + popupHeight) <= (viewportHeight - viewportPadding);
+
+        let shouldOpenBelow = false;
+        if (fitsAbove) {
+            shouldOpenBelow = false;
+        } else if (fitsBelow) {
+            shouldOpenBelow = true;
+        } else {
+            const overflowAbove = Math.max(0, minTop - topAbove) + Math.max(0, (topAbove + popupHeight) - (viewportHeight - viewportPadding));
+            const overflowBelow = Math.max(0, minTop - topBelow) + Math.max(0, (topBelow + popupHeight) - (viewportHeight - viewportPadding));
+            shouldOpenBelow = overflowBelow < overflowAbove;
+        }
+
+        const rawTop = shouldOpenBelow ? topBelow : topAbove;
+        const top = Math.min(maxTop, Math.max(minTop, rawTop));
+        const arrowLeft = Math.max(12, Math.min(popupWidth - 12, pixel_coords.x - left));
+
+        this.map_popup_div.toggleClass('popup-below', shouldOpenBelow);
+        this.map_popup_div.toggleClass('popup-above', !shouldOpenBelow);
+        this.map_popup_div.css('--popup-arrow-left', `${arrowLeft}px`);
         this.map_popup_div.css({ 'left': left, 'top': top });
     }
 

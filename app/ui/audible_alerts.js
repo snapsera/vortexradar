@@ -4,7 +4,7 @@ var TORNADO_WARNING_SOUND_PATH = '/sounds/tornado_warning.mp3';
 var TORNADO_WARNING_ISSUED_VOICE_PATH = '/sounds/tornado_warning_issued_voice.mp3';
 var TORNADO_WARNING_UPDATED_VOICE_PATH = '/sounds/tornado_warning_updated_voice.mp3';
 var TORNADO_WARNING_UPGRADED_VOICE_PATH = '/sounds/upgraded_tornado_warning.mp3';
-var TORNADO_WARNING_FOLLOWUP_VOLUME_PERCENT = 30;
+var TORNADO_WARNING_FOLLOWUP_VOLUME_OFFSET_PERCENT = 5;
 var _playbackQueue = Promise.resolve();
 
 function _clamp_volume(volumePercent) {
@@ -70,10 +70,11 @@ function _enqueue_play_sequence(sequence) {
 }
 
 function _play_tornado_sequence(volume, followupPath) {
+    var baseVolume = _clamp_volume(volume);
     return _enqueue_play_sequence(function() {
-        return _play_clip(TORNADO_WARNING_SOUND_PATH, volume).then(function() {
+        return _play_clip(TORNADO_WARNING_SOUND_PATH, baseVolume).then(function() {
             if (!followupPath) return;
-            return _play_clip(followupPath, TORNADO_WARNING_FOLLOWUP_VOLUME_PERCENT);
+            return _play_clip(followupPath, _clamp_volume(baseVolume + TORNADO_WARNING_FOLLOWUP_VOLUME_OFFSET_PERCENT));
         });
     });
 }
@@ -123,6 +124,10 @@ function init() {
         var volume = s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 25;
 
         if (detail.type === 'new') {
+            if (detail.tornadoStatus === 'updated') {
+                _play_tornado_sequence(volume, TORNADO_WARNING_UPDATED_VOICE_PATH);
+                return;
+            }
             _play_tornado_sequence(volume, TORNADO_WARNING_ISSUED_VOICE_PATH);
             return;
         }

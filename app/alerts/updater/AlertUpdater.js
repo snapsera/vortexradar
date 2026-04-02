@@ -7,6 +7,7 @@ class AlertUpdater {
 
         this.latest_date = undefined;
         this.previous_alert_ids = new Set();
+        this._previous_alert_features = [];
 
         this.get_new_data_func = return_data;
         this.plot_func = plot_alerts;
@@ -28,6 +29,37 @@ class AlertUpdater {
         return f.id || f.properties?.id || null;
     }
 
+    _is_tornado_warning(feature) {
+        return String(feature?.properties?.event || '').trim().toLowerCase() === 'tornado warning';
+    }
+
+    _get_vtec_continuity_key(feature) {
+        const vtecValues = feature?.properties?.parameters?.VTEC;
+        if (!Array.isArray(vtecValues) || !vtecValues.length) return null;
+        const vtec = String(vtecValues[0] || '').toUpperCase();
+        // Example: /O.NEW.KOUN.TO.W.0021.250312T...
+        const m = vtec.match(/\/O\.[A-Z]+\.(K[A-Z0-9]{3})\.([A-Z]{2})\.([A-Z])\.([0-9]{4})\./);
+        if (!m) return null;
+        return [m[1], m[2], m[3], m[4]].join('|');
+    }
+
+    _get_tornado_continuity_key(feature) {
+        const vtecKey = this._get_vtec_continuity_key(feature);
+        if (vtecKey) return vtecKey;
+        const p = feature?.properties || {};
+        return `${String(p.event || '').trim().toLowerCase()}|${String(p.areaDesc || '').trim().toLowerCase()}`;
+    }
+
+    _is_brand_new_tornado_warning(feature, previousFeatures) {
+        const key = this._get_tornado_continuity_key(feature);
+        if (!key) return true;
+        for (const prev of (previousFeatures || [])) {
+            if (!this._is_tornado_warning(prev)) continue;
+            if (this._get_tornado_continuity_key(prev) === key) return false;
+        }
+        return true;
+    }
+
     _check_for_new_file() {
         const { DateTime } = require('luxon');
         const formatted_now = DateTime.now().toFormat('h:mm.ss a ZZZZ');
@@ -44,16 +76,19 @@ class AlertUpdater {
                 this.previous_alert_ids = new Set(
                     (alerts_data.features || []).map((f) => this._get_alert_id(f)).filter(Boolean)
                 );
+                this._previous_alert_features = alerts_data.features || [];
             }
 
             if (fetched_date_ms > this.latest_date) {
                 console.log(`Successfully found new alert data at ${formatted_now}.`);
+                const previous_features = this._previous_alert_features || [];
                 const current_ids = new Set(
                     (alerts_data.features || []).map((f) => this._get_alert_id(f)).filter(Boolean)
                 );
                 const new_ids = new Set([...current_ids].filter((id) => !this.previous_alert_ids.has(id)));
                 this.previous_alert_ids = current_ids;
                 this.latest_date = fetched_date_ms;
+                this._previous_alert_features = alerts_data.features || [];
 
                 const new_alert_features = (alerts_data.features || []).filter((f) => {
                     const id = this._get_alert_id(f);
@@ -72,7 +107,7 @@ class AlertUpdater {
                     new_alert_ids: new_alert_ids,
                     new_alert_features,
                     focus_new_alerts: focusNewAlerts,
-                    on_new_alerts: this._on_new_alerts.bind(this)
+                    on_new_alerts: (features) => this._on_new_alerts(features, previous_features)
                 });
                 require('../watch_overlay').update_from_alerts_data(alerts_data);
             } else {
@@ -81,7 +116,7 @@ class AlertUpdater {
         });
     }
 
-    _on_new_alerts(features) {
+    _on_new_alerts(features, previousFeatures) {
         const enabled = features.filter((f) => filter_alerts.should_show_alert_feature(f));
 
         const focusNewAlerts = require('../../core/menu/settings_store').load().focusNewAlerts;
@@ -93,6 +128,13 @@ class AlertUpdater {
         const eventCounts = {};
         for (const f of enabled) {
             var event = f.properties?.event || 'Weather Alert';
+            if (this._is_tornado_warning(f)) {
+                const tornadoStatus = this._is_brand_new_tornado_warning(f, previousFeatures) ? 'issued' : 'updated';
+                window.dispatchEvent(new CustomEvent('alertNotification', {
+                    detail: { event: event, type: 'new', count: 1, tornadoStatus: tornadoStatus }
+                }));
+                continue;
+            }
             eventCounts[event] = (eventCounts[event] || 0) + 1;
         }
         for (const [event, count] of Object.entries(eventCounts)) {

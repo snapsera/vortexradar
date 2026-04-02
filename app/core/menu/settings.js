@@ -326,9 +326,14 @@ $('#gateFilterMaxSlider').on('change', saveSettings);
 function applyAlertFillOpacity(val) {
     const opacity = val / 100;
     window.stormTrackData.alertFillOpacity = opacity;
-    if (map.getLayer('alertsLayerFill')) map.setPaintProperty('alertsLayerFill', 'fill-opacity', opacity);
-    if (map.getLayer('watches_layer_fill')) map.setPaintProperty('watches_layer_fill', 'fill-opacity', opacity);
-    if (map.getLayer('discussions_layer_fill')) map.setPaintProperty('discussions_layer_fill', 'fill-opacity', opacity);
+    if (map.getLayer('alertsLayerFill')) {
+        map.setPaintProperty('alertsLayerFill', 'fill-opacity', [
+            'case',
+            ['>=', ['index-of', 'Watch', ['get', 'event']], 0],
+            0.10,
+            opacity
+        ]);
+    }
 }
 
 function _buildAlertLineWidth(scale) {
@@ -339,6 +344,15 @@ function _buildAlertLineWidth(scale) {
         ['==', ['get', 'type'], 'border'],
         ['case', ['>=', ['index-of', 'Watch', ['get', 'event']], 0], 4 * scale, 7 * scale],
         0
+    ];
+}
+
+function _buildAlertOutlineWidth(scale) {
+    return [
+        'case',
+        ['>=', ['index-of', 'Watch', ['get', 'event']], 0],
+        2 * scale,
+        3 * scale
     ];
 }
 
@@ -355,7 +369,7 @@ function applyAlertBorderScale(val) {
     const scale = val / 100;
     window.stormTrackData.alertBorderScale = scale;
     if (map.getLayer('alertsLayer')) map.setPaintProperty('alertsLayer', 'line-width', _buildAlertLineWidth(scale));
-    if (map.getLayer('alertsBlinkLayer')) map.setPaintProperty('alertsBlinkLayer', 'line-width', 14 * scale);
+    if (map.getLayer('alertsBlinkLayer')) map.setPaintProperty('alertsBlinkLayer', 'line-width', _buildAlertOutlineWidth(scale));
     if (map.getLayer('watches_layer_border')) map.setPaintProperty('watches_layer_border', 'line-width', 2.4 * scale);
     if (map.getLayer('watches_layer')) map.setPaintProperty('watches_layer', 'line-width', 1.2 * scale);
     if (map.getLayer('discussions_layer')) map.setPaintProperty('discussions_layer', 'line-width', _buildDiscussionLineWidth(scale));

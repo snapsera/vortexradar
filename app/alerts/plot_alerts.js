@@ -8,6 +8,7 @@ const turf = require('@turf/turf');
 const watch_overlay = require('./watch_overlay');
 
 const BLINK_INTERVAL_MS = 500;
+const WATCH_FILL_OPACITY = 0.10;
 
 let _blinkIntervalId = null;
 let _blinkPhase = false;
@@ -139,6 +140,24 @@ function _get_normal_line_color_expr() {
         ['==', ['get', 'type'], 'border'],
         'black',
         'rgba(0, 0, 0, 0)'
+    ];
+}
+
+function _get_outline_line_width(scale) {
+    return [
+        'case',
+        ['>=', ['index-of', 'Watch', ['get', 'event']], 0],
+        2 * scale,
+        3 * scale
+    ];
+}
+
+function _get_alert_fill_opacity_expr(baseOpacity) {
+    return [
+        'case',
+        ['>=', ['index-of', 'Watch', ['get', 'event']], 0],
+        WATCH_FILL_OPACITY,
+        baseOpacity
     ];
 }
 
@@ -281,7 +300,7 @@ function _add_alert_layers(geojson) {
             'layout': { 'visibility': 'none' },
             'paint': {
                 'line-color': _get_blink_color(),
-                'line-width': 3 * bScale
+                'line-width': _get_outline_line_width(bScale)
             }
         });
         map.addLayer({
@@ -330,7 +349,7 @@ function _add_alert_layers(geojson) {
             'filter': ['!=', ['get', '_dashed'], true],
             paint: {
                 'fill-color': ['get', 'color'],
-                'fill-opacity': fillOpacity
+                'fill-opacity': _get_alert_fill_opacity_expr(fillOpacity)
             }
         });
 

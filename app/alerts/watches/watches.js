@@ -9,6 +9,7 @@ const display_app_dialog = require('../../core/menu/app_dialog');
 const alerts_display_state = require('../alerts_display_state');
 
 const all_watches_url = `https://www.spc.noaa.gov/products/watch/ActiveWW.kmz`; // https://www.spc.noaa.gov/products/watch/ActiveWW.kmz
+const WATCH_FILL_OPACITY = 0.15;
 
 function _get_watch_event_type(eventStr) {
     // eventStr is like "Tornado Watch 123" or "Severe Thunderstorm Watch 456"
@@ -87,34 +88,17 @@ function _plot_watches(feature_collection) {
 
     if (map.getSource('watches_source')) {
         map.getSource('watches_source').setData(fc);
+        if (map.getLayer('watches_layer')) {
+            map.setLayoutProperty('watches_layer', 'visibility', 'none');
+        }
+        if (map.getLayer('watches_layer_fill')) {
+            map.setPaintProperty('watches_layer_fill', 'fill-opacity', WATCH_FILL_OPACITY);
+        }
     } else {
         map.addSource(`watches_source`, {
             type: 'geojson',
             data: fc,
         })
-        map.addLayer({
-            'id': `watches_layer`,
-            'type': 'line',
-            'source': `watches_source`,
-            'paint': {
-                'line-color': [
-                    'case',
-                    ['==', ['get', 'type'], 'outline'],
-                    ['get', 'color'],
-                    ['==', ['get', 'type'], 'border'],
-                    'black',
-                    'rgba(0, 0, 0, 0)'
-                ],
-                'line-width': [
-                    'case',
-                    ['==', ['get', 'type'], 'outline'],
-                    3,
-                    ['==', ['get', 'type'], 'border'],
-                    7,
-                    0
-                ]
-            }
-        });
         map.addLayer({
             'id': `watches_layer_fill`,
             'type': 'fill',
@@ -123,7 +107,7 @@ function _plot_watches(feature_collection) {
                 //#0080ff blue
                 //#ff7d7d red
                 'fill-color': ['get', 'color'],
-                'fill-opacity': 0
+                'fill-opacity': WATCH_FILL_OPACITY
             }
         });
 

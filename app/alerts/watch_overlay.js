@@ -9,6 +9,7 @@ const WATCH_SOURCE_ID = 'watches_source';
 const WATCH_FILL_ID = 'watches_layer_fill';
 const WATCH_LINE_BORDER_ID = 'watches_layer_border';
 const WATCH_LINE_ID = 'watches_layer';
+const WATCH_FILL_OPACITY = 0.10;
 const ZONE_FETCH_CONCURRENCY = 8;
 
 const zoneCache = new Map();
@@ -147,11 +148,17 @@ async function _fetch_zone_feature(zoneUrl) {
 function _upsert_layers(fc) {
     if (map.getSource(WATCH_SOURCE_ID)) {
         map.getSource(WATCH_SOURCE_ID).setData(fc);
+        if (map.getLayer(WATCH_FILL_ID)) {
+            map.setPaintProperty(WATCH_FILL_ID, 'fill-opacity', WATCH_FILL_OPACITY);
+        }
+        if (map.getLayer(WATCH_LINE_BORDER_ID)) {
+            map.removeLayer(WATCH_LINE_BORDER_ID);
+        }
+        if (map.getLayer(WATCH_LINE_ID)) {
+            map.removeLayer(WATCH_LINE_ID);
+        }
         return;
     }
-
-    const fillOpacity = (window.stormTrackData && window.stormTrackData.alertFillOpacity != null) ? window.stormTrackData.alertFillOpacity : 0.1;
-    const bScale = (window.stormTrackData && window.stormTrackData.alertBorderScale != null) ? window.stormTrackData.alertBorderScale : 0.75;
 
     map.addSource(WATCH_SOURCE_ID, {
         type: 'geojson',
@@ -164,29 +171,7 @@ function _upsert_layers(fc) {
         source: WATCH_SOURCE_ID,
         paint: {
             'fill-color': ['get', 'color'],
-            'fill-opacity': fillOpacity
-        }
-    });
-
-    map.addLayer({
-        id: WATCH_LINE_BORDER_ID,
-        type: 'line',
-        source: WATCH_SOURCE_ID,
-        paint: {
-            'line-color': 'black',
-            'line-width': 2.4 * bScale,
-            'line-opacity': 0.7
-        }
-    });
-
-    map.addLayer({
-        id: WATCH_LINE_ID,
-        type: 'line',
-        source: WATCH_SOURCE_ID,
-        paint: {
-            'line-color': ['get', 'color'],
-            'line-width': 1.2 * bScale,
-            'line-opacity': 0.85
+            'fill-opacity': WATCH_FILL_OPACITY
         }
     });
 
@@ -208,9 +193,7 @@ function _ensure_overlay_layers_present() {
     if (_lastRenderedFeatureCollection.features.length === 0) return;
 
     const missing = !map.getSource(WATCH_SOURCE_ID) ||
-        !map.getLayer(WATCH_FILL_ID) ||
-        !map.getLayer(WATCH_LINE_BORDER_ID) ||
-        !map.getLayer(WATCH_LINE_ID);
+        !map.getLayer(WATCH_FILL_ID);
     if (!missing) return;
 
     lastStats.layer_rebuilds += 1;
@@ -387,9 +370,7 @@ async function update_from_alerts_data(alerts_data) {
 
         const renderedKey = persistentFeatures.map(f => `${f.properties?.id}|${f.properties?.event}|${f.properties?.color}`).sort().join('\n');
         const needsLayerRebuild = !map.getSource(WATCH_SOURCE_ID) ||
-            !map.getLayer(WATCH_FILL_ID) ||
-            !map.getLayer(WATCH_LINE_BORDER_ID) ||
-            !map.getLayer(WATCH_LINE_ID);
+            !map.getLayer(WATCH_FILL_ID);
         if (needsLayerRebuild) {
             lastStats.layer_rebuilds += 1;
             _dev_log('Rebuilding watch overlay layers because source/layer was missing.', {

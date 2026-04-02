@@ -13,11 +13,11 @@
     "currentStation": "KDVN",
     "gateFilterMin": 10,
     "gateFilterMax": 85,
-    "alertFillOpacity": 10,
-    "alertBorderScale": 75,
+    "alertFillOpacity": 0,
+    "alertBorderScale": 125,
     "alertBlinkColor": "#ffffff",
     "alertBlinkEnabled": true,
-    "alertBlinkDuration": 30,
+    "alertBlinkDuration": 60,
     "warningCounter": false,
     "audibleAlerts": false,
     "ttsVolume": 100,
@@ -39,16 +39,6 @@
     "colortableDVL": "DVL1"
   },
   "localStorage": {
-    "vortexRadar_alerts_display_categories": {
-      "Severe Weather": true,
-      "Winter": false,
-      "Other": false,
-      "Watches": true,
-      "Marine": true,
-      "Flood": true,
-      "Fire": false,
-      "Tropical": false
-    },
     "vortexRadar_alerts_display_collapsed": {
       "Winter": true,
       "Other": true,
@@ -90,7 +80,7 @@
       "Rip Current Statement": false,
       "Beach Hazards Statement": false,
       "Flash Flood Warning": true,
-      "Flood Warning": true,
+      "Flood Warning": false,
       "Flood Advisory": false,
       "Coastal Flood Warning": false,
       "Lakeshore Flood Warning": false,
@@ -152,11 +142,11 @@
       "dealiasTornadic": false,
       "gateFilterMin": 10,
       "gateFilterMax": 85,
-      "alertFillOpacity": 10,
-      "alertBorderScale": 75,
+      "alertFillOpacity": 0,
+      "alertBorderScale": 125,
       "alertBlinkColor": "#ffffff",
       "alertBlinkEnabled": true,
-      "alertBlinkDuration": 30,
+      "alertBlinkDuration": 60,
       "warningCounter": false,
       "audibleAlerts": false,
       "ttsVolume": 100,
@@ -190,6 +180,16 @@
         "lon": -86.5342881,
         "ts": 1774231830144
       }
-    ]
+    ],
+    "vortexRadar_alerts_display_categories": {
+      "Severe Weather": true,
+      "Winter": false,
+      "Other": false,
+      "Watches": true,
+      "Marine": true,
+      "Flood": true,
+      "Fire": false,
+      "Tropical": true
+    }
   }
 }

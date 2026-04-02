@@ -8,7 +8,7 @@ const turf = require('@turf/turf');
 const watch_overlay = require('./watch_overlay');
 
 const BLINK_INTERVAL_MS = 500;
-const WATCH_FILL_OPACITY = 0.10;
+const WATCH_FILL_OPACITY = 0.15;
 
 let _blinkIntervalId = null;
 let _blinkPhase = false;

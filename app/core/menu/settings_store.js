@@ -27,7 +27,7 @@ const DEFAULTS = {
     audibleAlerts: false,
     ttsVolume: 100,
     tornadoWarningBeep: false,
-    tornadoWarningBeepVolume: 100,
+    tornadoWarningBeepVolume: 25,
     surfaceFronts: false,
     weatherRadio: false,
     timezones: false,

@@ -1,84 +1,137 @@
 var settings_store = require('../core/menu/settings_store');
 
-var _audioCtx = null;
-var _masterGain = null;
+var TORNADO_WARNING_SOUND_PATH = '/sounds/tornado_warning.mp3';
+var TORNADO_WARNING_ISSUED_VOICE_PATH = '/sounds/tornado_warning_issued_voice.mp3';
+var TORNADO_WARNING_UPDATED_VOICE_PATH = '/sounds/tornado_warning_updated_voice.mp3';
+var TORNADO_WARNING_UPGRADED_VOICE_PATH = '/sounds/upgraded_tornado_warning.mp3';
+var TORNADO_WARNING_FOLLOWUP_VOLUME_PERCENT = 30;
+var _playbackQueue = Promise.resolve();
 
-function _getAudioContext() {
-    if (!_audioCtx) {
-        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (_audioCtx.state === 'suspended') {
-        _audioCtx.resume();
-    }
-    return _audioCtx;
-}
-
-function _getMasterGain() {
-    var ctx = _getAudioContext();
-    if (!_masterGain) {
-        _masterGain = ctx.createGain();
-        _masterGain.connect(ctx.destination);
-    }
-    return _masterGain;
+function _clamp_volume(volumePercent) {
+    var n = parseInt(volumePercent, 10);
+    if (!Number.isFinite(n)) return 25;
+    if (n < 0) return 0;
+    if (n > 100) return 100;
+    return n;
 }
 
 function setVolume(val) {
-    var ctx = _getAudioContext();
-    var gain = _getMasterGain();
-    gain.gain.setValueAtTime(val / 100, ctx.currentTime);
+    var volume = _clamp_volume(val);
+    var baseAudio = new Audio(TORNADO_WARNING_SOUND_PATH);
+    baseAudio.volume = volume / 100;
 }
 
-function _playBeeps(volume) {
-    var ctx = _getAudioContext();
-    var master = _getMasterGain();
-    master.gain.setValueAtTime(volume / 100, ctx.currentTime);
+function _play_clip(audioPath, volume) {
+    var audio = new Audio(audioPath);
+    var clampedVolume = _clamp_volume(volume);
+    audio.volume = clampedVolume / 100;
 
-    var BEEP_FREQ = 660;
-    var BEEP_DURATION = 0.25;
-    var BEEP_GAP = 0.15;
+    return new Promise(function(resolve, reject) {
+        var done = false;
+        function cleanup() {
+            audio.removeEventListener('ended', onEnded);
+            audio.removeEventListener('error', onError);
+        }
+        function onEnded() {
+            if (done) return;
+            done = true;
+            cleanup();
+            resolve();
+        }
+        function onError() {
+            if (done) return;
+            done = true;
+            cleanup();
+            reject(new Error('Failed to play audio: ' + audioPath));
+        }
 
-    for (var i = 0; i < 3; i++) {
-        var startTime = ctx.currentTime + i * (BEEP_DURATION + BEEP_GAP);
+        audio.addEventListener('ended', onEnded);
+        audio.addEventListener('error', onError);
 
-        var osc = ctx.createOscillator();
-        var env = ctx.createGain();
+        var playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+            playPromise.catch(function(err) {
+                if (done) return;
+                done = true;
+                cleanup();
+                reject(err);
+            });
+        }
+    });
+}
 
-        osc.type = 'sine';
-        osc.frequency.value = BEEP_FREQ;
+function _enqueue_play_sequence(sequence) {
+    _playbackQueue = _playbackQueue
+        .catch(function() {})
+        .then(function() {
+            return sequence();
+        });
+    return _playbackQueue;
+}
 
-        env.gain.setValueAtTime(1, startTime);
-        env.gain.setValueAtTime(1, startTime + BEEP_DURATION - 0.03);
-        env.gain.linearRampToValueAtTime(0, startTime + BEEP_DURATION);
-
-        osc.connect(env);
-        env.connect(master);
-
-        osc.start(startTime);
-        osc.stop(startTime + BEEP_DURATION + 0.01);
-    }
+function _play_tornado_sequence(volume, followupPath) {
+    return _enqueue_play_sequence(function() {
+        return _play_clip(TORNADO_WARNING_SOUND_PATH, volume).then(function() {
+            if (!followupPath) return;
+            return _play_clip(followupPath, TORNADO_WARNING_FOLLOWUP_VOLUME_PERCENT);
+        });
+    });
 }
 
 function playTornadoWarningBeep() {
     var s = settings_store.load();
     if (!s.tornadoWarningBeep) return;
-    var volume = s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 100;
-    _playBeeps(volume);
+    var volume = s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 25;
+    return _play_tornado_sequence(volume, null);
 }
 
-function testTornadoWarningBeep() {
+function testTornadoWarningBeep(overrideVolume) {
     var s = settings_store.load();
-    var volume = s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 100;
-    _playBeeps(volume);
+    var volume = overrideVolume != null ? overrideVolume : (s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 25);
+    return _play_tornado_sequence(volume, null);
+}
+
+function testTornadoWarningSequence(mode, overrideVolume) {
+    var s = settings_store.load();
+    var volume = overrideVolume != null ? overrideVolume : (s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 25);
+    var normalizedMode = String(mode || 'base').trim().toLowerCase();
+    var followupPath = null;
+    if (normalizedMode === 'issued') followupPath = TORNADO_WARNING_ISSUED_VOICE_PATH;
+    else if (normalizedMode === 'updated') followupPath = TORNADO_WARNING_UPDATED_VOICE_PATH;
+    else if (normalizedMode === 'upgraded') followupPath = TORNADO_WARNING_UPGRADED_VOICE_PATH;
+    return _play_tornado_sequence(volume, followupPath);
+}
+
+function _is_exact_tornado_warning_event(eventName) {
+    return String(eventName || '').trim().toLowerCase() === 'tornado warning';
+}
+
+function _is_upgraded_tornado_warning(detail) {
+    var extra = String(detail && detail.extra ? detail.extra : '').toLowerCase();
+    if (!extra) return false;
+    if (extra.indexOf('upgraded') !== -1) return true;
+    return extra.indexOf('observed') !== -1 && extra.indexOf('radar indicated') !== -1;
 }
 
 function init() {
     window.addEventListener('alertNotification', function (e) {
         var detail = e.detail || {};
-        if (detail.type !== 'new') return;
-        var event = (detail.event || '').toLowerCase();
-        if (event.indexOf('tornado') !== -1 && event.indexOf('warning') !== -1) {
-            playTornadoWarningBeep();
+        if (!_is_exact_tornado_warning_event(detail.event)) return;
+
+        var s = settings_store.load();
+        if (!s.tornadoWarningBeep) return;
+        var volume = s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 25;
+
+        if (detail.type === 'new') {
+            _play_tornado_sequence(volume, TORNADO_WARNING_ISSUED_VOICE_PATH);
+            return;
         }
+        if (detail.type !== 'updated') return;
+        if (_is_upgraded_tornado_warning(detail)) {
+            _play_tornado_sequence(volume, TORNADO_WARNING_UPGRADED_VOICE_PATH);
+            return;
+        }
+        _play_tornado_sequence(volume, TORNADO_WARNING_UPDATED_VOICE_PATH);
     });
 }
 
@@ -86,5 +139,6 @@ module.exports = {
     init: init,
     playTornadoWarningBeep: playTornadoWarningBeep,
     testTornadoWarningBeep: testTornadoWarningBeep,
+    testTornadoWarningSequence: testTornadoWarningSequence,
     setVolume: setVolume
 };

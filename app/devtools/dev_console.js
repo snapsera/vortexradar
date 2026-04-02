@@ -24,6 +24,11 @@ var COMMANDS = {
         usage: 'tornado',
         run: _cmd_tornado
     },
+    'tor-sound': {
+        description: 'Play tornado sound sequence (base, issued, updated, upgraded)',
+        usage: 'tor-sound [base|issued|updated|upgraded] [volume]',
+        run: _cmd_tor_sound
+    },
     'save-defaults': {
         description: 'Save current settings as the site-wide defaults JSON',
         usage: 'save-defaults',
@@ -285,6 +290,37 @@ function _cmd_tornado() {
 
     _log('Injected <strong>Tornado Warning</strong> near ' + station + ' (expires in 45 min)', 'success');
     notification.notify('DEV: Tornado Warning injected', { icon: 'fa fa-tornado', level: 'danger' });
+}
+
+function _cmd_tor_sound(args) {
+    var audible_alerts = require('../ui/audible_alerts');
+    var settings = settings_store.load();
+    var mode = 'base';
+    var rawVolume = null;
+    if (args && args.length) {
+        var first = String(args[0] || '').toLowerCase();
+        if (first === 'base' || first === 'issued' || first === 'updated' || first === 'upgraded') {
+            mode = first;
+            if (args.length > 1) rawVolume = parseInt(args[1], 10);
+        } else {
+            rawVolume = parseInt(args[0], 10);
+        }
+    }
+    var hasOverride = Number.isFinite(rawVolume);
+    var volume = hasOverride ? rawVolume : (settings.tornadoWarningBeepVolume != null ? settings.tornadoWarningBeepVolume : 25);
+    if (volume < 0) volume = 0;
+    if (volume > 100) volume = 100;
+
+    var result = audible_alerts.testTornadoWarningSequence(mode, volume);
+    if (result && typeof result.then === 'function') {
+        result.then(function() {
+            _log('Played tornado <strong>' + _escapeHtml(mode) + '</strong> sound sequence at <strong>' + volume + '%</strong>.', 'success');
+        }).catch(function(err) {
+            _log('Unable to play tornado sequence: ' + _escapeHtml(err && err.message ? err.message : String(err)), 'error');
+        });
+        return;
+    }
+    _log('Triggered tornado <strong>' + _escapeHtml(mode) + '</strong> sound sequence at <strong>' + volume + '%</strong>.', 'success');
 }
 
 function _get_enabled_alerts() {

@@ -330,7 +330,7 @@ function applyAlertFillOpacity(val) {
         map.setPaintProperty('alertsLayerFill', 'fill-opacity', [
             'case',
             ['>=', ['index-of', 'Watch', ['get', 'event']], 0],
-            0.10,
+            0.15,
             opacity
         ]);
     }

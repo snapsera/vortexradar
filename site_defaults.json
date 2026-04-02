@@ -10,19 +10,19 @@
     "focusNewAlerts": false,
     "dealiasRegionBased": true,
     "dealiasTornadic": false,
-    "currentStation": "KDVN",
+    "currentStation": "KGRR",
     "gateFilterMin": 10,
     "gateFilterMax": 85,
     "alertFillOpacity": 0,
     "alertBorderScale": 125,
     "alertBlinkColor": "#ffffff",
     "alertBlinkEnabled": true,
-    "alertBlinkDuration": 60,
+    "alertBlinkDuration": 30,
     "warningCounter": false,
     "audibleAlerts": false,
     "ttsVolume": 100,
-    "tornadoWarningBeep": false,
-    "tornadoWarningBeepVolume": 100,
+    "tornadoWarningBeep": true,
+    "tornadoWarningBeepVolume": 25,
     "surfaceFronts": false,
     "weatherRadio": false,
     "timezones": false,
@@ -39,6 +39,16 @@
     "colortableDVL": "DVL1"
   },
   "localStorage": {
+    "vortexRadar_alerts_display_categories": {
+      "Severe Weather": true,
+      "Winter": false,
+      "Other": false,
+      "Watches": true,
+      "Marine": true,
+      "Flood": true,
+      "Fire": false,
+      "Tropical": true
+    },
     "vortexRadar_alerts_display_collapsed": {
       "Winter": true,
       "Other": true,
@@ -128,8 +138,9 @@
       "brushSize": 8,
       "tool": "pen"
     },
+    "vortexRadar_impactTimelineEnabled": 0,
     "vortexRadar_settings": {
-      "currentStation": "KDVN",
+      "currentStation": "KGRR",
       "radar": true,
       "usRadar": false,
       "radarOpacity": 100,
@@ -146,12 +157,12 @@
       "alertBorderScale": 125,
       "alertBlinkColor": "#ffffff",
       "alertBlinkEnabled": true,
-      "alertBlinkDuration": 60,
+      "alertBlinkDuration": 30,
       "warningCounter": false,
       "audibleAlerts": false,
       "ttsVolume": 100,
-      "tornadoWarningBeep": false,
-      "tornadoWarningBeepVolume": 100,
+      "tornadoWarningBeep": true,
+      "tornadoWarningBeepVolume": 25,
       "surfaceFronts": false,
       "weatherRadio": false,
       "timezones": false,
@@ -180,16 +191,6 @@
         "lon": -86.5342881,
         "ts": 1774231830144
       }
-    ],
-    "vortexRadar_alerts_display_categories": {
-      "Severe Weather": true,
-      "Winter": false,
-      "Other": false,
-      "Watches": true,
-      "Marine": true,
-      "Flood": true,
-      "Fire": false,
-      "Tropical": true
-    }
+    ]
   }
 }

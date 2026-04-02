@@ -9,8 +9,9 @@ const WATCH_SOURCE_ID = 'watches_source';
 const WATCH_FILL_ID = 'watches_layer_fill';
 const WATCH_LINE_BORDER_ID = 'watches_layer_border';
 const WATCH_LINE_ID = 'watches_layer';
-const WATCH_FILL_OPACITY = 0.10;
+const WATCH_FILL_OPACITY = 0.15;
 const ZONE_FETCH_CONCURRENCY = 8;
+const MISSING_ALERT_GRACE_MS = 45000;
 
 const zoneCache = new Map();
 const overlayFeatureCacheByAlertId = new Map();
@@ -351,18 +352,45 @@ async function update_from_alerts_data(alerts_data) {
                 features: alertFeatures,
                 expiresMs: _parse_expiry_ms(baseProps),
                 event: baseProps.event || null,
-                lastSeenMs: nowMs
+                lastSeenMs: nowMs,
+                missingSinceMs: null
             });
         }
 
         // If an alert id exists in current payload but is no longer an enabled
-        // overlay event, remove it immediately from cache.
+        // overlay event, remove it immediately from cache (user toggle changes).
         for (const alertId of currentPayloadIds) {
             if (activeOverlayIds.has(alertId)) continue;
             overlayFeatureCacheByAlertId.delete(alertId);
         }
 
-        // Expiration-based pruning for alert ids absent from latest payload.
+        // If an id vanishes from payload entirely, keep it briefly to survive
+        // transient feed gaps, then remove to prevent long-lived duplicates.
+        for (const [cachedAlertId, cachedEntry] of overlayFeatureCacheByAlertId.entries()) {
+            if (activeOverlayIds.has(cachedAlertId)) {
+                if (cachedEntry) cachedEntry.missingSinceMs = null;
+                continue;
+            }
+            if (!currentPayloadIds.has(cachedAlertId)) {
+                if (!cachedEntry) {
+                    overlayFeatureCacheByAlertId.delete(cachedAlertId);
+                    continue;
+                }
+                if (currentPayloadIds.size === 0) {
+                    // Empty payload snapshots are typically transient/API issues.
+                    continue;
+                }
+                if (!cachedEntry.missingSinceMs) {
+                    cachedEntry.missingSinceMs = nowMs;
+                    continue;
+                }
+                if ((nowMs - cachedEntry.missingSinceMs) >= MISSING_ALERT_GRACE_MS) {
+                    overlayFeatureCacheByAlertId.delete(cachedAlertId);
+                }
+            }
+        }
+
+        // Keep expiration-based pruning as a fallback safety net.
         _prune_expired_cache(nowMs);
 
         const persistentFeatures = _flatten_cache_features();

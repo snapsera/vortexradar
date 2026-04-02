@@ -80,6 +80,11 @@ function setLayerOrder() {
         move_layer_to_top('pressure_points_layer');
     }
 
+    // current device location marker layers
+    move_layer_to_top('currentLocationOuterLayer');
+    move_layer_to_top('currentLocationRingLayer');
+    move_layer_to_top('currentLocationCoreLayer');
+
 }
 
 module.exports = setLayerOrder;

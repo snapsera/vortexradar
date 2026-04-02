@@ -7109,7 +7109,19 @@ a:hover { color: var(--color-accent-hover); }
 }
 
 .fullscreenToggleBtn--devConsole {
+  right: 88px;
+}
+
+.fullscreenToggleBtn--location {
   right: 50px;
+  color: var(--color-accent);
+  border-color: rgba(56, 189, 248, 0.55);
+  opacity: 0.9;
+}
+
+.fullscreenToggleBtn--location.is-locating {
+  color: #7dd3fc;
+  opacity: 1;
 }
 
 /* Radar scan animation is now handled by canvas overlay in radar_scan_animation.js */

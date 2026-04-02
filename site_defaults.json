@@ -10,7 +10,7 @@
     "focusNewAlerts": true,
     "dealiasRegionBased": true,
     "dealiasTornadic": false,
-    "currentStation": "KTLX",
+    "currentStation": "KDVN",
     "gateFilterMin": 10,
     "gateFilterMax": 85,
     "alertFillOpacity": 10,
@@ -27,6 +27,7 @@
     "weatherRadio": false,
     "timezones": false,
     "lightning": true,
+    "stormReports": true,
     "testAlerts": false,
     "radarLoopSpeed": 5,
     "radarLoopFrameCount": 14,
@@ -38,20 +39,16 @@
     "colortableDVL": "DVL1"
   },
   "localStorage": {
-    "vortexRadar_forecastHistory": [
-      {
-        "name": "San Antonio, Texas",
-        "lat": 29.4246002,
-        "lon": -98.4951405,
-        "ts": 1774233546169
-      },
-      {
-        "name": "Bloomington, Indiana",
-        "lat": 39.1670396,
-        "lon": -86.5342881,
-        "ts": 1774231830144
-      }
-    ],
+    "vortexRadar_alerts_display_categories": {
+      "Severe Weather": true,
+      "Winter": false,
+      "Other": false,
+      "Watches": true,
+      "Marine": true,
+      "Flood": true,
+      "Fire": false,
+      "Tropical": false
+    },
     "vortexRadar_alerts_display_collapsed": {
       "Winter": true,
       "Other": true,
@@ -142,7 +139,7 @@
       "tool": "pen"
     },
     "vortexRadar_settings": {
-      "currentStation": "KTLX",
+      "currentStation": "KDVN",
       "radar": true,
       "usRadar": false,
       "radarOpacity": 85,
@@ -169,6 +166,7 @@
       "weatherRadio": false,
       "timezones": false,
       "lightning": true,
+      "stormReports": true,
       "testAlerts": false,
       "radarLoopSpeed": 5,
       "radarLoopFrameCount": 14,
@@ -179,15 +177,19 @@
       "colortableKDP": "KDP1",
       "colortableDVL": "DVL1"
     },
-    "vortexRadar_alerts_display_categories": {
-      "Severe Weather": true,
-      "Winter": false,
-      "Other": false,
-      "Watches": true,
-      "Marine": true,
-      "Flood": true,
-      "Fire": false,
-      "Tropical": false
-    }
+    "vortexRadar_forecastHistory": [
+      {
+        "name": "San Antonio, Texas",
+        "lat": 29.4246002,
+        "lon": -98.4951405,
+        "ts": 1774233546169
+      },
+      {
+        "name": "Bloomington, Indiana",
+        "lat": 39.1670396,
+        "lon": -86.5342881,
+        "ts": 1774231830144
+      }
+    ]
   }
 }

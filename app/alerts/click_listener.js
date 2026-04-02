@@ -31,6 +31,15 @@ function _fix_value(value, text_value_ID) {
 
 function _build_card_params(properties, parameters) {
     var parameters_html = '';
+    function get_metric_value_style(parameter_name, value) {
+        if (parameter_name !== 'tornadoDetection') return '';
+        var lowered = String(value || '').toLowerCase();
+        if (lowered.indexOf('radar indicated') !== -1) return '';
+        if (lowered.indexOf('observed') !== -1 || lowered.indexOf('considerable') !== -1 || lowered.indexOf('pds') !== -1) {
+            return ' style="color:#ff4e4e;"';
+        }
+        return '';
+    }
     function add_parameter(parameter_name, text_value_ID) {
         if (parameters.hasOwnProperty(parameter_name)) {
             var value = _fix_value(parameters[parameter_name], text_value_ID);
@@ -42,10 +51,11 @@ function _build_card_params(properties, parameters) {
                     value += `, ${_fix_value(parameters['windThreat'])}`;
                 }
             }
+            var metricValueStyle = get_metric_value_style(parameter_name, value);
             parameters_html += `
                 <div class="alertPopupMetricRow">
                     <span class="alertPopupMetricLabel">${text_value_ID}</span>
-                    <span class="alertPopupMetricValue">${value}</span>
+                    <span class="alertPopupMetricValue"${metricValueStyle}>${value}</span>
                 </div>
             `;
         }
@@ -109,7 +119,10 @@ function click_listener(e) {
     e.originalEvent.cancelBubble = true;
 
     const renderedFeatures = map.queryRenderedFeatures(e.point);
-    if (renderedFeatures[0] && renderedFeatures[0].layer.id === 'stationSymbolLayer') return;
+    if (renderedFeatures[0] && (
+        renderedFeatures[0].layer.id === 'stationSymbolLayer' ||
+        renderedFeatures[0].layer.id === 'stormReportsLayer'
+    )) return;
 
     const lng = e.lngLat.lng;
     const lat = e.lngLat.lat;
@@ -147,11 +160,13 @@ function click_listener(e) {
         };
 
         const hexColor = chroma(initColor).hex();
+        const shouldShowClose = cards.length === 0;
         const cardHtml = `
 <div class="alertPopupCard" data-id="${id}" style="--alert-popup-accent: ${hexColor}">
   <div class="alertPopupCardHeader">
     <span class="alertPopupCardIcon fa fa-triangle-exclamation"></span>
     <span class="alertPopupCardTitle">${properties.event}</span>
+    ${shouldShowClose ? `<button type="button" class="alertPopupCloseStack" title="Close"><span class="fa fa-xmark"></span></button>` : ''}
   </div>
   <div class="alertPopupCardDivider"></div>
   <div class="alertPopupCardBody">
@@ -204,6 +219,11 @@ function click_listener(e) {
             color: data.color,
             textColor: data.textColor
         });
+        popup.remove();
+    });
+
+    popup.map_popup_div.find('.alertPopupCloseStack').on('click', function(ev) {
+        ev.stopPropagation();
         popup.remove();
     });
 

@@ -32,6 +32,10 @@ function setLayerOrder() {
     // weather radio layer
     move_layer_to_top('radioStationLayer');
 
+    // storm reports layer
+    move_layer_to_top('stormReportsHaloLayer');
+    move_layer_to_top('stormReportsLayer');
+
     // discussions layers
     move_layer_to_top('discussions_layer_border');
     move_layer_to_top('discussions_layer');

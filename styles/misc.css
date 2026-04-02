@@ -458,7 +458,7 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 8px 10px;
+  padding: 8px 34px 8px 10px;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.02em;
@@ -473,6 +473,28 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   position: relative;
   overflow: hidden;
+}
+.alertPopupCloseStack {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 4;
+}
+.alertPopupCloseStack:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: #000;
 }
 .alertPopupCardHeader::after {
   content: '';
@@ -841,4 +863,146 @@
 }
 
 /* Radar scan animation is now handled by canvas overlay in radar_scan_animation.js */
+
+.stormReportV2 {
+  --storm-report-accent: #0288d1;
+  --storm-report-accent-text: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #dce6f2;
+}
+.stormReportHero {
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--storm-report-accent) 34%, #0f1622 66%),
+    rgba(12, 18, 28, 0.85)
+  );
+  border: 1px solid color-mix(in srgb, var(--storm-report-accent) 52%, rgba(255,255,255,0.2) 48%);
+}
+.stormReportHeroTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.stormReportHeroBadge {
+  background: color-mix(in srgb, var(--storm-report-accent) 78%, #0b1018 22%);
+  color: var(--storm-report-accent-text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.stormReportHeroTime {
+  font-size: 11px;
+  color: #bdd2e6;
+  font-weight: 600;
+}
+.stormReportHeroTitle {
+  margin-top: 8px;
+  font-size: 19px;
+  font-weight: 800;
+  color: #f4f8fc;
+  line-height: 1.2;
+}
+.stormReportHeroSub {
+  margin-top: 4px;
+  color: #d1dfec;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stormReportFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.stormReportFact {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stormReportFact span {
+  font-size: 10px;
+  color: #8ca2b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.stormReportFact strong {
+  font-size: 13px;
+  color: #f0f6fc;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.stormReportCard {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.stormReportCardTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #95adbf;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+.stormReportEmpty {
+  color: #9fb0c3;
+  font-size: 13px;
+}
+.stormReportMediaList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stormReportMediaItem {
+  display: block;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.stormReportMediaItem:hover {
+  border-color: color-mix(in srgb, var(--storm-report-accent) 48%, rgba(255,255,255,0.2) 52%);
+  background: rgba(255, 255, 255, 0.05);
+}
+.stormReportMediaType {
+  color: color-mix(in srgb, var(--storm-report-accent) 62%, #bfe7ff 38%);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.stormReportMediaUrl {
+  color: #dce6f2;
+  font-size: 12px;
+  margin-top: 3px;
+  word-break: break-word;
+}
+.stormReportActionLink {
+  color: #8fd0ff;
+  text-decoration: underline;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+@media (max-width: 560px) {
+  .stormReportFacts {
+    grid-template-columns: 1fr;
+  }
+}
 

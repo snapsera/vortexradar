@@ -130,6 +130,7 @@ function load() {
         require('../../spc_outlooks/spc_outlooks_modal').init();
         require('../../radar/preview_embed_mode').init();
         require('../../lightning/menu_item');
+        require('../../storm_reports/menu_item');
 
         window.dispatchEvent(new CustomEvent('stormTrackModulesLoaded'));
     });

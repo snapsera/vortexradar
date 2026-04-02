@@ -2461,6 +2461,9 @@ a:hover { color: var(--color-accent-hover); }
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.8);
 }
+.alertsDetailStormPill-critical {
+  color: #ff4e4e;
+}
 .alertsDetailStorm {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.8);

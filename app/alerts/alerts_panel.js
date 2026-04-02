@@ -146,6 +146,14 @@ function _extract_storm_pills(p) {
     return pills;
 }
 
+function _get_storm_pill_class(pill) {
+    const lowered = String(pill || '').toLowerCase();
+    if (lowered.includes('observed') || lowered.includes('considerable') || lowered.includes('pds')) {
+        return ' alertsDetailStormPill-critical';
+    }
+    return '';
+}
+
 function _format_expires(p) {
     const expires = p.expires || p.ends;
     if (!expires) return '';
@@ -392,7 +400,7 @@ function _render_alerts_list(features) {
             const detail = $(`
                 <div class="alertsDetailCard" data-id="${f.id || ''}">
                     <div class="alertsDetailContent">
-                        ${stormPills.length ? `<div class="alertsDetailPills">${stormPills.map((pill) => `<span class="alertsDetailStormPill">${pill}</span>`).join('')}</div>` : ''}
+                        ${stormPills.length ? `<div class="alertsDetailPills">${stormPills.map((pill) => `<span class="alertsDetailStormPill${_get_storm_pill_class(pill)}">${pill}</span>`).join('')}</div>` : ''}
                         ${expiresStr ? `<div class="alertsDetailExpires"><span class="alertsDetailDot" style="background: ${hexColor}"></span>${expiresStr}</div>` : ''}
                         ${sender ? `<div class="alertsDetailSender">${sender}</div>` : ''}
                         <div class="alertsDetailArea">

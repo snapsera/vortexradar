@@ -342,6 +342,19 @@ color: 120 110 14 9
 color: 140 0 0 0
 
 RF: 139 0 218`
+const velocity_pal_default =
+`color: 0 128 128 128
+color: -10 0 81 0
+color: -30 0 169 0
+color: -50 105 253 103
+color: -60 220 215 252
+color: -120 120 120 253
+color: 10 99 0 0
+color: 40 239 7 0
+color: 45 255 88 1
+color: 55 255 181 1
+color: 100 255 255 0
+color: 120 255 255 255`
 const velocity_balance = 
 `Product: BV
 Units:   ???
@@ -1475,12 +1488,12 @@ const product_colors = {
     N2C: colortable_parser(corr_coeff),
     N3C: colortable_parser(corr_coeff),
 
-    N0G: colortable_parser(velocity),
-    N1G: colortable_parser(velocity),
-    N2G: colortable_parser(velocity),
-    N3G: colortable_parser(velocity),
-    NAG: colortable_parser(velocity),
-    NBG: colortable_parser(velocity),
+    N0G: colortable_parser(velocity_pal_default),
+    N1G: colortable_parser(velocity_pal_default),
+    N2G: colortable_parser(velocity_pal_default),
+    N3G: colortable_parser(velocity_pal_default),
+    NAG: colortable_parser(velocity_pal_default),
+    NBG: colortable_parser(velocity_pal_default),
 
     N0H: colortable_parser(hydrometer_class),
     N1H: colortable_parser(hydrometer_class),
@@ -1552,10 +1565,12 @@ const product_colors = {
             15, 16
         ],
     },
-    N0U: colortable_parser(velocity),
-    N1U: colortable_parser(velocity),
-    N2U: colortable_parser(velocity),
-    N3U: colortable_parser(velocity),
+    N0U: colortable_parser(velocity_pal_default),
+    N1U: colortable_parser(velocity_pal_default),
+    N2U: colortable_parser(velocity_pal_default),
+    N3U: colortable_parser(velocity_pal_default),
+    // N0S is Storm Relative Velocity; keep it synced to velocity colortables.
+    N0S: colortable_parser(velocity_pal_default),
 
     N0X: colortable_parser(diff_reflectivity),
     N1X: colortable_parser(diff_reflectivity),
@@ -1589,9 +1604,9 @@ const product_colors = {
     RHO: colortable_parser(corr_coeff),
     SW: spectrum_width, // 'SW '
 
-    TV0: colortable_parser(velocity),
-    TV1: colortable_parser(velocity),
-    TV2: colortable_parser(velocity),
+    TV0: colortable_parser(velocity_pal_default),
+    TV1: colortable_parser(velocity_pal_default),
+    TV2: colortable_parser(velocity_pal_default),
 
     TZL: colortable_parser(reflectivity),
     TZ0: colortable_parser(reflectivity),
@@ -1599,7 +1614,7 @@ const product_colors = {
     TZ2: colortable_parser(reflectivity),
     TZ3: colortable_parser(reflectivity),
 
-    VEL: colortable_parser(velocity),
+    VEL: colortable_parser(velocity_pal_default),
     ZDR: colortable_parser(diff_reflectivity),
 
     N0K: colortable_parser(specific_differential_phase),
@@ -1614,7 +1629,7 @@ const product_colors = {
     REF3: colortable_parser(reflectivity_nws),
     REF4: colortable_parser(reflectivity_gr2analyst),
     REF5: colortable_parser(reflectivity_radaromega),
-    VEL1: colortable_parser(velocity),
+    VEL1: colortable_parser(velocity_pal_default),
     VEL2: {
         colors: [
             'rgb(24, 28, 67)', // -120

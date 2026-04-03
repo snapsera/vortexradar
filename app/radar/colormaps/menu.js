@@ -19,7 +19,7 @@ function create_css_gradient(colors, values) {
 
 const lookup = {
     'REF': ['REF', 'N0B', 'N1B', 'N2B', 'N3B', 'TZL', 'TZ0', 'TZ1', 'TZ2', 'TZ3'],
-    'VEL': ['VEL', 'N0G', 'N1G', 'N2G', 'N3G', 'NAG', 'NBG', 'N0U', 'N1U', 'N2U', 'N3U', 'TV0', 'TV1', 'TV2'],
+    'VEL': ['VEL', 'N0G', 'N1G', 'N2G', 'N3G', 'NAG', 'NBG', 'N0U', 'N1U', 'N2U', 'N3U', 'N0S', 'TV0', 'TV1', 'TV2'],
     'RHO': ['RHO', 'N0C', 'N1C', 'N2C', 'N3C'],
     'ZDR': ['ZDR', 'N0X', 'N1X', 'N2X', 'N3X'],
     'KDP': ['N0K', 'N1K', 'N2K', 'N3K'],

@@ -81,6 +81,20 @@ function colortable_parser(colortable_string, should_print = false) {
         }
     }
 
+    // Normalize stop order so downstream gradient/texture code always
+    // receives a monotonic domain, even if the source file is unordered.
+    const pairs = [];
+    for (var i = 0; i < values.length; i++) {
+        if (!Number.isFinite(values[i])) continue;
+        pairs.push({
+            value: values[i],
+            color: colors[i],
+        });
+    }
+    pairs.sort((a, b) => a.value - b.value);
+    values = pairs.map(p => p.value);
+    colors = pairs.map(p => p.color);
+
     const return_obj = {
         'colors': colors,
         'values': values,

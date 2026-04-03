@@ -10,7 +10,7 @@
     "focusNewAlerts": false,
     "dealiasRegionBased": true,
     "dealiasTornadic": false,
-    "currentStation": "KGRR",
+    "currentStation": "KTLX",
     "gateFilterMin": 10,
     "gateFilterMax": 85,
     "alertFillOpacity": 0,
@@ -140,7 +140,7 @@
     },
     "vortexRadar_impactTimelineEnabled": 0,
     "vortexRadar_settings": {
-      "currentStation": "KGRR",
+      "currentStation": "KTLX",
       "radar": true,
       "usRadar": false,
       "radarOpacity": 100,

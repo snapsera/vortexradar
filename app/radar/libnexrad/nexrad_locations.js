@@ -1,3 +1,5 @@
+const tzlookup = require('tz-lookup');
+
 function get_nexrad_location(station) {
     var loc = NEXRAD_LOCATIONS?.[station.toUpperCase()];
     if (loc == undefined) {
@@ -1544,20 +1546,15 @@ function get_station_state(station) {
 }
 
 function get_station_timezone(station) {
-    const loc = NEXRAD_LOCATIONS?.[station?.toUpperCase()];
+    const code = station?.toUpperCase();
+    const loc = NEXRAD_LOCATIONS?.[code];
     if (!loc) return Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    const lat = loc.lat;
-    const lon = loc.lon;
-
-    if (lon > 140) return 'Pacific/Guam';
-    if (lat < 25 && lon < -150) return 'Pacific/Honolulu';
-    if (lat > 50 && lon < -130) return 'America/Anchorage';
-    if (lat < 20 && lon > -70) return 'America/Puerto_Rico';
-    if (lon < -115) return 'America/Los_Angeles';
-    if (lon < -102) return 'America/Denver';
-    if (lon < -84) return 'America/Chicago';
-    return 'America/New_York';
+    try {
+        return tzlookup(loc.lat, loc.lon);
+    } catch (_) {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
 }
 
 module.exports = {

@@ -107,13 +107,6 @@ function _is_exact_tornado_warning_event(eventName) {
     return String(eventName || '').trim().toLowerCase() === 'tornado warning';
 }
 
-function _is_upgraded_tornado_warning(detail) {
-    var extra = String(detail && detail.extra ? detail.extra : '').toLowerCase();
-    if (!extra) return false;
-    if (extra.indexOf('upgraded') !== -1) return true;
-    return extra.indexOf('observed') !== -1 && extra.indexOf('radar indicated') !== -1;
-}
-
 function init() {
     window.addEventListener('alertNotification', function (e) {
         var detail = e.detail || {};
@@ -123,20 +116,9 @@ function init() {
         if (!s.tornadoWarningBeep) return;
         var volume = s.tornadoWarningBeepVolume != null ? s.tornadoWarningBeepVolume : 25;
 
-        if (detail.type === 'new') {
-            if (detail.tornadoStatus === 'updated') {
-                _play_tornado_sequence(volume, TORNADO_WARNING_UPDATED_VOICE_PATH);
-                return;
-            }
-            _play_tornado_sequence(volume, TORNADO_WARNING_ISSUED_VOICE_PATH);
-            return;
-        }
-        if (detail.type !== 'updated') return;
-        if (_is_upgraded_tornado_warning(detail)) {
-            _play_tornado_sequence(volume, TORNADO_WARNING_UPGRADED_VOICE_PATH);
-            return;
-        }
-        _play_tornado_sequence(volume, TORNADO_WARNING_UPDATED_VOICE_PATH);
+        if (detail.type !== 'new') return;
+        if (detail.tornadoStatus === 'updated') return;
+        _play_tornado_sequence(volume, TORNADO_WARNING_ISSUED_VOICE_PATH);
     });
 }
 

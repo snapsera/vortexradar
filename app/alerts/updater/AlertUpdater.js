@@ -1,4 +1,5 @@
 const filter_alerts = require('../filter_alerts');
+const turf = require('@turf/turf');
 
 class AlertUpdater {
     constructor() {
@@ -60,6 +61,56 @@ class AlertUpdater {
         return true;
     }
 
+    _safe_area(feature) {
+        try {
+            if (!feature || !feature.geometry) return null;
+            const area = turf.area(feature);
+            return Number.isFinite(area) ? area : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    _same_geometry(featureA, featureB) {
+        const ga = featureA?.geometry;
+        const gb = featureB?.geometry;
+        if (!ga || !gb) return false;
+        try {
+            return JSON.stringify(ga) === JSON.stringify(gb);
+        } catch (_) {
+            return false;
+        }
+    }
+
+    _should_treat_tornado_continuity_as_new(feature, previousFeatures) {
+        const key = this._get_tornado_continuity_key(feature);
+        if (!key) return true;
+
+        const previousMatches = (previousFeatures || []).filter((prev) => {
+            return this._is_tornado_warning(prev) && this._get_tornado_continuity_key(prev) === key;
+        });
+        if (previousMatches.length === 0) return true;
+
+        // Keep update-only behavior for same polygon/text changes and trims.
+        const prevWithGeometry = previousMatches.find((p) => !!p?.geometry) || null;
+        if (!feature?.geometry || !prevWithGeometry?.geometry) {
+            return false;
+        }
+        if (this._same_geometry(feature, prevWithGeometry)) {
+            return false;
+        }
+
+        const prevArea = this._safe_area(prevWithGeometry);
+        const currArea = this._safe_area(feature);
+        if (prevArea != null && currArea != null) {
+            // Trimmed polygon: suppress.
+            if (currArea < prevArea * 0.995) return false;
+        }
+
+        // Expanded or newly redrawn continuity polygon: treat as new.
+        return true;
+    }
+
     _check_for_new_file() {
         const { DateTime } = require('luxon');
         const formatted_now = DateTime.now().toFormat('h:mm.ss a ZZZZ');
@@ -90,9 +141,14 @@ class AlertUpdater {
                 this.latest_date = fetched_date_ms;
                 this._previous_alert_features = alerts_data.features || [];
 
-                const new_alert_features = (alerts_data.features || []).filter((f) => {
+                const raw_new_alert_features = (alerts_data.features || []).filter((f) => {
                     const id = this._get_alert_id(f);
                     return id && new_ids.has(id);
+                });
+                const new_alert_features = raw_new_alert_features.filter((f) => {
+                    if (!this._is_tornado_warning(f)) return true;
+                    if (this._is_brand_new_tornado_warning(f, previous_features)) return true;
+                    return this._should_treat_tornado_continuity_as_new(f, previous_features);
                 });
                 const new_alert_ids = new Set(new_alert_features.map((f) => this._get_alert_id(f)));
 
@@ -129,7 +185,10 @@ class AlertUpdater {
         for (const f of enabled) {
             var event = f.properties?.event || 'Weather Alert';
             if (this._is_tornado_warning(f)) {
-                const tornadoStatus = this._is_brand_new_tornado_warning(f, previousFeatures) ? 'issued' : 'updated';
+                const tornadoStatus = (
+                    this._is_brand_new_tornado_warning(f, previousFeatures) ||
+                    this._should_treat_tornado_continuity_as_new(f, previousFeatures)
+                ) ? 'issued' : 'updated';
                 window.dispatchEvent(new CustomEvent('alertNotification', {
                     detail: { event: event, type: 'new', count: 1, tornadoStatus: tornadoStatus }
                 }));
@@ -167,6 +226,9 @@ class AlertUpdater {
             var prevDesc = (prev.description || '').toLowerCase();
             var currDesc = (f.properties?.description || '').toLowerCase();
             var eventName = f.properties?.event || 'Weather Alert';
+            if (String(eventName || '').trim().toLowerCase() === 'tornado warning') {
+                continue;
+            }
             if (prevDesc.indexOf('radar indicated') !== -1 && currDesc.indexOf('observed') !== -1) {
                 window.dispatchEvent(new CustomEvent('alertNotification', {
                     detail: { event: eventName, type: 'updated', extra: 'Now OBSERVED (was radar indicated)' }

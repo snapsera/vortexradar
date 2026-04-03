@@ -11,8 +11,19 @@ function move_layer_to_top(layer_name, before_layer = undefined) {
     }
 }
 
+function get_active_radar_layer() {
+    if (map.getLayer('baseReflectivity')) return 'baseReflectivity';
+    if (map.getLayer('nationalRadarLayer')) return 'nationalRadarLayer';
+    return undefined;
+}
+
 function setLayerOrder() {
     const before_layer = map_funcs.get_base_layer();
+    const active_radar_layer = get_active_radar_layer();
+
+    // Keep filled polygons below radar while borders/outlines remain above.
+    move_layer_to_top('watches_layer_fill', active_radar_layer);
+    move_layer_to_top('alertsLayerFill', active_radar_layer);
 
     // the circle range of the selected radar tower
     move_layer_to_top('station_range_layer', before_layer);
@@ -44,12 +55,10 @@ function setLayerOrder() {
     // watches layers
     move_layer_to_top('watches_layer_border', before_layer);
     move_layer_to_top('watches_layer', before_layer);
-    move_layer_to_top('watches_layer_fill', before_layer);
 
     // alerts layers
     move_layer_to_top('alertsLayerOutline', before_layer);
     move_layer_to_top('alertsLayer', before_layer);
-    move_layer_to_top('alertsLayerFill', before_layer);
 
     // metar layer
     move_layer_to_top('metarSymbolLayer');

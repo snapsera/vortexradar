@@ -149,6 +149,12 @@ function _get_storm_pill_class(pill) {
     if (lowered.includes('observed') || lowered.includes('considerable') || lowered.includes('pds')) {
         return ' alertsDetailStormPill-critical';
     }
+    if (lowered.includes('radar indicated')) {
+        return ' alertsDetailStormPill-radar';
+    }
+    if (lowered.includes('possible')) {
+        return ' alertsDetailStormPill-possible';
+    }
     return '';
 }
 

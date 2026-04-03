@@ -36,6 +36,15 @@ const DEFAULTS = {
     testAlerts: false,
     radarLoopSpeed: 5,
     radarLoopFrameCount: 14,
+    keybinds: {
+        playbackToggle: 'Space',
+        playbackBack: 'ArrowLeft',
+        playbackForward: 'ArrowRight',
+        productReflectivity: 'Shift+R',
+        productBaseVelocity: 'Shift+V',
+        productStormRelativeVelocity: 'Shift+S',
+        productCorrelationCoefficient: 'Shift+C'
+    },
     colortableREF: 'REF1',
     colortableVEL: 'VEL1',
     colortableRHO: 'RHO1',
@@ -70,6 +79,11 @@ function load() {
     for (const key of Object.keys(DEFAULTS)) {
         merged[key] = saved.hasOwnProperty(key) ? saved[key] : DEFAULTS[key];
     }
+    if (!merged.keybinds || typeof merged.keybinds !== 'object') {
+        merged.keybinds = Object.assign({}, DEFAULTS.keybinds);
+    } else {
+        merged.keybinds = Object.assign({}, DEFAULTS.keybinds, merged.keybinds);
+    }
     // Full US radar is intentionally disabled in the UI; keep this off in persisted state.
     merged.usRadar = false;
     return merged;
@@ -83,6 +97,7 @@ function save(settings) {
 
 function get_settings_from_dom() {
     const s = {};
+    const existing = load();
     s.currentStation = (typeof window !== 'undefined' && window.stormTrackData?.currentStation) || null;
     s.radar = $('#armrRadarVisBtnSwitchElem').length && $('#armrRadarVisBtnSwitchElem').is(':checked');
     s.usRadar = false;
@@ -116,6 +131,7 @@ function get_settings_from_dom() {
     s.testAlerts = $('#devTestAlertsSwitchElem').length ? $('#devTestAlertsSwitchElem').is(':checked') : DEFAULTS.testAlerts;
     s.radarLoopSpeed = $('#radarLoopSpeedSelect').length ? parseInt($('#radarLoopSpeedSelect').val(), 10) || DEFAULTS.radarLoopSpeed : DEFAULTS.radarLoopSpeed;
     s.radarLoopFrameCount = $('#radarLoopFrameCountSelect').length ? parseInt($('#radarLoopFrameCountSelect').val(), 10) || DEFAULTS.radarLoopFrameCount : DEFAULTS.radarLoopFrameCount;
+    s.keybinds = Object.assign({}, DEFAULTS.keybinds, existing.keybinds || {});
     var ctableGroups = ['REF', 'VEL', 'RHO', 'ZDR', 'KDP', 'DVL'];
     for (var i = 0; i < ctableGroups.length; i++) {
         var g = ctableGroups[i];

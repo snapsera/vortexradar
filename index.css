@@ -2464,6 +2464,12 @@ a:hover { color: var(--color-accent-hover); }
 .alertsDetailStormPill-critical {
   color: #ff4e4e;
 }
+.alertsDetailStormPill-radar {
+  color: #ff9800;
+}
+.alertsDetailStormPill-possible {
+  color: #ffd54f;
+}
 .alertsDetailStorm {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.8);

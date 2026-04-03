@@ -9,6 +9,16 @@ const MapPopup = require('../core/popup/MapPopup');
 const alert_helpers = require('./alert_helpers');
 const turf = require('@turf/turf');
 const station_markers = require('../radar/station_markers/station_markers');
+const FIPS_POP = require('./fips_population.json');
+
+const _STATE_TO_FIPS = {
+    AL: '01', AK: '02', AZ: '04', AR: '05', CA: '06', CO: '08', CT: '09', DE: '10', DC: '11',
+    FL: '12', GA: '13', HI: '15', ID: '16', IL: '17', IN: '18', IA: '19', KS: '20', KY: '21',
+    LA: '22', ME: '23', MD: '24', MA: '25', MI: '26', MN: '27', MS: '28', MO: '29', MT: '30',
+    NE: '31', NV: '32', NH: '33', NJ: '34', NM: '35', NY: '36', NC: '37', ND: '38', OH: '39',
+    OK: '40', OR: '41', PA: '42', RI: '44', SC: '45', SD: '46', TN: '47', TX: '48', UT: '49',
+    VT: '50', VA: '51', WA: '53', WV: '54', WI: '55', WY: '56', PR: '72'
+};
 
 // https://stackoverflow.com/a/4878800/18758797
 function to_title_case(str) {
@@ -32,9 +42,12 @@ function _build_card_params(properties, parameters) {
     function get_metric_value_style(parameter_name, value) {
         if (parameter_name !== 'tornadoDetection') return '';
         var lowered = String(value || '').toLowerCase();
-        if (lowered.indexOf('radar indicated') !== -1) return '';
+        if (lowered.indexOf('radar indicated') !== -1) return ' style="color:#ff9800;"';
         if (lowered.indexOf('observed') !== -1 || lowered.indexOf('considerable') !== -1 || lowered.indexOf('pds') !== -1) {
             return ' style="color:#ff4e4e;"';
+        }
+        if (lowered.indexOf('possible') !== -1) {
+            return ' style="color:#ffd54f;"';
         }
         return '';
     }
@@ -65,6 +78,49 @@ function _build_card_params(properties, parameters) {
     add_parameter('maxHailSize', 'Hail:');
     add_parameter('maxWindGust', 'Wind:');
     return parameters_html;
+}
+
+function _get_showcase_style_population(properties) {
+    const geocode = properties && properties.geocode
+        ? (typeof properties.geocode === 'string' ? JSON.parse(properties.geocode || '{}') : properties.geocode)
+        : {};
+    var sameCodes = Array.isArray(geocode.SAME) ? geocode.SAME : [];
+    var seen = {};
+    var total = 0;
+    var i = 0;
+    var fips = '';
+    for (i = 0; i < sameCodes.length; i++) {
+        fips = String(sameCodes[i] || '').substring(1);
+        if (!fips || seen[fips]) continue;
+        seen[fips] = true;
+        if (FIPS_POP[fips]) total += FIPS_POP[fips];
+    }
+    if (total > 0) return total;
+
+    var ugcCodes = Array.isArray(geocode.UGC) ? geocode.UGC : [];
+    for (i = 0; i < ugcCodes.length; i++) {
+        var match = /^([A-Z]{2})C(\d{3})$/i.exec(String(ugcCodes[i] || ''));
+        if (!match) continue;
+        var stateAbbr = match[1].toUpperCase();
+        var countyCode = match[2];
+        var stateFips = _STATE_TO_FIPS[stateAbbr];
+        if (!stateFips) continue;
+        var countyFips = stateFips + countyCode;
+        if (seen[countyFips]) continue;
+        seen[countyFips] = true;
+        if (FIPS_POP[countyFips]) total += FIPS_POP[countyFips];
+    }
+    return total;
+}
+
+function _format_people_count(n) {
+    return new Intl.NumberFormat('en-US').format(Math.max(0, Math.floor(Number(n) || 0)));
+}
+
+function _is_watch_event(eventName) {
+    if (!eventName) return false;
+    const event = String(eventName);
+    return event.endsWith('Watch') || event.includes(' Watch');
 }
 
 function _format_expires(properties) {
@@ -134,6 +190,9 @@ function click_listener(e) {
         const initColor = get_polygon_colors(properties.event).color;
         const parameters_html = _build_card_params(properties, parameters);
         const expiresStr = _format_expires(properties);
+        const impactedPop = _get_showcase_style_population(properties);
+        const peopleWord = impactedPop === 1 ? 'person' : 'people';
+        const showImpacting = !_is_watch_event(properties.event) && impactedPop > 0;
         const body = alert_helpers.build_full_alert_body(properties);
 
         alertContentObj[id] = {
@@ -157,6 +216,11 @@ function click_listener(e) {
   <div class="alertPopupCardBody">
     <div class="alertPopupMetrics">
       ${parameters_html}
+      ${showImpacting ? `
+      <div class="alertPopupMetricRow">
+        <span class="alertPopupMetricLabel">Impacting:</span>
+        <span class="alertPopupMetricValue">${_format_people_count(impactedPop)} ${peopleWord}</span>
+      </div>` : ''}
     </div>
     ${expiresStr ? `<div class="alertPopupExpires"><span class="fa fa-clock-o"></span><span>${expiresStr}</span></div>` : ''}
     <div class="alertPopupCardActions">

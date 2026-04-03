@@ -3,15 +3,6 @@ const radar_scan_animation = require('../station_markers/radar_scan_animation');
 const settings_store = require('../../core/menu/settings_store');
 const { get_station_timezone } = require('../libnexrad/nexrad_locations');
 
-function _should_ignore_shortcut(event) {
-    const target = event.target;
-    if (!target) return false;
-    const tag = (target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button') return true;
-    if (target.isContentEditable) return true;
-    return false;
-}
-
 function _render_status(state) {
     const status_elem = $('#radarLoopStatus');
     const frames = state.frames || [];
@@ -145,21 +136,6 @@ function init() {
     $('#radarLoopFrameCountSelect').on('change', function() {
         controller.set_frame_count($(this).val());
         settings_store.saveFromDom();
-    });
-
-    $(document).on('keydown', function(event) {
-        if (_should_ignore_shortcut(event)) return;
-        if (!window?.stormTrackData?.loopPlayback?.active || !window?.stormTrackData?.loopPlayback?.supported) return;
-        if (event.code === 'Space') {
-            event.preventDefault();
-            controller.toggle_play_stop();
-        } else if (event.code === 'ArrowLeft') {
-            event.preventDefault();
-            controller.step_back();
-        } else if (event.code === 'ArrowRight') {
-            event.preventDefault();
-            controller.step_forward();
-        }
     });
 
     window.addEventListener('radarScanUpdated', () => {

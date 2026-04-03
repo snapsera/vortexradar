@@ -119,6 +119,7 @@ function load() {
         require('../attribution/attribution');
         require('../../radar/colormaps/menu');
         require('../../radar/updater/radar_loop_ui').init();
+        require('../menu/keybinds').init();
         require('../notifications/notification_bubble').init();
         require('../header_clock').init();
         require('../cursor_coords');

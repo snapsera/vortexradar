@@ -3276,7 +3276,8 @@ a:hover { color: var(--color-accent-hover); }
   color: var(--color-text-muted);
   transition: background var(--transition-fast), color var(--transition-fast);
 }
-#appDialogContainer.appDialog-stormReport #appDialogClose {
+#appDialogContainer.appDialog-stormReport #appDialogClose,
+#appDialogContainer.appDialog-alertShowcase #appDialogClose {
   width: 30px;
   height: 30px;
   font-size: 16px;
@@ -3290,7 +3291,8 @@ a:hover { color: var(--color-accent-hover); }
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
 }
-#appDialogContainer.appDialog-stormReport #appDialogClose:hover {
+#appDialogContainer.appDialog-stormReport #appDialogClose:hover,
+#appDialogContainer.appDialog-alertShowcase #appDialogClose:hover {
   background: rgba(255, 255, 255, 0.85);
   color: #000 !important;
 }

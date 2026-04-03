@@ -264,7 +264,10 @@ function selectStation(stationId, stationType, options) {
     options = options || {};
     if (_is_us_radar_enabled()) return;
     if (!stationId || !nexrad_locations[stationId]) return;
-    if (window.stormTrackData.currentStation === stationId) return;
+    if (window.stormTrackData.currentStation === stationId) {
+        _set_selected_station(stationId);
+        return;
+    }
 
     if (window?.stormTrackData?.current_RadarUpdater != undefined) {
         window.stormTrackData.current_RadarUpdater.disable();

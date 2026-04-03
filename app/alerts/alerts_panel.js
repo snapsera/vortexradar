@@ -11,9 +11,7 @@ const chroma = require('chroma-js');
 const map = require('../core/map/map');
 const turf = require('@turf/turf');
 const alert_helpers = require('./alert_helpers');
-const loaders_nexrad = require('../radar/libnexrad/loaders_nexrad');
-const radar_scan_animation = require('../radar/station_markers/radar_scan_animation');
-const settings_store = require('../core/menu/settings_store');
+const station_markers = require('../radar/station_markers/station_markers');
 
 const PANEL_FILTER_ORDER = ['all', 'severe', 'tropical', 'winter', 'flood', 'fire', 'marine', 'watches', 'other'];
 const CATEGORY_TO_FILTER = {
@@ -286,24 +284,9 @@ async function _select_radar_and_fly(feature) {
         _fly_to_geometry(geom);
         return true;
     }
-    window.stormTrackData.currentStation = station;
-    $('#radarStation').html(station);
     const nexrad_locations = require('../radar/libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
-    const { get_station_state } = require('../radar/libnexrad/nexrad_locations');
-    var alertLocName = nexrad_locations[station]?.name || '';
-    var alertLocState = get_station_state(station);
-    $('#radarLocation').html(alertLocState && alertLocName ? alertLocName + ', ' + alertLocState : alertLocName);
-    $('#wsr88d_psm').show();
-    $('#tdwr_psm').hide();
-    $('#level2_psm').hide();
-    $('#productsDropdownTriggerText').html(window.longProductNames?.['ref'] || 'Reflectivity');
-    $('#radarInfoSpan').show();
-    window.stormTrackData.from_file_upload = false;
-    loaders_nexrad.quick_level_3_plot(station, 'N0B', () => {});
-    var sweepEnabled = settings_store.load().radarSweep;
-    if (sweepEnabled !== false) {
-        radar_scan_animation.update(station);
-    }
+    const stationType = nexrad_locations[station]?.type || 'WSR-88D';
+    station_markers.selectStation(station, stationType);
     _fly_to_geometry(geom);
     return true;
 }
@@ -431,7 +414,10 @@ function _render_alerts_list(features) {
                     title: p.event,
                     body: alert_helpers.build_full_alert_body(p),
                     color: color,
-                    textColor: textColor
+                    textColor: textColor,
+                    noBackdropBlur: true,
+                    draggable: true,
+                    allowBackgroundInteraction: true
                 });
             });
 
@@ -442,7 +428,10 @@ function _render_alerts_list(features) {
                     title: p.event,
                     body: alert_helpers.build_full_alert_body(p),
                     color: color,
-                    textColor: textColor
+                    textColor: textColor,
+                    noBackdropBlur: true,
+                    draggable: true,
+                    allowBackgroundInteraction: true
                 });
             });
 

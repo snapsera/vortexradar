@@ -7,10 +7,8 @@ const { DateTime } = require('luxon');
 const hash_string = require('./hash_string');
 const MapPopup = require('../core/popup/MapPopup');
 const alert_helpers = require('./alert_helpers');
-const loaders_nexrad = require('../radar/libnexrad/loaders_nexrad');
 const turf = require('@turf/turf');
-const radar_scan_animation = require('../radar/station_markers/radar_scan_animation');
-const settings_store = require('../core/menu/settings_store');
+const station_markers = require('../radar/station_markers/station_markers');
 
 // https://stackoverflow.com/a/4878800/18758797
 function to_title_case(str) {
@@ -91,22 +89,9 @@ function _format_expires(properties) {
 
 function _select_radar_and_fly(station, feature) {
     if (!station) return;
-    window.stormTrackData.currentStation = station;
-    $('#radarStation').html(station);
     const nexrad_locations = require('../radar/libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
-    $('#radarLocation').html(nexrad_locations[station]?.name || '');
-    const productToLoad = 'N0B';
-    $('#wsr88d_psm').show();
-    $('#tdwr_psm').hide();
-    $('#level2_psm').hide();
-    $('#productsDropdownTriggerText').html(window.longProductNames?.['ref'] || 'Reflectivity');
-    $('#radarInfoSpan').show();
-    window.stormTrackData.from_file_upload = false;
-    loaders_nexrad.quick_level_3_plot(station, productToLoad, () => {});
-    var sweepEnabled = settings_store.load().radarSweep;
-    if (sweepEnabled !== false) {
-        radar_scan_animation.update(station);
-    }
+    const stationType = nexrad_locations[station]?.type || 'WSR-88D';
+    station_markers.selectStation(station, stationType);
     if (feature && feature.geometry) {
         try {
             const bbox = turf.bbox(feature.geometry);
@@ -217,7 +202,10 @@ function click_listener(e) {
             title: data.title,
             body: data.body,
             color: data.color,
-            textColor: data.textColor
+            textColor: data.textColor,
+            noBackdropBlur: true,
+            draggable: true,
+            allowBackgroundInteraction: true
         });
         popup.remove();
     });

@@ -1,8 +1,9 @@
-// const fs = require('fs');
 const BufferPack = require('bufferpack');
 const zlib = require('zlib');
 const bzip = require('seek-bzip');
 const IOBuffer = require('../buffer_tools/IOBuffer');
+const work = require('webworkify');
+const l3_decompress_worker = require('./l3_decompress_worker');
 
 function _structure_size(structure) {
     /* Find the size of a structure in bytes. */
@@ -12,6 +13,7 @@ function _structure_size(structure) {
 }
 
 function _copy(arr) {
+    if (typeof structuredClone === 'function') return structuredClone(arr);
     return JSON.parse(JSON.stringify(arr));
 }
 
@@ -548,7 +550,7 @@ class LegacyMapper extends DataMapper {
 }
 
 class NEXRADLevel3File {
-    constructor (fileBuffer) {
+    constructor (fileBuffer, callback) {
         this._setup_packet_map();
 
         var fobj = fileBuffer;
@@ -577,6 +579,7 @@ class NEXRADLevel3File {
             this.depVals = null;
             this.product_name = 'Free Text Message';
             this.text = this._buffer.read_ascii();
+            if (callback) callback(this);
             return;
         }
 
@@ -587,6 +590,7 @@ class NEXRADLevel3File {
         // check for empty product
         if (this._buffer.__len__() == 0) {
             console.warn(`Empty product! ${this.filename}`);
+            if (callback) callback(this);
             return;
         }
 
@@ -615,6 +619,7 @@ class NEXRADLevel3File {
             } else {
                 console.assert(this.gsm.block_len == 82);
             }
+            if (callback) callback(this);
             return;
         }
 
@@ -658,52 +663,61 @@ class NEXRADLevel3File {
 
         // Process compression if indicated. We need to fail
         // gracefully here since we default to it being on
-        if (this.metadata.compression || false) {
-            try {
-                function bz2_decompress(buffer) {
-                    // skip 32 bits 'BZh9' header
-                    return bzip.decodeBlock(buffer, 32);
+        var self = this;
+        function _finish_parsing() {
+            if (standalone_tabular.includes(self.header.code)) {
+                if (self.prod_desc.sym_off) {
+                    self._unpack_tabblock(msg_start, 2 * self.prod_desc.sym_off, false);
                 }
-                var comp_start = this._buffer.set_mark();
-                var decomp_data = this._buffer.read_func(bz2_decompress);
-                this._buffer.splice(comp_start, decomp_data);
-                console.assert(this._buffer.check_remains(this.metadata['uncompressed_size']))
-            } catch (e) {
-                // Compression didn't work, so we just assume it wasn't actually compressed.
-                console.warn(e);
+                if (self.prod_desc.graph_off) {
+                    self._unpack_standalone_graphblock(msg_start, 2 * (self.prod_desc.graph_off - 1));
+                }
+            } else if (self.header.code == 74) {
+                self._unpack_rcm(msg_start, 2 * self.prod_desc.sym_off);
+            } else {
+                if (self.prod_desc.sym_off) {
+                    self._unpack_symblock(msg_start, 2 * self.prod_desc.sym_off);
+                }
+                if (self.prod_desc.graph_off) {
+                    self._unpack_graphblock(msg_start, 2 * self.prod_desc.graph_off);
+                }
+                if (self.prod_desc.tab_off) {
+                    self._unpack_tabblock(msg_start, 2 * self.prod_desc.tab_off);
+                }
             }
+            if (callback) callback(self);
         }
 
-        // Unpack the various blocks, if present. The factor of 2 converts from
-        // 'half-words' to bytes
-        // Check to see if this is one of the "special" products that uses
-        // header-free blocks and re-assigns the offsets
-        if (standalone_tabular.includes(this.header.code)) {
-            if (this.prod_desc.sym_off) {
-                // For standalone tabular alphanumeric, symbology offset is
-                // actually tabular
-                this._unpack_tabblock(msg_start, 2 * this.prod_desc.sym_off, false);
+        if (this.metadata.compression || false) {
+            var comp_start = this._buffer.set_mark();
+            var remaining = this._buffer.get_next();
+
+            if (callback) {
+                var w = work(l3_decompress_worker);
+                w.addEventListener('message', function (ev) {
+                    if (ev.data.message == 'finish') {
+                        self._buffer.splice(comp_start, ev.data.data);
+                        w.terminate();
+                        _finish_parsing();
+                    } else if (ev.data.message == 'error') {
+                        console.warn('L3 BZ2 worker error:', ev.data.error);
+                        w.terminate();
+                        _finish_parsing();
+                    }
+                });
+                w.postMessage(remaining);
+            } else {
+                try {
+                    var decomp_data = bzip.decodeBlock(remaining, 32);
+                    this._buffer.splice(comp_start, decomp_data);
+                } catch (e) {
+                    console.warn(e);
+                }
+                _finish_parsing();
             }
-            if (this.prod_desc.graph_off) {
-                // Offset seems to be off by 1 from where we're counting, but
-                // it's not clear why.
-                this._unpack_standalone_graphblock(msg_start, 2 * (this.prod_desc.graph_off - 1));
-            }
-        } else if (this.header.code == 74) {
-            // Need special handling for (old) radar coded message format
-            this._unpack_rcm(msg_start, 2 * this.prod_desc.sym_off);
         } else {
-            if (this.prod_desc.sym_off) {
-                this._unpack_symblock(msg_start, 2 * this.prod_desc.sym_off);
-            }
-            if (this.prod_desc.graph_off) {
-                this._unpack_graphblock(msg_start, 2 * this.prod_desc.graph_off);
-            }
-            if (this.prod_desc.tab_off) {
-                this._unpack_tabblock(msg_start, 2 * this.prod_desc.tab_off);
-            }
+            _finish_parsing();
         }
-        // console.log(this.product_name);
     }
 
     _unpack_symblock(start, offset) {

@@ -76,98 +76,34 @@ function calculate_coordinates(nexrad_factory, options) {
     var chroma_scale = chroma.scale(color_data.colors).domain(values).mode('lab');
     window.stormTrackData.webgl_chroma_scale = chroma_scale;
 
-    var total = 0;
-    var data_copy = [...data];
-    for (var i in data_copy) {
-        data_copy[i] = data_copy[i].filter(function (el) { return el != null });
-        total += data_copy[i].length;
-    }
-
-    var points = new Float32Array(total * 12);
-    var colors = new Float32Array(total * 6);
-    var points_index = 0;
-    var colors_index = 0;
-
-    function push_point(pointArray) {
-        for (var i = 0; i < pointArray.length; i++) {
-            points[points_index++] = pointArray[i];
-        }
-    }
-
-    function push_color(colorArray) {
-        for (var i = 0; i < colorArray.length; i++) {
-            colors[colors_index++] = colorArray[i];
-        }
-    }
-
-    function get_azimuth_distance(i, n) {
-        return {
-            azimuth: azimuths[i],
-            distance: ranges[n]
-        };
-    }
-
-    for (var i = 0; i < azimuths.length - 1; i++) {
-        for (var n = 0; n < ranges.length - 1; n++) {
-            try {
-                if (data[i][n] !== null) {
-                    var base_locs = get_azimuth_distance(i, n);
-                    // var base = destVincenty(base_locs.azimuth, base_locs.distance);
-
-                    var one_up_locs = get_azimuth_distance(i, n + 1);
-                    // var one_up = destVincenty(one_up_locs.azimuth, one_up_locs.distance);
-
-                    var one_sideways_locs = get_azimuth_distance(i + 1, n);
-                    // var one_sideways = destVincenty(one_sideways_locs.azimuth, one_sideways_locs.distance);
-
-                    var other_corner_locs = get_azimuth_distance(i + 1, n + 1);
-                    // var other_corner = destVincenty(other_corner_locs.azimuth, other_corner_locs.distance);
-
-                    push_point([
-                        base_locs.azimuth,
-                        base_locs.distance,
-                        one_up_locs.azimuth,
-                        one_up_locs.distance,
-                        one_sideways_locs.azimuth,
-                        one_sideways_locs.distance,
-                        one_sideways_locs.azimuth,
-                        one_sideways_locs.distance,
-                        one_up_locs.azimuth,
-                        one_up_locs.distance,
-                        other_corner_locs.azimuth,
-                        other_corner_locs.distance
-                    ]);
-
-                    var color = data[i][n];
-                    push_color([
-                        color,
-                        color,
-                        color,
-                        color,
-                        color,
-                        color
-                    ]);
-                    // push_color([
-                    //     data[i][n],
-                    //     data[i][n + 1],
-                    //     data[i + 1][n],
-                    //     data[i + 1][n],
-                    //     data[i][n + 1],
-                    //     data[i + 1][n + 1],
-                    // ]);
-                }
-            } catch (e) {
-                // console.warn(e)
-            }
+    var numAz = azimuths.length;
+    var numRanges = ranges.length;
+    var azF32 = new Float32Array(numAz);
+    for (var i = 0; i < numAz; i++) azF32[i] = azimuths[i];
+    var rangesF32 = new Float32Array(numRanges);
+    for (var i = 0; i < numRanges; i++) rangesF32[i] = ranges[i];
+    var flatData = new Float32Array(numAz * numRanges);
+    for (var i = 0; i < numAz; i++) {
+        var row = data[i];
+        var base = i * numRanges;
+        for (var n = 0; n < numRanges; n++) {
+            flatData[base + n] = (row && row[n] !== null && row[n] !== undefined) ? row[n] : NaN;
         }
     }
 
     var w = _get_worker();
-    _worker_callback_queue.push(function(vertices) {
+    _worker_callback_queue.push(function(result) {
         console.log(`Calculated vertices in ${Date.now() - start} ms`);
-        plot_to_map(vertices, colors, product, nexrad_factory);
+        plot_to_map(result.vertices, result.colors, product, nexrad_factory);
     });
-    w.postMessage([points, radar_lat_lng], [points.buffer]);
+    w.postMessage({
+        mode: 'build_and_project',
+        azimuths: azF32,
+        ranges: rangesF32,
+        data: flatData,
+        dataWidth: numRanges,
+        lngLat: radar_lat_lng
+    }, [azF32.buffer, rangesF32.buffer, flatData.buffer]);
 }
 
 function precompute_render_data(nexrad_factory, callback) {
@@ -178,44 +114,33 @@ function precompute_render_data(nexrad_factory, callback) {
     var location = nexrad_factory.get_location();
     var radar_lat_lng = { 'lat': location[0], 'lng': location[1] };
 
-    var total = 0;
-    var data_copy = [...data];
-    for (var i in data_copy) {
-        data_copy[i] = data_copy[i].filter(function (el) { return el != null });
-        total += data_copy[i].length;
-    }
-
-    var points = new Float32Array(total * 12);
-    var colors = new Float32Array(total * 6);
-    var pi = 0;
-    var ci = 0;
-
-    for (var i = 0; i < azimuths.length - 1; i++) {
-        for (var n = 0; n < ranges.length - 1; n++) {
-            try {
-                if (data[i][n] !== null) {
-                    var az0 = azimuths[i], az1 = azimuths[i + 1];
-                    var r0 = ranges[n], r1 = ranges[n + 1];
-                    points[pi++] = az0; points[pi++] = r0;
-                    points[pi++] = az0; points[pi++] = r1;
-                    points[pi++] = az1; points[pi++] = r0;
-                    points[pi++] = az1; points[pi++] = r0;
-                    points[pi++] = az0; points[pi++] = r1;
-                    points[pi++] = az1; points[pi++] = r1;
-
-                    var c = data[i][n];
-                    colors[ci++] = c; colors[ci++] = c; colors[ci++] = c;
-                    colors[ci++] = c; colors[ci++] = c; colors[ci++] = c;
-                }
-            } catch (e) {}
+    var numAz = azimuths.length;
+    var numRanges = ranges.length;
+    var azF32 = new Float32Array(numAz);
+    for (var i = 0; i < numAz; i++) azF32[i] = azimuths[i];
+    var rangesF32 = new Float32Array(numRanges);
+    for (var i = 0; i < numRanges; i++) rangesF32[i] = ranges[i];
+    var flatData = new Float32Array(numAz * numRanges);
+    for (var i = 0; i < numAz; i++) {
+        var row = data[i];
+        var base = i * numRanges;
+        for (var n = 0; n < numRanges; n++) {
+            flatData[base + n] = (row && row[n] !== null && row[n] !== undefined) ? row[n] : NaN;
         }
     }
 
     var w = _get_worker();
-    _worker_callback_queue.push(function(vertices) {
-        callback({ vertices: vertices, colors: colors, product: product });
+    _worker_callback_queue.push(function(result) {
+        callback({ vertices: result.vertices, colors: result.colors, product: product });
     });
-    w.postMessage([points, radar_lat_lng], [points.buffer]);
+    w.postMessage({
+        mode: 'build_and_project',
+        azimuths: azF32,
+        ranges: rangesF32,
+        data: flatData,
+        dataWidth: numRanges,
+        lngLat: radar_lat_lng
+    }, [azF32.buffer, rangesF32.buffer, flatData.buffer]);
 }
 
 module.exports = calculate_coordinates;

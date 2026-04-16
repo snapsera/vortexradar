@@ -248,14 +248,32 @@ function scheduleReconnect() {
 
 // ── Animation loop ──
 
+var MIN_ANIMATION_INTERVAL_MS = 50;
+var _lastAnimTime = 0;
+var pruneTimer = null;
+
+function _rafLoop() {
+    if (!active) { animationTimer = null; return; }
+    var now = performance.now();
+    if (now - _lastAnimTime >= MIN_ANIMATION_INTERVAL_MS) {
+        _lastAnimTime = now;
+        updateAnimation();
+    }
+    animationTimer = requestAnimationFrame(_rafLoop);
+}
+
 function startAnimationLoop() {
     if (animationTimer) return;
-    animationTimer = setInterval(updateAnimation, ANIMATION_INTERVAL_MS);
-    setInterval(pruneRecentKeys, 10000);
+    _lastAnimTime = 0;
+    animationTimer = requestAnimationFrame(_rafLoop);
+    if (!pruneTimer) {
+        pruneTimer = setInterval(pruneRecentKeys, 10000);
+    }
 }
 
 function stopAnimationLoop() {
-    if (animationTimer) { clearInterval(animationTimer); animationTimer = null; }
+    if (animationTimer) { cancelAnimationFrame(animationTimer); animationTimer = null; }
+    if (pruneTimer) { clearInterval(pruneTimer); pruneTimer = null; }
 }
 
 // ── Public API ──

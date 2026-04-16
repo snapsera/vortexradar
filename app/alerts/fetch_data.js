@@ -98,9 +98,16 @@ function _fetch_data() {
         window.loaded_zones = true;
 
         _fetch_alerts_data((alerts_data) => {
-            plot_alerts(alerts_data);
+            window._zones_loaded = false;
+
+            setTimeout(function() {
+                if (!window._zones_loaded) {
+                    plot_alerts(alerts_data);
+                }
+            }, 3000);
 
             _fetch_zone_dictionaries(() => {
+                window._zones_loaded = true;
                 const merged_geoJSON = combine_dictionary_data(alerts_data);
                 plot_alerts(merged_geoJSON);
                 window.dispatchEvent(new CustomEvent('alertsFullyReady'));

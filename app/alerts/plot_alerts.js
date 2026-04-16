@@ -25,6 +25,7 @@ let _blinkingAlerts = new Map();
 let _blinkExpiryTimer = null;
 
 function _deep_clone(data) {
+    if (typeof structuredClone === 'function') return structuredClone(data);
     return JSON.parse(JSON.stringify(data));
 }
 

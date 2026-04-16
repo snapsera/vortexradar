@@ -394,9 +394,10 @@ function return_level_3_factory_from_url(url, callback, signal = null) {
         if (!buffer) return;
         if (signal?.aborted) return;
         try {
-            const file = new NEXRADLevel3File(buffer);
-            const L3Factory = new Level3Factory(file);
-            callback(L3Factory);
+            new NEXRADLevel3File(buffer, function(file) {
+                const L3Factory = new Level3Factory(file);
+                callback(L3Factory);
+            });
         } catch (e) {
             console.warn('[L3 parse]', e.message || e);
         }
@@ -409,9 +410,10 @@ function return_level_3_factory_from_url(url, callback, signal = null) {
  * @param {Function} callback - A callback function. Passes a single variable, which is an instance of a L3Factory class.
  */
 function return_level_3_factory_from_buffer(arraybuffer, callback) {
-    const file = new NEXRADLevel3File(arraybuffer);
-    const L3Factory = new Level3Factory(file);
-    callback(L3Factory);
+    new NEXRADLevel3File(arraybuffer, function(file) {
+        const L3Factory = new Level3Factory(file);
+        callback(L3Factory);
+    });
 }
 
 /**

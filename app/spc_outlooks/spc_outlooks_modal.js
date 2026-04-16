@@ -725,7 +725,13 @@ function _refresh_data() {
             const hatchSource = _map.getSource(HATCH_SOURCE_ID);
             if (regularSource) regularSource.setData({ type: 'FeatureCollection', features: regular });
             if (hatchSource) hatchSource.setData({ type: 'FeatureCollection', features: hatched });
+            _sync_draw_canvas_size();
             _render_spc_overlay_canvas();
+            _map.triggerRepaint();
+            setTimeout(function() {
+                _sync_draw_canvas_size();
+                _render_spc_overlay_canvas();
+            }, 100);
             _set_validity_panel(featureCollection);
 
             const featureCount = (featureCollection.features || []).length;
@@ -1598,13 +1604,17 @@ function _init_map() {
     _map.dragRotate.disable();
     _map.keyboard.disableRotation();
     _map.on('load', function() {
+        _map.resize();
         _sync_basemap_theme_from_main();
         _ensure_map_layers();
         _sync_draw_canvas_size();
+        setTimeout(_sync_basemap_theme_from_main, 180);
+    });
+    _map.once('idle', function() {
+        _map.resize();
+        _sync_draw_canvas_size();
         _render_spc_overlay_canvas();
         _refresh_data();
-        setTimeout(_sync_basemap_theme_from_main, 180);
-        setTimeout(_refresh_visible_spc, 250);
     });
     _map.on('resize', function() {
         _sync_draw_canvas_size();
@@ -1634,7 +1644,9 @@ function _open() {
     _schedule_open_hydration();
 
     if (!_map) {
-        _init_map();
+        requestAnimationFrame(function() {
+            _init_map();
+        });
         return;
     }
 

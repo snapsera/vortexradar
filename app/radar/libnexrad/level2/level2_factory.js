@@ -137,11 +137,7 @@ class Level2Factory {
         for (var i in curSweep) {
             var curRecord = curSweep[i];
             if (curRecord.hasOwnProperty(moment)) {
-                var data = curRecord[moment][key];
-                if (key == 'data') {
-                    data = Array.from(data);
-                }
-                output.push(data);
+                output.push(curRecord[moment][key]);
             }
         }
         return output;
@@ -505,21 +501,16 @@ class Level2Factory {
 
                 if (event.data.action == 'loadDataDealias') {
                     const f32 = event.data.data.float;
-                    const array = Array.from(f32);
-
                     const location = thisobj.get_location();
 
-                    const values = [];
-                    var points = [];
-                    for (var i = 0; i < array.length; i += 3) {
-                        const x = array[i];
-                        const y = array[i + 1];
-
-                        points.push(x);
-                        points.push(y);
-                        values.push(array[i + 2] / 1.944);
+                    const tripleCount = f32.length / 3;
+                    var points = new Float32Array(tripleCount * 2);
+                    const values = new Float32Array(tripleCount);
+                    for (var i = 0, pi = 0, vi = 0; i < f32.length; i += 3) {
+                        points[pi++] = f32[i];
+                        points[pi++] = f32[i + 1];
+                        values[vi++] = f32[i + 2] / 1.944;
                     }
-                    points = new Float32Array(points);
 
                     var w = work(require('./wasm/correction_worker'));
                     w.addEventListener('message', function (ev) {

@@ -17,7 +17,14 @@ function get_active_radar_layer() {
     return undefined;
 }
 
+var _rafPending = false;
 function setLayerOrder() {
+    if (_rafPending) return;
+    _rafPending = true;
+    requestAnimationFrame(_executeLayerOrder);
+}
+function _executeLayerOrder() {
+    _rafPending = false;
     const before_layer = map_funcs.get_base_layer();
     const active_radar_layer = get_active_radar_layer();
 

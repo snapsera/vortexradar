@@ -59,6 +59,11 @@ var COMMANDS = {
         usage: 'lm [segment]',
         run: _cmd_lm_segment
     },
+    'duck-test': {
+        description: 'Test music ducking (fades background music for a few seconds)',
+        usage: 'duck-test [seconds]',
+        run: _cmd_duck_test
+    },
     help: {
         description: 'List available commands',
         usage: 'help',
@@ -341,6 +346,24 @@ function _cmd_tor_sound(args) {
         return;
     }
     _log('Triggered tornado <strong>' + _escapeHtml(mode) + '</strong> sound sequence at <strong>' + volume + '%</strong>.', 'success');
+}
+
+function _cmd_duck_test(args) {
+    var live_mode = require('../live_mode/live_mode');
+    if (!live_mode.isActive()) {
+        _log('Live Mode is not running — start it first so background music is playing.', 'error');
+        return;
+    }
+    var seconds = parseInt(args[0], 10);
+    if (!Number.isFinite(seconds) || seconds < 1) seconds = 4;
+    if (seconds > 30) seconds = 30;
+
+    live_mode.duckMusic(400);
+    _log('Music ducked for <strong>' + seconds + '</strong> second' + (seconds > 1 ? 's' : '') + '...', 'info');
+    setTimeout(function () {
+        live_mode.unduckMusic(600);
+        _log('Music restored.', 'success');
+    }, seconds * 1000);
 }
 
 function _get_enabled_alerts() {

@@ -582,6 +582,7 @@ function _get_spc_validity(geojson) {
 var radar_scan_animation = require('../radar/station_markers/radar_scan_animation');
 
 var ALERT_LAYER_IDS = ['alertsLayer', 'alertsLayerFill', 'alertsBlinkLayer', 'alertsDashedLayer'];
+var STORM_REPORT_LAYER_IDS = ['stormReportsLayer', 'stormReportsHaloLayer'];
 
 function _hide_radar_render() {
     try {
@@ -639,6 +640,22 @@ function _show_radar_sweep() {
     } catch (_) {}
 }
 
+function _hide_storm_reports() {
+    try {
+        for (var i = 0; i < STORM_REPORT_LAYER_IDS.length; i++) {
+            if (map.getLayer(STORM_REPORT_LAYER_IDS[i])) map.setLayoutProperty(STORM_REPORT_LAYER_IDS[i], 'visibility', 'none');
+        }
+    } catch (_) {}
+}
+
+function _show_storm_reports() {
+    try {
+        for (var i = 0; i < STORM_REPORT_LAYER_IDS.length; i++) {
+            if (map.getLayer(STORM_REPORT_LAYER_IDS[i])) map.setLayoutProperty(STORM_REPORT_LAYER_IDS[i], 'visibility', 'visible');
+        }
+    } catch (_) {}
+}
+
 function _hide_all_map_overlays() {
     _hide_radar_render();
     _hide_station_markers();
@@ -673,7 +690,7 @@ function _run_spc_segment(resolve) {
     Promise.all([_fetch_spc_geojson(hazard), catPromise]).then(function (results) {
         var geojson = results[0];
         var catGeojson = results[1];
-        if (!_active) { _show_radar_render(); _show_station_markers(); _show_radar_sweep(); _show_header_radar_info(); return resolve(); }
+        if (!_active) { _show_radar_render(); _show_station_markers(); _show_radar_sweep(); _show_header_radar_info(); _hide_spc_legend(); return resolve(); }
 
         var features = (geojson && geojson.features) ? geojson.features.filter(function (f) { return f.geometry; }) : [];
         if (features.length) {
@@ -694,6 +711,7 @@ function _run_spc_segment(resolve) {
         }
 
         _add_spc_layers(geojson);
+        _show_spc_legend(geojson);
         var validity = _get_spc_validity(geojson);
         _show_info_panel(_build_spc_panel_html(_spc_label(hazard), validity));
         var riskHtml = _build_risk_label(geojson) || _build_risk_label(catGeojson);
@@ -701,18 +719,83 @@ function _run_spc_segment(resolve) {
         if (Math.random() > 0.35) {
             _typewrite(_generate_spc_commentary(hazard, geojson), 1200);
         }
-        _segmentTimer = setTimeout(function () {
-            _wait_for_typewriter_then(function () {
-                _stop_typewriter();
-                _remove_spc_layers();
-                _show_radar_render();
-                _show_station_markers();
-                _show_radar_sweep();
-                _show_header_radar_info();
-                _hide_info_panel();
-                resolve();
-            });
-        }, SPC_SEGMENT_DURATION_MS);
+
+        function _spc_cleanup() {
+            _stop_typewriter();
+            _remove_spc_layers();
+            _hide_spc_legend();
+            _show_radar_render();
+            _show_station_markers();
+            _show_radar_sweep();
+            _show_header_radar_info();
+            _hide_info_panel();
+            resolve();
+        }
+
+        var riskOrder = ['TSTM', 'MRGL', 'SLGT', 'ENH', 'MDT', 'HIGH'];
+        var highestLevel = -1;
+        for (var fi = 0; fi < features.length; fi++) {
+            var risk = _classify_risk(features[fi].properties || {});
+            var lvl = risk ? riskOrder.indexOf(risk) : -1;
+            if (lvl > highestLevel) highestLevel = lvl;
+        }
+
+        var panTargets = [];
+        if (highestLevel >= 1) {
+            var highestRisk = riskOrder[highestLevel];
+            for (var fj = 0; fj < features.length; fj++) {
+                var fRisk = _classify_risk(features[fj].properties || {});
+                if (fRisk !== highestRisk) continue;
+                var geom = features[fj].geometry;
+                if (!geom) continue;
+                try {
+                    if (geom.type === 'MultiPolygon') {
+                        for (var mp = 0; mp < geom.coordinates.length; mp++) {
+                            var subPoly = { type: 'Feature', geometry: { type: 'Polygon', coordinates: geom.coordinates[mp] }, properties: {} };
+                            var subBbox = turf.bbox(subPoly);
+                            var subCenter = turf.centroid(subPoly).geometry.coordinates;
+                            if (isFinite(subBbox[0])) panTargets.push({ center: subCenter, bbox: subBbox });
+                        }
+                    } else {
+                        var fBbox = turf.bbox(features[fj]);
+                        var fCenter = turf.centroid(features[fj]).geometry.coordinates;
+                        if (isFinite(fBbox[0])) panTargets.push({ center: fCenter, bbox: fBbox });
+                    }
+                } catch (_) {}
+            }
+        }
+
+        var OVERVIEW_MS = panTargets.length > 0 ? Math.floor(SPC_SEGMENT_DURATION_MS * 0.5) : SPC_SEGMENT_DURATION_MS;
+        var PAN_TOTAL_MS = SPC_SEGMENT_DURATION_MS - OVERVIEW_MS;
+
+        if (panTargets.length === 0) {
+            _segmentTimer = setTimeout(function () {
+                _wait_for_typewriter_then(function () { _spc_cleanup(); });
+            }, SPC_SEGMENT_DURATION_MS);
+        } else {
+            var DWELL_PER = Math.floor(PAN_TOTAL_MS / panTargets.length);
+            var panIdx = 0;
+
+            function _pan_next_spc() {
+                if (!_active || panIdx >= panTargets.length) {
+                    _segmentTimer = setTimeout(function () {
+                        _wait_for_typewriter_then(function () { _spc_cleanup(); });
+                    }, Math.min(DWELL_PER, 4000));
+                    return;
+                }
+                var t = panTargets[panIdx];
+                map.fitBounds([[t.bbox[0], t.bbox[1]], [t.bbox[2], t.bbox[3]]], {
+                    padding: 80, maxZoom: 9, speed: 0.8, essential: true
+                });
+                panIdx++;
+                _segmentTimer = setTimeout(_pan_next_spc, DWELL_PER);
+            }
+
+            _segmentTimer = setTimeout(function () {
+                if (!_active) return _spc_cleanup();
+                _pan_next_spc();
+            }, OVERVIEW_MS);
+        }
     });
 }
 
@@ -1713,6 +1796,32 @@ function _build_live_alert_html(feature) {
         html += '</div>';
     }
 
+    var expiresRaw = p.expires || p.ends;
+    if (expiresRaw) {
+        var expiresMs = new Date(expiresRaw).getTime();
+        if (Number.isFinite(expiresMs)) {
+            var nowMs = Date.now();
+            var diffMs = expiresMs - nowMs;
+            var expiresText = '';
+            if (diffMs <= 0) {
+                expiresText = 'Expired';
+            } else {
+                var totalMin = Math.floor(diffMs / 60000);
+                var hours = Math.floor(totalMin / 60);
+                var mins = totalMin % 60;
+                if (hours > 0) {
+                    expiresText = hours + 'h ' + mins + 'm remaining';
+                } else {
+                    expiresText = mins + 'm remaining';
+                }
+            }
+            html += '<div class="fnAlertRow">';
+            html += '<span class="fnAlertRowLabel">Expires</span>';
+            html += '<span class="fnAlertRowValue">' + expiresText + '</span>';
+            html += '</div>';
+        }
+    }
+
     html += '</div>';
     html += '</div>';
     html += '</div>';
@@ -1819,10 +1928,15 @@ function _run_alert_segment(resolve, forceFeature) {
 
     var feature = forceFeature || null;
     if (!feature) {
-        var unseen = alerts.filter(function (a) {
+        var sorted = alerts.slice().sort(function (a, b) {
+            var tA = new Date(a?.properties?.sent || a?.properties?.effective || 0).getTime();
+            var tB = new Date(b?.properties?.sent || b?.properties?.effective || 0).getTime();
+            return tB - tA;
+        });
+        var unseen = sorted.filter(function (a) {
             return !_was_recent('alert', a.id || a?.properties?.id);
         });
-        feature = unseen.length ? _pick_random(unseen) : _pick_random(alerts);
+        feature = unseen.length ? unseen[0] : sorted[0];
     }
     if (!feature) return resolve();
 
@@ -2093,26 +2207,31 @@ function _is_conus_station(station) {
     return lat >= 24 && lat <= 50 && lng >= -125 && lng <= -66;
 }
 
-function _has_precipitation(factory) {
+function _score_precipitation(factory) {
     try {
         var symBlock = factory.initial_radar_obj.sym_block;
-        if (!symBlock || !symBlock[0] || !symBlock[0][0] || !symBlock[0][0].data) return false;
+        if (!symBlock || !symBlock[0] || !symBlock[0][0] || !symBlock[0][0].data) return 0;
         var data = symBlock[0][0].data;
-        var hitCount = 0;
-        var threshold = 2;
-        for (var r = 0; r < data.length; r += 4) {
+        var mapper = factory.initial_radar_obj.map_data;
+        if (!mapper || typeof mapper.__call__ !== 'function') return 0;
+
+        var score = 0;
+        for (var r = 0; r < data.length; r += 2) {
             var radial = data[r];
             if (!radial) continue;
-            for (var g = 0; g < radial.length; g += 3) {
-                if (radial[g] > threshold) {
-                    hitCount++;
-                    if (hitCount >= 20) return true;
-                }
+            for (var g = 0; g < radial.length; g += 2) {
+                var raw = radial[g];
+                if (raw < 2) continue;
+                var dbz = mapper.__call__(raw);
+                if (dbz === null || dbz === undefined) continue;
+                if (dbz >= 35) score += 3;
+                else if (dbz >= 25) score += 2;
+                else if (dbz >= 15) score += 1;
             }
         }
-        return false;
+        return score;
     } catch (_) {
-        return false;
+        return 0;
     }
 }
 
@@ -2142,7 +2261,7 @@ function _pick_spotlight_station(callback) {
     }
 
     var checked = 0;
-    var precipStations = [];
+    var stationScores = [];
     var best = null;
     var bestDate = 0;
 
@@ -2160,8 +2279,9 @@ function _pick_spotlight_station(callback) {
                 }
                 loaders.return_level_3_factory_from_url(url, function (factory) {
                     checked++;
-                    if (factory && _has_precipitation(factory)) {
-                        precipStations.push(station);
+                    if (factory) {
+                        var score = _score_precipitation(factory);
+                        stationScores.push({ station: station, score: score });
                     }
                     if (checked >= unique.length) _finalize();
                 });
@@ -2170,8 +2290,10 @@ function _pick_spotlight_station(callback) {
     }
 
     function _finalize() {
-        if (precipStations.length) {
-            callback(_pick_random(precipStations));
+        stationScores.sort(function (a, b) { return b.score - a.score; });
+        var MIN_PRECIP_SCORE = 50;
+        if (stationScores.length && stationScores[0].score >= MIN_PRECIP_SCORE) {
+            callback(stationScores[0].station);
         } else {
             callback(best || _pick_random(unique));
         }
@@ -3308,6 +3430,59 @@ function _hide_cond_legend() {
     setTimeout(function () { $el.hide(); }, 400);
 }
 
+function _build_spc_legend_html(geojson) {
+    var features = (geojson && geojson.features) || [];
+    var seen = {};
+    var items = [];
+    for (var i = 0; i < features.length; i++) {
+        var p = features[i].properties || {};
+        var label = String(p.label || '').toUpperCase();
+        var label2 = String(p.label2 || '').toUpperCase();
+        if (label === 'TSTM' || label2.indexOf('GENERAL THUNDER') !== -1) continue;
+        var isHatched = _is_hatched_feature(p);
+        var isCig = _is_cig_feature(p);
+        if (isCig) continue;
+        var fill = p.fill || '#8dc6ff';
+        var stroke = p.stroke || '#59a9ff';
+        var displayLabel = p.label2 || p.label || 'Risk';
+        var key = fill + '|' + stroke + '|' + (isHatched ? 1 : 0);
+        if (seen[key]) continue;
+        seen[key] = true;
+        items.push({ label: displayLabel, fill: fill, stroke: stroke, isHatched: isHatched });
+    }
+    if (!items.length) return '';
+    var html = '';
+    for (var j = 0; j < items.length; j++) {
+        var item = items[j];
+        var style = item.isHatched
+            ? 'background:transparent;border-color:' + item.stroke + ';color:' + item.stroke + ';'
+            : 'background:' + item.fill + ';border-color:' + item.stroke + ';';
+        var hatchClass = item.isHatched ? ' lmSpcLegendSwatch-hatched' : '';
+        html += '<div class="lmSpcLegendRow">';
+        html += '<span class="lmSpcLegendSwatch' + hatchClass + '" style="' + style + '"></span>';
+        html += ' ' + item.label;
+        html += '</div>';
+    }
+    return html;
+}
+
+function _show_spc_legend(geojson) {
+    var $el = $('#lmSpcLegend');
+    if (!$el.length) return;
+    var html = _build_spc_legend_html(geojson);
+    if (!html) return;
+    $('#lmSpcLegendBody').html(html);
+    $el.show();
+    void $el[0].offsetWidth;
+    $el.addClass('lmSpcLegend-visible');
+}
+
+function _hide_spc_legend() {
+    var $el = $('#lmSpcLegend');
+    $el.removeClass('lmSpcLegend-visible');
+    setTimeout(function () { $el.hide(); }, 400);
+}
+
 function _run_earthquake_segment(resolve) {
     _currentSegmentType = 'earthquake';
     _record_segment('earthquake', 'earthquake');
@@ -3318,20 +3493,27 @@ function _run_earthquake_segment(resolve) {
     _remove_static_mrms_layer();
     _remove_conditions_layer();
 
+    function _cleanup() {
+        _stop_typewriter();
+        _remove_earthquake_layer();
+        _show_all_map_overlays();
+        _show_header_radar_info();
+        _hide_eq_legend();
+        _hide_info_panel();
+        resolve();
+    }
+
     _fetch_earthquakes(function (quakes) {
         if (!_active) { _show_all_map_overlays(); _show_header_radar_info(); return resolve(); }
 
-        if (quakes.length > 0) {
-            var lngMin = 180, lngMax = -180, latMin = 90, latMax = -90;
-            for (var q = 0; q < quakes.length; q++) {
-                var c = quakes[q].geometry.coordinates;
-                if (c[0] < lngMin) lngMin = c[0];
-                if (c[0] > lngMax) lngMax = c[0];
-                if (c[1] < latMin) latMin = c[1];
-                if (c[1] > latMax) latMax = c[1];
-            }
-            map.fitBounds([[lngMin, latMin], [lngMax, latMax]], {
-                padding: 80, maxZoom: 7, duration: 1800, essential: true
+        var mostRecent = quakes.length > 0 ? quakes[0] : null;
+        if (mostRecent) {
+            var rc = mostRecent.geometry.coordinates;
+            map.flyTo({
+                center: [rc[0], rc[1]],
+                zoom: 7,
+                speed: 1.2,
+                essential: true
             });
         } else {
             map.flyTo({ center: CONUS_CENTER, zoom: 4.0, speed: 1.2, essential: true });
@@ -3343,60 +3525,41 @@ function _run_earthquake_segment(resolve) {
         if (quakes.length === 0) {
             _typewrite(_generate_earthquake_commentary(quakes), 1200);
             _segmentTimer = setTimeout(function () {
-                _wait_for_typewriter_then(function () {
-                    _stop_typewriter();
-                    _show_all_map_overlays();
-                    _show_header_radar_info();
-                    _hide_eq_legend();
-                    _hide_info_panel();
-                    resolve();
-                });
+                _wait_for_typewriter_then(function () { _cleanup(); });
             }, 12000);
             return;
         }
 
         _trackAlertTimer(function () {
-            if (!_active) { _show_all_map_overlays(); _show_header_radar_info(); _hide_eq_legend(); return resolve(); }
+            if (!_active) return _cleanup();
             _add_earthquake_layer(quakes);
-
-            var strongest = quakes[0];
-            for (var j = 1; j < quakes.length; j++) {
-                if (quakes[j].properties.mag > strongest.properties.mag) strongest = quakes[j];
-            }
-
             _typewrite(_generate_earthquake_commentary(quakes), 1200);
 
-            _segmentTimer = setTimeout(function () {
-                _wait_for_typewriter_then(function () {
-                    if (!_active) {
-                        _stop_typewriter();
-                        _remove_earthquake_layer();
-                        _show_all_map_overlays();
-                        _show_header_radar_info();
-                        _hide_eq_legend();
-                        _hide_info_panel();
-                        return resolve();
-                    }
+            var MAX_PAN_QUAKES = 5;
+            var panList = quakes.slice(0, MAX_PAN_QUAKES);
+            var DWELL_PER_QUAKE = Math.floor(EARTHQUAKE_DURATION_MS / panList.length);
+            var panIndex = 1;
 
-                    var sCoords = strongest.geometry.coordinates;
-                    map.flyTo({
-                        center: [sCoords[0], sCoords[1]],
-                        zoom: 7,
-                        speed: 0.8,
-                        essential: true
-                    });
-
+            function _pan_next() {
+                if (!_active || panIndex >= panList.length) {
                     _segmentTimer = setTimeout(function () {
-                        _stop_typewriter();
-                        _remove_earthquake_layer();
-                        _show_all_map_overlays();
-                        _show_header_radar_info();
-                        _hide_eq_legend();
-                        _hide_info_panel();
-                        resolve();
-                    }, 8000);
+                        _wait_for_typewriter_then(function () { _cleanup(); });
+                    }, Math.min(DWELL_PER_QUAKE, 6000));
+                    return;
+                }
+                var q = panList[panIndex];
+                var qc = q.geometry.coordinates;
+                map.flyTo({
+                    center: [qc[0], qc[1]],
+                    zoom: 7,
+                    speed: 0.8,
+                    essential: true
                 });
-            }, EARTHQUAKE_DURATION_MS / 2);
+                panIndex++;
+                _segmentTimer = setTimeout(_pan_next, DWELL_PER_QUAKE);
+            }
+
+            _segmentTimer = setTimeout(_pan_next, DWELL_PER_QUAKE);
         }, 300);
     });
 }
@@ -3566,6 +3729,7 @@ function _full_segment_cleanup() {
     _show_header_radar_info();
     _hide_eq_legend();
     _hide_cond_legend();
+    _hide_spc_legend();
     _hide_info_panel();
     _hide_segment_label();
 
@@ -3740,6 +3904,8 @@ function enable() {
     var updater = window.stormTrackData?.current_RadarUpdater;
     if (updater) updater.disable();
 
+    _hide_storm_reports();
+
     setTimeout(_run_next, 800);
 }
 
@@ -3755,6 +3921,7 @@ function disable() {
     _hide_overlay();
     _unlock_map();
     _restore_state();
+    _show_storm_reports();
 
     var updater = window.stormTrackData?.current_RadarUpdater;
     if (updater) updater.enable();
@@ -3869,7 +4036,61 @@ function stopMusic() {
 
 function setMusicVolume(pct) {
     _musicVolume = Math.max(0, Math.min(1, pct / 100));
-    if (_musicAudio) _musicAudio.volume = _musicVolume;
+    if (_musicAudio && !_musicDucked) _musicAudio.volume = _musicVolume;
+}
+
+// ── Music Ducking (lower volume during warning sounds) ──────────────────────
+
+var _musicDucked = false;
+var _duckFadeInterval = null;
+var DUCK_VOLUME_RATIO = 0.15;
+var DUCK_FADE_STEP_MS = 30;
+
+function _clearDuckInterval() {
+    if (_duckFadeInterval) { clearInterval(_duckFadeInterval); _duckFadeInterval = null; }
+}
+
+function duckMusic(fadeDurationMs) {
+    if (!_musicAudio || !_musicPlaying) return;
+    _clearDuckInterval();
+    _musicDucked = true;
+    var startVol = _musicAudio.volume;
+    var targetVol = _musicVolume * DUCK_VOLUME_RATIO;
+    var duration = fadeDurationMs || 400;
+    var steps = Math.max(1, Math.round(duration / DUCK_FADE_STEP_MS));
+    var delta = (startVol - targetVol) / steps;
+    var step = 0;
+    _duckFadeInterval = setInterval(function () {
+        step++;
+        if (!_musicAudio || step >= steps) {
+            _clearDuckInterval();
+            if (_musicAudio) _musicAudio.volume = targetVol;
+            return;
+        }
+        _musicAudio.volume = Math.max(targetVol, startVol - delta * step);
+    }, DUCK_FADE_STEP_MS);
+}
+
+function unduckMusic(fadeDurationMs) {
+    if (!_musicDucked) return;
+    _clearDuckInterval();
+    _musicDucked = false;
+    if (!_musicAudio || !_musicPlaying) return;
+    var startVol = _musicAudio.volume;
+    var targetVol = _musicVolume;
+    var duration = fadeDurationMs || 600;
+    var steps = Math.max(1, Math.round(duration / DUCK_FADE_STEP_MS));
+    var delta = (targetVol - startVol) / steps;
+    var step = 0;
+    _duckFadeInterval = setInterval(function () {
+        step++;
+        if (!_musicAudio || step >= steps) {
+            _clearDuckInterval();
+            if (_musicAudio) _musicAudio.volume = targetVol;
+            return;
+        }
+        _musicAudio.volume = Math.min(targetVol, startVol + delta * step);
+    }, DUCK_FADE_STEP_MS);
 }
 
 function forceSegment(type) {
@@ -3897,4 +4118,4 @@ function forceSegment(type) {
     return true;
 }
 
-module.exports = { enable, disable, isActive, startMusic, stopMusic, setMusicVolume, forceSegment };
+module.exports = { enable, disable, isActive, startMusic, stopMusic, setMusicVolume, duckMusic, unduckMusic, forceSegment };

@@ -1,4 +1,5 @@
 var settings_store = require('../core/menu/settings_store');
+var live_mode = require('../live_mode/live_mode');
 
 var TORNADO_WARNING_SOUND_PATH = '/sounds/tornado_warning.mp3';
 var TORNADO_WARNING_ISSUED_VOICE_PATH = '/sounds/tornado_warning_issued_voice.mp3';
@@ -72,9 +73,15 @@ function _enqueue_play_sequence(sequence) {
 function _play_tornado_sequence(volume, followupPath) {
     var baseVolume = _clamp_volume(volume);
     return _enqueue_play_sequence(function() {
+        live_mode.duckMusic(400);
         return _play_clip(TORNADO_WARNING_SOUND_PATH, baseVolume).then(function() {
             if (!followupPath) return;
             return _play_clip(followupPath, _clamp_volume(baseVolume + TORNADO_WARNING_FOLLOWUP_VOLUME_OFFSET_PERCENT));
+        }).then(function() {
+            live_mode.unduckMusic(600);
+        }, function(err) {
+            live_mode.unduckMusic(600);
+            throw err;
         });
     });
 }

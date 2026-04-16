@@ -1,0 +1,445 @@
+/* ── 24/7 Live Mode ── */
+
+/* ── Header risk level label ── */
+#lmHeaderInfo {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1.3;
+}
+
+/* ── Music submenu ── */
+.lmMusicSubMenu {
+  margin: -2px 6px 4px 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.lmMusicSubRow {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.65);
+  padding: 4px 4px;
+}
+.lmMusicSubRow .form-check {
+  margin-bottom: 0;
+}
+.lmMusicSubRow .slider-container {
+  margin-left: auto;
+}
+
+/* Hide playback/product footer, right-side toolbar, and preload bar */
+body.liveMode-active #floatingToolbar,
+body.liveMode-active #productMapFooter,
+body.liveMode-active #playbackPreloadBar {
+  display: none !important;
+}
+
+/* ── Broadcast vignette — gives a cinematic edge to the map ── */
+body.liveMode-active #map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+.liveModeOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-panel) - 2);
+  pointer-events: none;
+}
+.liveModeOverlay-active {
+  pointer-events: none;
+}
+
+/* ── LIVE badge — top-right corner ── */
+.liveModeBadge {
+  position: fixed;
+  top: calc(var(--header-height) + 12px);
+  right: 14px;
+  z-index: calc(var(--z-panel) + 10);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px 6px 10px;
+  background: rgba(220, 38, 38, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 12px rgba(220, 38, 38, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation: lmBadgePulse 2.4s ease-in-out infinite;
+  pointer-events: auto;
+  cursor: default;
+  user-select: none;
+}
+.liveModeBadgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  animation: lmDotBlink 1.4s ease-in-out infinite;
+}
+@keyframes lmBadgePulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(220, 38, 38, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1); }
+  50%      { box-shadow: 0 2px 20px rgba(220, 38, 38, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.18); }
+}
+@keyframes lmDotBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+
+/* ── Info panel — top-left floating card (Showcase UI position) ── */
+.liveModeInfoPanel {
+  position: fixed;
+  z-index: calc(var(--z-panel) + 5);
+  top: calc(var(--header-height) + 16px);
+  left: 16px;
+  width: 390px;
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+  opacity: 0;
+}
+.liveModeInfoPanel-visible {
+  pointer-events: auto;
+  opacity: 1;
+}
+.liveModeInfoPanel-visible .fnAlert {
+  animation: fnAlertDrawIn 560ms cubic-bezier(0.18, 0.84, 0.33, 1) both;
+}
+.liveModeInfoPanel-fading .fnAlert {
+  animation: fnAlertDrawOut 500ms cubic-bezier(0.6, 0, 0.9, 0.2) both;
+}
+.liveModeInfoPanel-visible .fnAlertBody {
+  opacity: 0;
+  animation: fnAlertBodyIn 220ms ease-out 420ms both;
+}
+.liveModeInfoPanel-fading .fnAlertBody {
+  animation: fnAlertBodyOut 160ms ease-in both;
+}
+.liveModeInfoPanel-visible .fnAlertShine {
+  animation: fnAlertShinePeriodic 3.6s ease-out 620ms infinite;
+}
+.liveModeInfoPanel-fading .fnAlertShine {
+  animation: none;
+}
+
+/* ── SPC validity metadata ── */
+.lmSpcMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.lmSpcMetaRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.lmSpcMetaLabel {
+  flex-shrink: 0;
+  width: 72px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+}
+.lmSpcMetaValue {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+  letter-spacing: 0.01em;
+}
+
+/* ── Commentary box — bottom center ── */
+.lmCommentaryBox {
+  position: fixed;
+  z-index: calc(var(--z-panel) + 6);
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  width: 580px;
+  max-width: calc(100vw - 48px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+.lmCommentaryBox-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+.lmCommentaryBox-fading {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+}
+.lmCommentaryInner {
+  background: rgba(6, 8, 14, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 14px 20px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+.lmCommentaryInner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.4), transparent);
+  animation: lmCommentaryTopLine 3s ease-in-out infinite;
+}
+@keyframes lmCommentaryTopLine {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 1; }
+}
+
+/* Status line — "ANALYZING..." */
+.lmCommentaryStatus {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(14, 165, 233, 0.7);
+  margin-bottom: 6px;
+  min-height: 14px;
+  animation: lmStatusPulse 1.2s ease-in-out infinite;
+}
+.lmCommentaryStatus:empty {
+  display: none;
+}
+@keyframes lmStatusPulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+/* Typewriter text */
+.lmCommentaryText {
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.82);
+  letter-spacing: 0.005em;
+  min-height: 20px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.lmCommentaryText::after {
+  content: '▍';
+  display: inline;
+  color: rgba(14, 165, 233, 0.6);
+  animation: lmCursorBlink 0.6s steps(2) infinite;
+  font-weight: 400;
+}
+.lmCommentaryText.lmCommentary-done::after {
+  display: none;
+}
+@keyframes lmCursorBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* ── Subtle broadcast scanlines ── */
+.lmScanlines {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-panel) - 1);
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* ── Segment transition flash ── */
+.lmTransitionFlash {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-panel) + 20);
+  background: rgba(14, 165, 233, 0.08);
+  pointer-events: none;
+  opacity: 0;
+}
+.lmTransitionFlash-active {
+  animation: lmFlash 600ms ease-out both;
+}
+@keyframes lmFlash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Audio permission prompt ── */
+.lmAudioPrompt {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: lmPromptFadeIn 300ms ease both;
+}
+@keyframes lmPromptFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.lmAudioPromptCard {
+  background: rgba(15, 18, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 32px 36px;
+  text-align: center;
+  max-width: 380px;
+  width: calc(100vw - 48px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  animation: lmPromptCardIn 400ms cubic-bezier(0.18, 0.84, 0.33, 1) 100ms both;
+}
+@keyframes lmPromptCardIn {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.lmAudioPromptIcon {
+  font-size: 36px;
+  color: rgba(14, 165, 233, 0.8);
+  margin-bottom: 16px;
+  display: block;
+}
+.lmAudioPromptTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: 0.01em;
+}
+.lmAudioPromptDesc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 24px;
+}
+.lmAudioPromptActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.lmAudioPromptBtn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 150ms ease, transform 100ms ease;
+}
+.lmAudioPromptBtn:active {
+  transform: scale(0.97);
+}
+.lmAudioPromptBtn-yes {
+  background: rgba(14, 165, 233, 0.9);
+  color: #fff;
+}
+.lmAudioPromptBtn-yes:hover {
+  background: rgba(14, 165, 233, 1);
+}
+.lmAudioPromptBtn-no {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+.lmAudioPromptBtn-no:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+/* ── Earthquake Legend ── */
+.lmEqLegend {
+  position: fixed;
+  bottom: 28px;
+  right: 14px;
+  z-index: calc(var(--z-panel) + 7);
+  background: rgba(12, 14, 20, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 16px;
+  pointer-events: none;
+  min-width: 160px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+.lmEqLegend-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.lmEqLegendTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 8px;
+}
+.lmEqLegendSection {
+  margin-bottom: 6px;
+}
+.lmEqLegendSection:last-child {
+  margin-bottom: 0;
+}
+.lmEqLegendSubtitle {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 4px;
+}
+.lmEqLegendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 2px 0;
+  line-height: 1.3;
+}
+.lmEqLegendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.15);
+}
+.lmEqLegendRing {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}

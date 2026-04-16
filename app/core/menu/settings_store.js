@@ -34,6 +34,9 @@ const DEFAULTS = {
     lightning: false,
     stormReports: false,
     testAlerts: false,
+    liveMode: false,
+    liveModeMusic: false,
+    liveModeVolume: 15,
     radarLoopSpeed: 5,
     radarLoopFrameCount: 14,
     keybinds: {
@@ -129,6 +132,9 @@ function get_settings_from_dom() {
     s.lightning = $('#armrLightningBtnSwitchElem').length ? $('#armrLightningBtnSwitchElem').is(':checked') : DEFAULTS.lightning;
     s.stormReports = $('#armrStormReportsBtnSwitchElem').length ? $('#armrStormReportsBtnSwitchElem').is(':checked') : DEFAULTS.stormReports;
     s.testAlerts = $('#devTestAlertsSwitchElem').length ? $('#devTestAlertsSwitchElem').is(':checked') : DEFAULTS.testAlerts;
+    s.liveMode = $('#armrLiveModeBtnSwitchElem').length ? $('#armrLiveModeBtnSwitchElem').is(':checked') : DEFAULTS.liveMode;
+    s.liveModeMusic = $('#lmMusicToggle').length ? $('#lmMusicToggle').is(':checked') : DEFAULTS.liveModeMusic;
+    s.liveModeVolume = $('#lmMusicVolumeSlider').length ? parseInt($('#lmMusicVolumeSlider').val(), 10) : DEFAULTS.liveModeVolume;
     s.radarLoopSpeed = $('#radarLoopSpeedSelect').length ? parseInt($('#radarLoopSpeedSelect').val(), 10) || DEFAULTS.radarLoopSpeed : DEFAULTS.radarLoopSpeed;
     s.radarLoopFrameCount = $('#radarLoopFrameCountSelect').length ? parseInt($('#radarLoopFrameCountSelect').val(), 10) || DEFAULTS.radarLoopFrameCount : DEFAULTS.radarLoopFrameCount;
     s.keybinds = Object.assign({}, DEFAULTS.keybinds, existing.keybinds || {});

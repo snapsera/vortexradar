@@ -23,6 +23,34 @@ app.post('/api/save-defaults', (req, res) => {
     });
 });
 
+app.get('/api/metar', async (req, res) => {
+    const ids = req.query.ids || '';
+    if (!ids) return res.status(400).json({ error: 'Missing ids parameter' });
+    try {
+        const url = 'https://aviationweather.gov/api/data/metar?ids=' + encodeURIComponent(ids) + '&format=json';
+        const resp = await fetch(url);
+        if (!resp.ok) return res.status(resp.status).json({ error: 'Upstream error' });
+        const data = await resp.json();
+        res.json(data);
+    } catch (e) {
+        console.error('[METAR proxy]', e.message);
+        res.status(502).json({ error: 'Fetch failed' });
+    }
+});
+
+app.get('/api/earthquakes', async (req, res) => {
+    try {
+        const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+        const resp = await fetch(url);
+        if (!resp.ok) return res.status(resp.status).json({ error: 'Upstream error' });
+        const data = await resp.json();
+        res.json(data);
+    } catch (e) {
+        console.error('[Earthquake proxy]', e.message);
+        res.status(502).json({ error: 'Fetch failed' });
+    }
+});
+
 app.use(express.static(path.join(__dirname), {
     extensions: ['html'],
     etag: false,

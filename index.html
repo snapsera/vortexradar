@@ -723,6 +723,51 @@
         <div class="focusNewAlertsContent"></div>
     </div>
 
+    <!-- 24/7 Live Mode overlays -->
+    <div id="liveModeOverlay" class="liveModeOverlay" style="display:none;">
+        <div id="liveModeBadge" class="liveModeBadge">
+            <span class="liveModeBadgeDot"></span>
+            LIVE
+        </div>
+        <div class="lmScanlines"></div>
+        <div id="liveModeInfoPanel" class="liveModeInfoPanel"></div>
+        <div id="lmCommentaryBox" class="lmCommentaryBox">
+            <div class="lmCommentaryInner">
+                <div class="lmCommentaryStatus" id="lmCommentaryStatus"></div>
+                <div class="lmCommentaryText" id="lmCommentary"></div>
+            </div>
+        </div>
+        <div id="lmTransitionFlash" class="lmTransitionFlash"></div>
+        <div id="lmEqLegend" class="lmEqLegend" style="display:none">
+            <div class="lmEqLegendTitle">Earthquake Legend</div>
+            <div class="lmEqLegendSection">
+                <div class="lmEqLegendSubtitle">Magnitude</div>
+                <div class="lmEqLegendRow"><span class="lmEqLegendDot" style="background:#60a5fa"></span> 2.5 – 2.9</div>
+                <div class="lmEqLegendRow"><span class="lmEqLegendDot" style="background:#a3e635"></span> 3.0 – 3.4</div>
+                <div class="lmEqLegendRow"><span class="lmEqLegendDot" style="background:#eab308"></span> 3.5 – 3.9</div>
+                <div class="lmEqLegendRow"><span class="lmEqLegendDot" style="background:#f97316"></span> 4.0 – 4.9</div>
+                <div class="lmEqLegendRow"><span class="lmEqLegendDot" style="background:#dc2626"></span> 5.0+</div>
+            </div>
+            <div class="lmEqLegendSection">
+                <div class="lmEqLegendSubtitle">Recency</div>
+                <div class="lmEqLegendRow"><span class="lmEqLegendRing lmEqLegendRing--large"></span> Larger ring = more recent</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio permission prompt -->
+    <div id="lmAudioPrompt" class="lmAudioPrompt" style="display:none;">
+        <div class="lmAudioPromptCard">
+            <i class="fa-solid fa-volume-high lmAudioPromptIcon"></i>
+            <div class="lmAudioPromptTitle">Enable Background Music?</div>
+            <div class="lmAudioPromptDesc">Live Mode has background music enabled. Your browser requires a click to start audio playback.</div>
+            <div class="lmAudioPromptActions">
+                <button id="lmAudioPromptYes" class="lmAudioPromptBtn lmAudioPromptBtn-yes">Enable Sound</button>
+                <button id="lmAudioPromptNo" class="lmAudioPromptBtn lmAudioPromptBtn-no">No Thanks</button>
+            </div>
+        </div>
+    </div>
+
     <div id="loadDefaultsConfirmOverlay" class="defaultsConfirmOverlay" style="display: none;">
         <div class="defaultsConfirmCard" role="dialog" aria-modal="true" aria-labelledby="loadDefaultsConfirmTitle">
             <div class="defaultsConfirmShine"></div>
@@ -1167,6 +1212,30 @@
                                 <i class="armrIcon armrIcon-Blue fa-solid fa-keyboard"></i>
                                 Keyboard Shortcuts
                                 <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrLiveModeBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-tower-broadcast"></i>
+                                24/7 Live Mode
+                                <span class="betaTag">BETA</span>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrLiveModeBtnSwitchElem">
+                                </div>
+                            </div>
+                            <div class="lmMusicSubMenu" id="lmMusicSubMenu" style="display:none;">
+                                <div class="lmMusicSubRow">
+                                    <i class="fa-solid fa-music" style="opacity:0.5;margin-right:6px;font-size:11px;"></i>
+                                    Background Music
+                                    <div class="form-check form-switch" style="margin-left:auto;">
+                                        <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="lmMusicToggle">
+                                    </div>
+                                </div>
+                                <div class="lmMusicSubRow" id="lmMusicVolumeRow">
+                                    Volume
+                                    <div class="slider-container">
+                                        <input type="range" min="0" max="100" value="15" step="5" class="opacity-slider" id="lmMusicVolumeSlider">
+                                        <span class="slider-value" id="lmMusicVolumeValue">15%</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="menu-row armrBottom" id="armrLoadSiteDefaultsBtn">
                                 <i class="armrIcon armrIcon-Red fa-solid fa-rotate-left"></i>

@@ -112,6 +112,7 @@ function init() {
     }
 
     window.addEventListener('radarScanUpdated', function() {
+        if (window?.stormTrackData?.liveModeActive) return;
         var station = window.stormTrackData?.currentStation || '';
         notify('New radar scan available' + (station ? ' for ' + station : ''), {
             icon: 'fa fa-satellite-dish',

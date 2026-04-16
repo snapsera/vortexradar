@@ -15,6 +15,7 @@ const nexrad_locations = require('../../radar/libnexrad/nexrad_locations').NEXRA
 const product_colors = require('../../radar/colormaps/colormaps');
 const create_and_show_colorbar = require('../../radar/plot/create_and_show_colorbar');
 const chroma = require('chroma-js');
+const live_mode = require('../../live_mode/live_mode');
 
 const divElem = '#settingsItemDiv';
 const iconElem = '#settingsItemClass';
@@ -455,6 +456,49 @@ armFunctions.toggleswitchFunctions($('#armrFocusNewAlertsBtnSwitchElem'), functi
     require('../../alerts/focus_new_alerts').hide_focus_panel();
 }, saveSettings);
 
+armFunctions.toggleswitchFunctions($('#armrLiveModeBtnSwitchElem'), function() {
+    live_mode.enable();
+    $('#lmMusicSubMenu').slideDown(200);
+}, function() {
+    live_mode.disable();
+    $('#lmMusicSubMenu').slideUp(200);
+}, saveSettings);
+
+$('#lmMusicToggle').on('change', function() {
+    if ($(this).is(':checked')) {
+        live_mode.startMusic();
+    } else {
+        live_mode.stopMusic();
+    }
+    saveSettings();
+});
+
+function _show_audio_prompt() {
+    var $prompt = $('#lmAudioPrompt');
+    if (!$prompt.length) {
+        live_mode.startMusic();
+        return;
+    }
+    $prompt.show();
+    $('#lmAudioPromptYes').off('click').on('click', function() {
+        $prompt.hide();
+        live_mode.startMusic();
+    });
+    $('#lmAudioPromptNo').off('click').on('click', function() {
+        $prompt.hide();
+        $('#lmMusicToggle').prop('checked', false);
+        live_mode.stopMusic();
+        saveSettings();
+    });
+}
+
+$('#lmMusicVolumeSlider').on('input', function() {
+    var val = parseInt($(this).val(), 10);
+    $('#lmMusicVolumeValue').text(val + '%');
+    live_mode.setMusicVolume(val);
+    saveSettings();
+});
+
 armFunctions.toggleswitchFunctions($('#armrAudibleAlertsBtnSwitchElem'), function() {}, function() {}, saveSettings);
 
 $('#ttsVolumeSlider').on('input', function() {
@@ -560,6 +604,30 @@ function applySavedSettings() {
     if (!s.focusNewAlerts) {
         require('../../alerts/focus_new_alerts').hide_focus_panel();
     }
+    $('#armrLiveModeBtnSwitchElem').prop('checked', !!s.liveMode);
+    $('#lmMusicToggle').prop('checked', !!s.liveModeMusic);
+    $('#lmMusicVolumeSlider').val(s.liveModeVolume || 15);
+    $('#lmMusicVolumeValue').text((s.liveModeVolume || 15) + '%');
+    if (s.liveMode) {
+        $('#lmMusicSubMenu').show();
+        // Defer live mode until the loading screen is done and radar is ready
+        function _try_enable_lm() {
+            var loadingDiv = document.getElementById('loadingLibrariesDiv');
+            var isHidden = !loadingDiv || loadingDiv.style.display === 'none' ||
+                loadingDiv.classList.contains('ld-fade-out');
+            if (isHidden) {
+                live_mode.enable();
+                if (s.liveModeMusic) {
+                    _show_audio_prompt();
+                }
+            } else {
+                setTimeout(_try_enable_lm, 500);
+            }
+        }
+        setTimeout(_try_enable_lm, 1000);
+    } else {
+        $('#lmMusicSubMenu').hide();
+    }
     station_markers.setStationMarkerStyle(s.radarSiteLegacyStyle);
     if (!s.radarSweep) {
         radar_scan_animation.remove();
@@ -585,3 +653,5 @@ setTimeout(function() {
 
 // this is in app/alerts/drawAlertShapes.js
 //$('#showExtraAlertPolygonsCheckbox').on('click', function() {})
+
+module.exports = { applyUSRadarMode };

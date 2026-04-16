@@ -139,12 +139,14 @@ function init() {
     });
 
     window.addEventListener('radarScanUpdated', () => {
+        if (window?.stormTrackData?.liveModeActive) return;
         if (!window?.stormTrackData?.loopPlayback?.active || !window?.stormTrackData?.loopPlayback?.supported) return;
         if (window?.stormTrackData?.loopPlayback?.playing) return;
         controller.refresh_frames();
     });
 
     setInterval(() => {
+        if (window?.stormTrackData?.liveModeActive) return;
         if (!window?.stormTrackData?.loopPlayback?.active || !window?.stormTrackData?.loopPlayback?.supported) return;
         controller.refresh_frames();
     }, 45000);

@@ -54,6 +54,11 @@ var COMMANDS = {
         usage: 'notify [info|warning|danger|success] [message]',
         run: _cmd_notify
     },
+    'lm': {
+        description: 'Force a Live Mode segment (spc, alert, conus, spotlight, conditions, earthquake)',
+        usage: 'lm [segment]',
+        run: _cmd_lm_segment
+    },
     help: {
         description: 'List available commands',
         usage: 'help',
@@ -74,6 +79,21 @@ function _log(html, cls) {
     line.innerHTML = html;
     body.appendChild(line);
     body.scrollTop = body.scrollHeight;
+}
+
+function _cmd_lm_segment(args) {
+    var live_mode = require('../live_mode/live_mode');
+    var valid = ['spc', 'alert', 'conus', 'spotlight', 'conditions', 'earthquake'];
+    var type = (args[0] || '').toLowerCase();
+
+    if (!type || !valid.includes(type)) {
+        _log('Usage: <span class="devConsoleCmd">lm [segment]</span><br>' +
+            'Available segments: <span class="devConsoleAccent">' + valid.join(', ') + '</span>', 'warning');
+        return;
+    }
+
+    _log('Forcing Live Mode segment: <span class="devConsoleAccent">' + type + '</span>');
+    live_mode.forceSegment(type);
 }
 
 function _cmd_help() {

@@ -15,7 +15,8 @@ const Level3Factory = require('../libnexrad/level3/level3_factory');
 function file_to_buffer(url, callback, signal = null) {
     if (url.includes('tgftp.nws.noaa.gov')) url = ut.phpProxy + url;
 
-    var fetchOpts = { cache: 'no-cache' };
+    var isImmutableS3 = url.includes('s3.amazonaws.com/') && !url.includes('?');
+    var fetchOpts = { cache: isImmutableS3 ? 'default' : 'no-cache' };
     if (signal) fetchOpts.signal = signal;
 
     fetch(url, fetchOpts)

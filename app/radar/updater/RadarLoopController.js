@@ -213,7 +213,7 @@ class RadarLoopController {
             }
         };
 
-        const CONCURRENCY = 4;
+        const CONCURRENCY = 8;
         var queue_idx = 0;
         const process_next = () => {
             if (preload_token !== this.current_render_token) return;
@@ -425,7 +425,7 @@ class RadarLoopController {
     }
 
     _preload_neighbors(index) {
-        const neighbors = [index - 1, index + 1];
+        const neighbors = [index - 1, index + 1, index + 2, index + 3];
         for (var i = 0; i < neighbors.length; i++) {
             const neighbor_idx = neighbors[i];
             if (neighbor_idx < 0 || neighbor_idx >= this.state.frames.length) continue;

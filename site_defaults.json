@@ -27,10 +27,22 @@
     "weatherRadio": false,
     "timezones": false,
     "lightning": true,
-    "stormReports": true,
+    "stormReports": false,
     "testAlerts": false,
+    "liveMode": false,
+    "liveModeMusic": false,
+    "liveModeVolume": 15,
     "radarLoopSpeed": 5,
     "radarLoopFrameCount": 14,
+    "keybinds": {
+      "playbackToggle": "Space",
+      "playbackBack": "ArrowLeft",
+      "playbackForward": "ArrowRight",
+      "productReflectivity": "Shift+R",
+      "productBaseVelocity": "Shift+V",
+      "productStormRelativeVelocity": "Shift+S",
+      "productCorrelationCoefficient": "Shift+C"
+    },
     "colortableREF": "REF1",
     "colortableVEL": "VEL1",
     "colortableRHO": "RHO1",
@@ -39,6 +51,12 @@
     "colortableDVL": "DVL1"
   },
   "localStorage": {
+    "vortexRadar_impactTimelineEnabled": 0,
+    "vortexRadar_draw_settings": {
+      "color": "#ffffff",
+      "brushSize": 8,
+      "tool": "pen"
+    },
     "vortexRadar_alerts_display_collapsed": {
       "Winter": true,
       "Other": true,
@@ -123,12 +141,6 @@
       "High Wind Watch": false,
       "Excessive Heat Watch": false
     },
-    "vortexRadar_draw_settings": {
-      "color": "#ffffff",
-      "brushSize": 8,
-      "tool": "pen"
-    },
-    "vortexRadar_impactTimelineEnabled": 0,
     "vortexRadar_settings": {
       "currentStation": "KVNX",
       "radar": true,
@@ -157,10 +169,22 @@
       "weatherRadio": false,
       "timezones": false,
       "lightning": true,
-      "stormReports": true,
+      "stormReports": false,
       "testAlerts": false,
+      "liveMode": false,
+      "liveModeMusic": false,
+      "liveModeVolume": 15,
       "radarLoopSpeed": 5,
       "radarLoopFrameCount": 14,
+      "keybinds": {
+        "playbackToggle": "Space",
+        "playbackBack": "ArrowLeft",
+        "playbackForward": "ArrowRight",
+        "productReflectivity": "Shift+R",
+        "productBaseVelocity": "Shift+V",
+        "productStormRelativeVelocity": "Shift+S",
+        "productCorrelationCoefficient": "Shift+C"
+      },
       "colortableREF": "REF1",
       "colortableVEL": "VEL1",
       "colortableRHO": "RHO1",

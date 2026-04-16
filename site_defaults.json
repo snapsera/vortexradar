@@ -30,9 +30,9 @@
     "stormReports": false,
     "testAlerts": false,
     "liveMode": false,
-    "liveModeMusic": false,
+    "liveModeMusic": true,
     "liveModeVolume": 15,
-    "radarLoopSpeed": 5,
+    "radarLoopSpeed": 10,
     "radarLoopFrameCount": 14,
     "keybinds": {
       "playbackToggle": "Space",
@@ -172,9 +172,9 @@
       "stormReports": false,
       "testAlerts": false,
       "liveMode": false,
-      "liveModeMusic": false,
+      "liveModeMusic": true,
       "liveModeVolume": 15,
-      "radarLoopSpeed": 5,
+      "radarLoopSpeed": 10,
       "radarLoopFrameCount": 14,
       "keybinds": {
         "playbackToggle": "Space",

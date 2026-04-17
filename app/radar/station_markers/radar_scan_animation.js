@@ -1,7 +1,10 @@
 const map = require('../../core/map/map');
 const nexrad_locations = require('../libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
 
-var SWEEP_PERIOD_MS = 20000;
+var DEFAULT_SWEEP_PERIOD_MS = 20000;
+var MIN_SWEEP_PERIOD_MS = 12000;
+var MAX_SWEEP_PERIOD_MS = 8 * 60 * 1000;
+var SWEEP_PERIOD_MS = DEFAULT_SWEEP_PERIOD_MS;
 var DEG = 180 / Math.PI;
 var EARTH_RADIUS_KM = 6371;
 
@@ -326,4 +329,21 @@ function set_center_override(lat, lng) {
     if (_sweepEnabled) _update_position();
 }
 
-module.exports = { update, remove, is_active, get_current_station, set_center_override, SWEEP_PERIOD_MS };
+function set_sweep_period_ms(ms) {
+    if (!Number.isFinite(ms)) return;
+    SWEEP_PERIOD_MS = Math.max(MIN_SWEEP_PERIOD_MS, Math.min(MAX_SWEEP_PERIOD_MS, Math.round(ms)));
+}
+
+function get_sweep_period_ms() {
+    return SWEEP_PERIOD_MS;
+}
+
+module.exports = {
+    update,
+    remove,
+    is_active,
+    get_current_station,
+    set_center_override,
+    set_sweep_period_ms,
+    get_sweep_period_ms
+};

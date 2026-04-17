@@ -48,7 +48,7 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
     var sweepStartTime = 0;
     if (doSweepReveal) {
         var now = performance.now();
-        var SWEEP_PERIOD = radar_scan_animation.SWEEP_PERIOD_MS;
+        var SWEEP_PERIOD = radar_scan_animation.get_sweep_period_ms();
         sweepStartAngle = (now % SWEEP_PERIOD) / SWEEP_PERIOD * TWO_PI;
         sweepStartTime = now;
     }
@@ -303,7 +303,7 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
             if (isSweepRevealActive) {
                 var now = performance.now();
                 var elapsed = now - _sweepRevealState.startTime;
-                var SWEEP_PERIOD = radar_scan_animation.SWEEP_PERIOD_MS;
+                var SWEEP_PERIOD = radar_scan_animation.get_sweep_period_ms();
 
                 if (elapsed >= SWEEP_PERIOD) {
                     _sweepRevealState.active = false;

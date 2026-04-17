@@ -20,11 +20,12 @@ const nexrad_locations = require('../radar/libnexrad/nexrad_locations').NEXRAD_L
 const SPC_BASE_URL = 'https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer';
 const DAY1_LAYERS = { categorical: 1, tornado: 3, hail: 5, wind: 7 };
 const SPC_HAZARDS = ['categorical', 'tornado', 'wind', 'hail'];
-const SPC_SOURCE_ID = 'liveModeSpcSource';
-const SPC_HATCH_SOURCE_ID = 'liveModeSpcHatchedSource';
-const SPC_FILL_LAYER = 'liveModeSpcFill';
-const SPC_LINE_LAYER = 'liveModeSpcLine';
-const SPC_HATCH_LINE_LAYER = 'liveModeSpcHatchLine';
+let _spcOverlayCanvas = null;
+let _spcOverlayCtx = null;
+let _spcRenderListener = null;
+let _spcRegularFeatures = [];
+let _spcHatchedFeatures = [];
+let _spcCigFeatures = [];
 
 const CONUS_CENTER = [-98.5606744, 39.5];
 const CONUS_ZOOM = 4.3;
@@ -73,6 +74,7 @@ let _focusGlowOpacity = 0;
 let _alertEpoch = 0;
 let _alertPendingTimers = [];
 let _scanLoadListener = null;
+let _spcLegendHideTimer = null;
 
 const LM_FOCUS_SOURCE = 'lmFocusGlowSource';
 const LM_FOCUS_GLOW_OUTER = 'lmFocusGlowOuter';
@@ -436,80 +438,315 @@ function _is_cig_feature(props) {
     return label.indexOf('CIG') === 0 || label2.indexOf('CONDITIONAL INTENSITY GROUP') !== -1;
 }
 
+function _get_cig_level(props) {
+    var label = String((props && props.label) || '');
+    var label2 = String((props && props.label2) || '');
+    var fromLabel = label.match(/CIG\s*([1-3])/i);
+    if (fromLabel) return Number(fromLabel[1]);
+    var fromLabel2 = label2.match(/INTENSITY\s*(?:LEVEL|GROUP)\s*([1-3])/i);
+    if (fromLabel2) return Number(fromLabel2[1]);
+    return 1;
+}
+
+function _cig_hazard_name(props, hazard) {
+    var label2 = String((props && props.label2) || '');
+    var m = label2.match(/^\s*([A-Za-z]+)\s+Conditional\s+Intensity\s+Group/i);
+    if (m && m[1]) return m[1];
+    if (hazard === 'hail') return 'Hail';
+    if (hazard === 'tornado') return 'Tornado';
+    if (hazard === 'wind') return 'Wind';
+    return 'Severe';
+}
+
+function _format_cig_label(props, hazard) {
+    var level = _get_cig_level(props);
+    var name = _cig_hazard_name(props, hazard);
+    var nameUpper = String(name).toUpperCase();
+    var suffix = '';
+    if (nameUpper === 'HAIL') {
+        if (level === 1) suffix = ' >2"';
+        else if (level === 2) suffix = ' >3.5"';
+    } else if (nameUpper === 'WIND') {
+        if (level === 1) suffix = ' 75mph+';
+        else if (level === 2) suffix = ' 85mph+';
+        else if (level === 3) suffix = ' 95mph+';
+    } else if (nameUpper === 'TORNADO') {
+        if (level === 1) suffix = ' EF2+';
+        else if (level === 2) suffix = ' EF3+';
+        else if (level === 3) suffix = ' EF4+';
+    }
+    return name + ' CIG' + level + suffix;
+}
+
+function _spc_draw_polygon_ring(ctx, ringCoords) {
+    if (!ringCoords || !ringCoords.length) return;
+    for (var i = 0; i < ringCoords.length; i++) {
+        var c = ringCoords[i];
+        if (!Array.isArray(c) || c.length < 2) continue;
+        var p = map.project([c[0], c[1]]);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+}
+
+function _spc_draw_feature_path(ctx, feature) {
+    var geom = feature && feature.geometry;
+    if (!geom || !geom.type) return false;
+    ctx.beginPath();
+    if (geom.type === 'Polygon') {
+        var rings = geom.coordinates || [];
+        for (var i = 0; i < rings.length; i++) _spc_draw_polygon_ring(ctx, rings[i]);
+        return true;
+    }
+    if (geom.type === 'MultiPolygon') {
+        var polys = geom.coordinates || [];
+        for (var pi = 0; pi < polys.length; pi++) {
+            var mRings = polys[pi] || [];
+            for (var ri = 0; ri < mRings.length; ri++) _spc_draw_polygon_ring(ctx, mRings[ri]);
+        }
+        return true;
+    }
+    return false;
+}
+
+function _spc_mercator_from_lnglat(lng, lat) {
+    var x = (lng + 180) / 360;
+    var clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+    var rad = clampedLat * Math.PI / 180;
+    var y = (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2;
+    return { x: x, y: y };
+}
+
+function _spc_lnglat_from_mercator(x, y) {
+    var lng = (x * 360) - 180;
+    var n = Math.PI - (2 * Math.PI * y);
+    var lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+    return [lng, lat];
+}
+
+function _spc_feature_world_bbox(feature) {
+    if (!feature || !feature.geometry) return null;
+    var geom = feature.geometry;
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    function visitPoint(coord) {
+        if (!Array.isArray(coord) || coord.length < 2) return;
+        var m = _spc_mercator_from_lnglat(coord[0], coord[1]);
+        if (m.x < minX) minX = m.x;
+        if (m.y < minY) minY = m.y;
+        if (m.x > maxX) maxX = m.x;
+        if (m.y > maxY) maxY = m.y;
+    }
+    if (geom.type === 'Polygon') {
+        var rings = geom.coordinates || [];
+        for (var r = 0; r < rings.length; r++) {
+            var ring = rings[r] || [];
+            for (var i = 0; i < ring.length; i++) visitPoint(ring[i]);
+        }
+    } else if (geom.type === 'MultiPolygon') {
+        var polys = geom.coordinates || [];
+        for (var p = 0; p < polys.length; p++) {
+            var pRings = polys[p] || [];
+            for (var r2 = 0; r2 < pRings.length; r2++) {
+                var ring2 = pRings[r2] || [];
+                for (var i2 = 0; i2 < ring2.length; i2++) visitPoint(ring2[i2]);
+            }
+        }
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null;
+    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+}
+
+function _spc_collect_segment_points(box, family, c) {
+    var pts = [];
+    var eps = 1e-9;
+    var minX = box.minX, maxX = box.maxX, minY = box.minY, maxY = box.maxY;
+    function pushIfInside(x, y) {
+        if (x < minX - eps || x > maxX + eps || y < minY - eps || y > maxY + eps) return;
+        for (var i = 0; i < pts.length; i++) {
+            if (Math.abs(pts[i].x - x) < 1e-7 && Math.abs(pts[i].y - y) < 1e-7) return;
+        }
+        pts.push({ x: x, y: y });
+    }
+    if (family === 'diag-pos') {
+        pushIfInside(minX, c - minX);
+        pushIfInside(maxX, c - maxX);
+        pushIfInside(c - minY, minY);
+        pushIfInside(c - maxY, maxY);
+    } else {
+        pushIfInside(minX, minX - c);
+        pushIfInside(maxX, maxX - c);
+        pushIfInside(c + minY, minY);
+        pushIfInside(c + maxY, maxY);
+    }
+    if (pts.length < 2) return null;
+    var a = pts[0], b = pts[1], bestDist = -1;
+    for (var i = 0; i < pts.length; i++) {
+        for (var j = i + 1; j < pts.length; j++) {
+            var dx = pts[j].x - pts[i].x;
+            var dy = pts[j].y - pts[i].y;
+            var d = (dx * dx) + (dy * dy);
+            if (d > bestDist) { bestDist = d; a = pts[i]; b = pts[j]; }
+        }
+    }
+    return [a, b];
+}
+
+function _spc_draw_cig_hatching(ctx, feature, strokeColor, cigLevel) {
+    if (!ctx || !_spcOverlayCanvas) return;
+    var width = _spcOverlayCanvas.clientWidth || _spcOverlayCanvas.width || 0;
+    var height = _spcOverlayCanvas.clientHeight || _spcOverlayCanvas.height || 0;
+    if (width <= 0 || height <= 0) return;
+
+    ctx.save();
+    if (!_spc_draw_feature_path(ctx, feature)) { ctx.restore(); return; }
+    ctx.clip('evenodd');
+
+    var level = Number(cigLevel) || 1;
+    var bbox = _spc_feature_world_bbox(feature);
+    if (!bbox) { ctx.restore(); return; }
+
+    var zoom = (typeof map.getZoom === 'function') ? map.getZoom() : 4.3;
+    var zoomScale = Math.pow(2, zoom - 4.3);
+    var worldPxAtBaseZoom = 512 * Math.pow(2, 4.3);
+
+    function _stroke_hatch(family, baseSpacingPx, dashPatternPx) {
+        var spacingWorld = (baseSpacingPx / worldPxAtBaseZoom) * Math.sqrt(2);
+        var cMin = family === 'diag-pos' ? (bbox.minX + bbox.minY) : (bbox.minX - bbox.maxY);
+        var cMax = family === 'diag-pos' ? (bbox.maxX + bbox.maxY) : (bbox.maxX - bbox.minY);
+        var start = Math.floor(cMin / spacingWorld) * spacingWorld;
+        var scaledDash = (dashPatternPx || []).map(function (n) { return Math.max(2, Math.min(160, n * zoomScale)); });
+        ctx.beginPath();
+        ctx.setLineDash(scaledDash);
+        for (var cc = start; cc <= cMax + spacingWorld; cc += spacingWorld) {
+            var seg = _spc_collect_segment_points(bbox, family, cc);
+            if (!seg) continue;
+            var aLngLat = _spc_lnglat_from_mercator(seg[0].x, seg[0].y);
+            var bLngLat = _spc_lnglat_from_mercator(seg[1].x, seg[1].y);
+            var a = map.project(aLngLat);
+            var b = map.project(bLngLat);
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+        }
+        ctx.stroke();
+    }
+
+    ctx.strokeStyle = strokeColor || '#000000';
+    ctx.globalAlpha = 0.7;
+    ctx.lineWidth = 1.2;
+    if (level === 1) {
+        _stroke_hatch('diag-neg', 16, [8, 8]);
+    } else if (level === 2) {
+        _stroke_hatch('diag-pos', 13, []);
+    } else {
+        _stroke_hatch('diag-neg', 13, []);
+        _stroke_hatch('diag-pos', 13, []);
+    }
+
+    ctx.restore();
+}
+
+function _render_spc_canvas() {
+    if (!_spcOverlayCtx || !_spcOverlayCanvas) return;
+    _spcOverlayCtx.clearRect(0, 0, _spcOverlayCanvas.width, _spcOverlayCanvas.height);
+
+    for (var i = 0; i < _spcRegularFeatures.length; i++) {
+        var feature = _spcRegularFeatures[i];
+        var props = feature.properties || {};
+        if (!_spc_draw_feature_path(_spcOverlayCtx, feature)) continue;
+        _spcOverlayCtx.fillStyle = props.fill || '#8dc6ff';
+        _spcOverlayCtx.globalAlpha = 0.75;
+        _spcOverlayCtx.fill('evenodd');
+    }
+
+    _spcOverlayCtx.globalAlpha = 1;
+    _spcOverlayCtx.setLineDash([]);
+    _spcOverlayCtx.lineWidth = 2.4;
+    for (var c = 0; c < _spcCigFeatures.length; c++) {
+        var cigFeat = _spcCigFeatures[c];
+        var cigProps = cigFeat.properties || {};
+        _spc_draw_cig_hatching(_spcOverlayCtx, cigFeat, cigProps.stroke || '#000000', cigProps.spcCigLevel);
+        if (!_spc_draw_feature_path(_spcOverlayCtx, cigFeat)) continue;
+        _spcOverlayCtx.strokeStyle = cigProps.stroke || '#000000';
+        _spcOverlayCtx.globalAlpha = 1;
+        _spcOverlayCtx.stroke();
+    }
+
+    _spcOverlayCtx.globalAlpha = 1;
+    _spcOverlayCtx.setLineDash([5, 4]);
+    _spcOverlayCtx.lineWidth = 2.2;
+    for (var j = 0; j < _spcHatchedFeatures.length; j++) {
+        var hFeat = _spcHatchedFeatures[j];
+        var hProps = hFeat.properties || {};
+        if (!_spc_draw_feature_path(_spcOverlayCtx, hFeat)) continue;
+        _spcOverlayCtx.strokeStyle = hProps.stroke || '#59a9ff';
+        _spcOverlayCtx.stroke();
+    }
+    _spcOverlayCtx.setLineDash([]);
+}
+
+function _setup_spc_canvas() {
+    var mapCanvas = map.getCanvas();
+    var dpr = window.devicePixelRatio || 1;
+    var width = mapCanvas.clientWidth;
+    var height = mapCanvas.clientHeight;
+
+    _spcOverlayCanvas = document.createElement('canvas');
+    _spcOverlayCanvas.style.position = 'absolute';
+    _spcOverlayCanvas.style.top = '0';
+    _spcOverlayCanvas.style.left = '0';
+    _spcOverlayCanvas.style.pointerEvents = 'none';
+    _spcOverlayCanvas.style.zIndex = '2';
+    _spcOverlayCanvas.width = Math.max(1, Math.round(width * dpr));
+    _spcOverlayCanvas.height = Math.max(1, Math.round(height * dpr));
+    _spcOverlayCanvas.style.width = width + 'px';
+    _spcOverlayCanvas.style.height = height + 'px';
+    _spcOverlayCtx = _spcOverlayCanvas.getContext('2d');
+    _spcOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    mapCanvas.parentNode.appendChild(_spcOverlayCanvas);
+
+    _spcRenderListener = function () { _render_spc_canvas(); };
+    map.on('render', _spcRenderListener);
+}
+
+function _teardown_spc_canvas() {
+    if (_spcRenderListener) {
+        map.off('render', _spcRenderListener);
+        _spcRenderListener = null;
+    }
+    if (_spcOverlayCanvas && _spcOverlayCanvas.parentNode) {
+        _spcOverlayCanvas.parentNode.removeChild(_spcOverlayCanvas);
+    }
+    _spcOverlayCanvas = null;
+    _spcOverlayCtx = null;
+    _spcRegularFeatures = [];
+    _spcHatchedFeatures = [];
+    _spcCigFeatures = [];
+}
+
 function _add_spc_layers(geojson) {
     _remove_spc_layers();
 
-    var regular = [];
-    var hatched = [];
-
     var allFeatures = (geojson.features || []).filter(function (f) { return f.geometry; });
-    for (var i = 0; i < allFeatures.length; i++) {
-        var f = allFeatures[i];
-        var p = Object.assign({}, f.properties || {});
-        var feat = { type: 'Feature', geometry: f.geometry, properties: p };
-        if (_is_cig_feature(p) || _is_hatched_feature(p)) {
-            hatched.push(feat);
-        } else {
-            regular.push(feat);
-        }
-    }
+    var normalizedFeatures = allFeatures.map(function (f) {
+        var props = Object.assign({}, f.properties || {});
+        props.spcIsHatched = _is_hatched_feature(props) ? 1 : 0;
+        props.spcIsCig = _is_cig_feature(props) ? 1 : 0;
+        props.spcCigLevel = props.spcIsCig ? _get_cig_level(props) : 0;
+        return { type: 'Feature', geometry: f.geometry, properties: props };
+    });
 
-    if (!regular.length && !hatched.length) return;
+    _spcCigFeatures = normalizedFeatures.filter(function (f) { return f.properties.spcIsCig === 1; });
+    _spcRegularFeatures = normalizedFeatures.filter(function (f) { return f.properties.spcIsCig !== 1 && f.properties.spcIsHatched !== 1; });
+    _spcHatchedFeatures = normalizedFeatures.filter(function (f) { return f.properties.spcIsCig !== 1 && f.properties.spcIsHatched === 1; });
 
-    if (regular.length) {
-        map.addSource(SPC_SOURCE_ID, {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: regular }
-        });
-
-        map.addLayer({
-            id: SPC_FILL_LAYER,
-            type: 'fill',
-            source: SPC_SOURCE_ID,
-            paint: {
-                'fill-color': ['coalesce', ['get', 'fill'], '#8dc6ff'],
-                'fill-opacity': 0.75
-            }
-        });
-
-        map.addLayer({
-            id: SPC_LINE_LAYER,
-            type: 'line',
-            source: SPC_SOURCE_ID,
-            paint: {
-                'line-color': ['coalesce', ['get', 'stroke'], '#59a9ff'],
-                'line-width': 2,
-                'line-opacity': 0.9
-            }
-        });
-    }
-
-    if (hatched.length) {
-        map.addSource(SPC_HATCH_SOURCE_ID, {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: hatched }
-        });
-
-        map.addLayer({
-            id: SPC_HATCH_LINE_LAYER,
-            type: 'line',
-            source: SPC_HATCH_SOURCE_ID,
-            paint: {
-                'line-color': ['coalesce', ['get', 'stroke'], '#59a9ff'],
-                'line-width': 2.2,
-                'line-opacity': 1,
-                'line-dasharray': [2, 1.5]
-            }
-        });
-    }
+    if (!_spcOverlayCanvas) _setup_spc_canvas();
+    _render_spc_canvas();
 }
 
 function _remove_spc_layers() {
-    if (map.getLayer(SPC_HATCH_LINE_LAYER)) map.removeLayer(SPC_HATCH_LINE_LAYER);
-    if (map.getLayer(SPC_LINE_LAYER)) map.removeLayer(SPC_LINE_LAYER);
-    if (map.getLayer(SPC_FILL_LAYER)) map.removeLayer(SPC_FILL_LAYER);
-    if (map.getSource(SPC_HATCH_SOURCE_ID)) map.removeSource(SPC_HATCH_SOURCE_ID);
-    if (map.getSource(SPC_SOURCE_ID)) map.removeSource(SPC_SOURCE_ID);
+    _teardown_spc_canvas();
 }
 
 function _spc_label(hazard) {
@@ -636,7 +873,12 @@ function _hide_radar_sweep() {
 function _show_radar_sweep() {
     try {
         var s = settings_store.load();
-        if (s.radarSweep) radar_scan_animation.update();
+        var station = window.stormTrackData?.currentStation;
+        if (!station) return;
+        var forceLiveModeSweep = !!(_active && station);
+        if (forceLiveModeSweep || s.radarSweep) {
+            radar_scan_animation.update(station);
+        }
     } catch (_) {}
 }
 
@@ -690,7 +932,7 @@ function _run_spc_segment(resolve) {
     Promise.all([_fetch_spc_geojson(hazard), catPromise]).then(function (results) {
         var geojson = results[0];
         var catGeojson = results[1];
-        if (!_active) { _show_radar_render(); _show_station_markers(); _show_radar_sweep(); _show_header_radar_info(); _hide_spc_legend(); return resolve(); }
+        if (!_active) { _show_header_radar_info(); _hide_spc_legend(); return resolve(); }
 
         var features = (geojson && geojson.features) ? geojson.features.filter(function (f) { return f.geometry; }) : [];
         if (features.length) {
@@ -711,7 +953,7 @@ function _run_spc_segment(resolve) {
         }
 
         _add_spc_layers(geojson);
-        _show_spc_legend(geojson);
+        _show_spc_legend(geojson, hazard);
         var validity = _get_spc_validity(geojson);
         _show_info_panel(_build_spc_panel_html(_spc_label(hazard), validity));
         var riskHtml = _build_risk_label(geojson) || _build_risk_label(catGeojson);
@@ -724,9 +966,6 @@ function _run_spc_segment(resolve) {
             _stop_typewriter();
             _remove_spc_layers();
             _hide_spc_legend();
-            _show_radar_render();
-            _show_station_markers();
-            _show_radar_sweep();
             _show_header_radar_info();
             _hide_info_panel();
             resolve();
@@ -995,19 +1234,19 @@ function _generate_alert_commentary(feature, motion, city) {
 
     if (event === 'Tornado Emergency' || event === 'PDS Tornado Warning') {
         lines.push(_pick_random([
-            'We are tracking a PARTICULARLY DANGEROUS SITUATION — a confirmed, large tornado is on the ground near ' + area + '.',
+            'We are tracking a PARTICULARLY DANGEROUS SITUATION. A confirmed, large tornado is on the ground near ' + area + '.',
             'This is an ongoing TORNADO EMERGENCY for ' + area + '. A violent, life-threatening tornado has been confirmed.',
             'An extremely dangerous tornado emergency is unfolding across ' + area + ' right now.',
-            'This is as serious as it gets — a tornado emergency has been declared for ' + area + '. A large and destructive tornado is on the ground.',
+            'This is as serious as it gets. A tornado emergency has been declared for ' + area + '. A large and destructive tornado is on the ground.',
             'The National Weather Service has issued a TORNADO EMERGENCY for ' + area + '. This is a life-threatening situation happening right now.',
-            'A catastrophic tornado is confirmed near ' + area + ' ' + tod + '. This is a rare tornado emergency — the highest urgency warning the NWS can issue.',
+            'A catastrophic tornado is confirmed near ' + area + ' ' + tod + '. This is a rare tornado emergency, the highest urgency warning the NWS can issue.',
             'We\'re in a TORNADO EMERGENCY for ' + area + '. This means a violent tornado has been confirmed and is producing significant damage.'
         ]));
         lines.push(_pick_random([
             'If you are in the path of this storm, take shelter immediately in the lowest interior room of a sturdy building.',
             'Get underground or to the lowest floor NOW. Cover your head and stay away from all windows.',
             'This tornado is capable of leveling homes. Seek the strongest shelter available and protect yourself immediately.',
-            'This is a life-or-death situation. Get to your tornado safe room right now — basement, storm cellar, or the most interior room on the lowest floor.',
+            'This is a life-or-death situation. Get to your tornado safe room right now. Basement, storm cellar, or the most interior room on the lowest floor.',
             'Do not try to outrun this tornado. If you are in a mobile home, get out and find a more substantial structure or lie flat in a ditch.',
             'Protect yourself with heavy blankets or a mattress. Get under something sturdy and cover your head. Every second counts.'
         ]));
@@ -1015,7 +1254,7 @@ function _generate_alert_commentary(feature, motion, city) {
             lines.push(_pick_random([
                 'This storm is moving ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' mph.',
                 'The tornado is tracking ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' miles per hour.',
-                'Radar shows this violent storm pushing ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' mph — it\'s covering ground fast.'
+                'Radar shows this violent storm pushing ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' mph and it\'s covering ground fast.'
             ]));
             if (city) {
                 var cityDist = _city_distance_miles(motion, city);
@@ -1023,10 +1262,10 @@ function _generate_alert_commentary(feature, motion, city) {
                 if (etaMin && etaMin > 0 && etaMin < 120) {
                     lines.push(_pick_random([
                         'At this speed, the storm could impact ' + city.name + ' in approximately ' + etaMin + ' minutes.',
-                        city.name + ' is roughly ' + Math.round(cityDist) + ' miles in the storm\'s path — estimated impact in about ' + etaMin + ' minutes.',
+                        city.name + ' is roughly ' + Math.round(cityDist) + ' miles in the storm\'s path. Estimated impact in about ' + etaMin + ' minutes.',
                         'At this pace, ' + city.name + ' has about ' + etaMin + ' minutes before the storm arrives. Take shelter now if you\'re in that area.',
-                        city.name + ' is directly downstream — approximately ' + etaMin + ' minutes out at current storm speed.',
-                        'If you\'re in ' + city.name + ', you have roughly ' + etaMin + ' minutes. Do not wait — act now.'
+                        city.name + ' is directly downstream, approximately ' + etaMin + ' minutes out at current storm speed.',
+                        'If you\'re in ' + city.name + ', you have roughly ' + etaMin + ' minutes. Do not wait. Act now.'
                     ]));
                 }
             }
@@ -1036,12 +1275,12 @@ function _generate_alert_commentary(feature, motion, city) {
         if (torSrc.toLowerCase().includes('observed') || desc.includes('CONFIRMED')) {
             lines.push(_pick_random([
                 'A tornado has been spotted on the ground near ' + area + '. This storm is confirmed dangerous and on the move.',
-                'Storm spotters have confirmed a tornado in ' + area + '. This is not a drill — take action now.',
+                'Storm spotters have confirmed a tornado in ' + area + '. This is not a drill. Take action now.',
                 'We\'re looking at a confirmed tornado touching down in ' + area + ' ' + tod + '.',
                 'A tornado is on the ground and has been visually confirmed near ' + area + '. This is an extremely dangerous storm.',
                 'Eyewitnesses have reported a tornado in ' + area + ' ' + tod + '. This confirmation means the threat is real and immediate.',
                 'A tornado has been confirmed near ' + area + ' by trained spotters. If you are anywhere near this storm, seek shelter immediately.',
-                'This is not radar-only — a tornado has been confirmed on the ground near ' + area + '. Get to safety right now.'
+                'This is not radar-only. A tornado has been confirmed on the ground near ' + area + '. Get to safety right now.'
             ]));
         } else if (torSrc.toLowerCase().includes('radar indicated') || desc.includes('RADAR INDICATED')) {
             lines.push(_pick_random([
@@ -1049,7 +1288,7 @@ function _generate_alert_commentary(feature, motion, city) {
                 'We\'re picking up tight rotation on radar over ' + area + '. This storm has the hallmarks of a tornado producer.',
                 'Radar data reveals a well-defined mesocyclone bearing down on ' + area + '. Tornado formation is imminent or already occurring.',
                 'Strong rotational signatures on Doppler radar indicate a likely tornado embedded in this storm over ' + area + '.',
-                'The radar presentation over ' + area + ' is textbook for tornado development — a tight couplet on velocity and strong inbound-outbound signatures.',
+                'The radar presentation over ' + area + ' is textbook for tornado development. A tight couplet on velocity and strong inbound-outbound signatures.',
                 'Dual-pol radar data suggests debris may already be lofted near ' + area + '. This storm is very likely producing a tornado right now.',
                 'We\'re seeing a pronounced hook echo and tight velocity couplet on the radar targeting ' + area + '. Tornado development is highly probable.'
             ]));
@@ -1065,9 +1304,9 @@ function _generate_alert_commentary(feature, motion, city) {
         }
         lines.push(_pick_random([
             'Get to an interior room on the lowest floor, away from windows. Put as many walls between you and the outside as possible.',
-            'If you\'re in the path of this storm, shelter immediately — interior room, lowest floor, away from glass.',
+            'If you\'re in the path of this storm, shelter immediately. Interior room, lowest floor, away from glass.',
             'Don\'t wait to see or hear it. Move to your safe room now and protect your head with pillows or a mattress.',
-            'Your safest option is a basement or storm shelter. If neither is available, go to a small interior room — closet or bathroom — on the lowest floor.',
+            'Your safest option is a basement or storm shelter. If neither is available, go to a small interior room on the lowest floor. Closet or bathroom.',
             'Grab your shoes and a helmet if you have one, and get to your safe room. Tornadoes can strike with almost no lead time.',
             'If you\'re in a mobile home, leave it now and get to a sturdier structure or a designated storm shelter. Mobile homes offer no protection from tornadoes.',
             'Take cover immediately. Interior walls, away from windows and exterior doors. Protect your head and neck.'
@@ -1079,7 +1318,7 @@ function _generate_alert_commentary(feature, motion, city) {
             lines.push(_pick_random([
                 'Beyond the tornado threat, this storm is packing ' + extras.join(' and ') + '.',
                 'In addition to the tornado risk, expect ' + extras.join(' along with ') + ' from this supercell.',
-                'This isn\'t just a tornado threat — the storm is also producing ' + extras.join(' and ') + '.',
+                'This isn\'t just a tornado threat. The storm is also producing ' + extras.join(' and ') + '.',
                 'Even outside the tornado path, this storm carries ' + extras.join(' and ') + '. Stay sheltered.'
             ]));
         }
@@ -1088,7 +1327,7 @@ function _generate_alert_commentary(feature, motion, city) {
                 'This storm is tracking ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' mph.',
                 'The storm is moving ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' miles per hour.',
                 'Radar shows this cell pushing ' + _bearing_to_cardinal(motion.bearingDeg) + ' at roughly ' + motion.speedMph + ' mph.',
-                'The supercell is progressing ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' mph — keep that direction in mind if you\'re downstream.',
+                'The supercell is progressing ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' mph. Keep that direction in mind if you\'re downstream.',
                 'Storm motion is ' + _bearing_to_cardinal(motion.bearingDeg) + ' at ' + motion.speedMph + ' mph. Anyone in that path should be in shelter already.'
             ]));
             if (city) {
@@ -1097,9 +1336,9 @@ function _generate_alert_commentary(feature, motion, city) {
                 if (etaMin && etaMin > 0 && etaMin < 120) {
                     lines.push(_pick_random([
                         'At current speed, this storm could reach ' + city.name + ' in approximately ' + etaMin + ' minutes.',
-                        city.name + ' is about ' + Math.round(cityDist) + ' miles downrange — roughly ' + etaMin + ' minutes away at this pace.',
+                        city.name + ' is about ' + Math.round(cityDist) + ' miles downrange, roughly ' + etaMin + ' minutes away at this pace.',
                         'The projected path puts ' + city.name + ' in the crosshairs in roughly ' + etaMin + ' minutes.',
-                        'Residents of ' + city.name + ' should prepare now — the storm is estimated to arrive in about ' + etaMin + ' minutes.',
+                        'Residents of ' + city.name + ' should prepare now. The storm is estimated to arrive in about ' + etaMin + ' minutes.',
                         city.name + ' is in the direct path. At ' + motion.speedMph + ' mph, that\'s approximately ' + etaMin + ' minutes of lead time.',
                         'If you\'re in or near ' + city.name + ', you have roughly ' + etaMin + ' minutes to get to shelter. Don\'t delay.'
                     ]));
@@ -1114,11 +1353,11 @@ function _generate_alert_commentary(feature, motion, city) {
 
         lines.push(_pick_random([
             'A powerful thunderstorm is pushing through ' + area + ' ' + tod + ', and the NWS has issued a severe thunderstorm warning.',
-            'Severe weather is impacting ' + area + ' right now — a strong thunderstorm is moving through the area.',
+            'Severe weather is impacting ' + area + ' right now. A strong thunderstorm is moving through the area.',
             'The National Weather Service is tracking a dangerous thunderstorm affecting ' + area + ' ' + tod + '.',
             'We\'ve got a severe thunderstorm warning in effect for ' + area + '. This storm means business ' + tod + '.',
             'A severe-warned storm is hammering ' + area + ' right now. Let\'s take a closer look at the threats.',
-            'Heads up for ' + area + ' — the NWS has issued a severe thunderstorm warning as a potent cell moves through the region ' + tod + '.',
+            'Heads up for ' + area + '. The NWS has issued a severe thunderstorm warning as a potent cell moves through the region ' + tod + '.',
             'A destructive thunderstorm is bearing down on ' + area + '. This one has caught the attention of the NWS for good reason.'
         ]));
 
@@ -1135,17 +1374,17 @@ function _generate_alert_commentary(feature, motion, city) {
                 if (hailNum >= 2.0) threats.push(_pick_random([
                     'baseball-sized hail up to ' + hailNum.toFixed(2) + '"',
                     'enormous hailstones reaching ' + hailNum.toFixed(2) + '" in diameter',
-                    'destructive ' + hailNum.toFixed(2) + '" hail — that\'s baseball size'
+                    'destructive ' + hailNum.toFixed(2) + '" hail, that\'s baseball size'
                 ]));
                 else if (hailNum >= 1.75) threats.push(_pick_random([
-                    'large hail up to ' + hailNum.toFixed(2) + '" — nearly baseball size',
+                    'large hail up to ' + hailNum.toFixed(2) + '", nearly baseball size',
                     'significant hail at ' + hailNum.toFixed(2) + '", approaching baseball territory',
-                    hailNum.toFixed(2) + '" hail — large enough to cause serious vehicle damage'
+                    hailNum.toFixed(2) + '" hail, large enough to cause serious vehicle damage'
                 ]));
                 else if (hailNum >= 1.0) threats.push(_pick_random([
                     'golf ball to quarter-sized hail at ' + hailNum.toFixed(2) + '"',
                     'sizeable hailstones up to ' + hailNum.toFixed(2) + '"',
-                    hailNum.toFixed(2) + '" hail — enough to dent cars and crack windshields'
+                    hailNum.toFixed(2) + '" hail, enough to dent cars and crack windshields'
                 ]));
                 else threats.push('hail up to ' + hailNum.toFixed(2) + '" in diameter');
             }
@@ -1162,10 +1401,10 @@ function _generate_alert_commentary(feature, motion, city) {
             lines.push(_pick_random([
                 'Hail at that size can punch through roofs, shatter car windows, and cause serious injury if you\'re caught outside.',
                 'This is life-threatening hail. Vehicles left exposed will sustain major damage.',
-                'Baseball-sized hail is a genuine danger — get vehicles under cover and stay indoors.',
+                'Baseball-sized hail is a genuine danger. Get vehicles under cover and stay indoors.',
                 'Hailstones this large can total a car in seconds and break through skylights. This is not something to watch from the porch.',
                 'We\'re talking about ice the size of baseballs falling from the sky. If you have a garage, use it. If you don\'t, stay far from windows.',
-                'At this size, hail becomes a projectile. It can injure or kill — do not go outside to observe this storm.'
+                'At this size, hail becomes a projectile. It can injure or kill. Do not go outside to observe this storm.'
             ]));
         }
 
@@ -1174,7 +1413,7 @@ function _generate_alert_commentary(feature, motion, city) {
                 'Notably, this storm carries a tornado possible tag. Be prepared to shelter if a tornado warning is issued.',
                 'The NWS has flagged this storm for possible tornado development. Stay alert for an upgrade to a tornado warning.',
                 'There\'s a tornado threat embedded in this storm. Keep a close eye on it and be ready to take cover.',
-                'This one also has a tornado possible flag — meaning the rotation is borderline. An upgrade to a tornado warning could come at any moment.',
+                'This one also has a tornado possible flag, meaning the rotation is borderline. An upgrade to a tornado warning could come at any moment.',
                 'Don\'t ignore the tornado possible tag on this warning. It means the storm is showing enough rotation that forecasters are concerned.',
                 'The tornado possible tag means this storm has the ingredients to spin up a tornado. Have your safe room plan ready to go.'
             ]));
@@ -1184,7 +1423,7 @@ function _generate_alert_commentary(feature, motion, city) {
                 'If you\'re outdoors, get inside a solid structure. If driving, pull off the road and keep your seatbelt on.',
                 'The best protection is to be inside a well-built structure away from exterior walls and glass.',
                 'Keep away from windows and glass doors. The biggest threat from these storms is flying debris and sudden wind gusts.',
-                'If you\'re on the road, don\'t park under an overpass — find a sturdy building to shelter in. Overpasses actually funnel wind.',
+                'If you\'re on the road, don\'t park under an overpass. Find a sturdy building to shelter in. Overpasses actually funnel wind.',
                 'Wait for this one to pass before heading back outside. These storms can produce sudden downbursts with very little lead time.'
             ]));
         }
@@ -1193,7 +1432,7 @@ function _generate_alert_commentary(feature, motion, city) {
             'Flash flooding is occurring or developing rapidly across ' + area + ' ' + tod + '.',
             'Dangerous flash flooding is threatening ' + area + '. Water levels are rising fast.',
             'The NWS has issued a flash flood warning for ' + area + ' as heavy rain continues to saturate the region.',
-            'We\'re tracking a flash flood emergency across ' + area + ' — water is rising rapidly and conditions are deteriorating.',
+            'We\'re tracking a flash flood emergency across ' + area + '. Water is rising rapidly and conditions are deteriorating.',
             'Heavy rainfall has overwhelmed drainage across ' + area + ', and flash flooding is now in progress.',
             'A flash flood warning is active for ' + area + ' ' + tod + '. Rainfall rates have exceeded what the ground can absorb.',
             'Flooding conditions are unfolding quickly in ' + area + '. Streams, creeks, and urban areas are especially vulnerable right now.'
@@ -1202,16 +1441,16 @@ function _generate_alert_commentary(feature, motion, city) {
         if (dmg && dmg.toUpperCase() === 'CATASTROPHIC') {
             lines.push(_pick_random([
                 'This is a CATASTROPHIC flooding event. Expect life-threatening inundation of roads, structures, and low-lying areas.',
-                'The damage threat is rated CATASTROPHIC — this is as serious as flash flooding gets. Evacuate if told to do so.',
+                'The damage threat is rated CATASTROPHIC. This is as serious as flash flooding gets. Evacuate if told to do so.',
                 'We\'re looking at a rare catastrophic flash flood. Rescue operations may become necessary.',
-                'The NWS is calling this CATASTROPHIC. That\'s the highest damage tier — expect impassable roads, structural flooding, and swift-water rescues.',
+                'The NWS is calling this CATASTROPHIC. That\'s the highest damage tier. Expect impassable roads, structural flooding, and swift-water rescues.',
                 'A catastrophic flash flood event is underway. This has the potential to be a historic flood for ' + area + '.',
                 'When the NWS uses the word catastrophic, they\'re not exaggerating. This is an extremely dangerous and potentially deadly flood situation.'
             ]));
         } else if (dmg && dmg.toUpperCase() === 'CONSIDERABLE') {
             lines.push(_pick_random([
                 'Significant flooding of roadways and low-lying areas is expected. Some structures near waterways could sustain damage.',
-                'The damage threat is considerable — creeks and streams are overflowing and roads are becoming impassable.',
+                'The damage threat is considerable. Creeks and streams are overflowing and roads are becoming impassable.',
                 'This is a serious flood event. Water is exceeding bank-full levels across the warned area.',
                 'With a considerable damage threat, expect water in places it doesn\'t normally reach. Low-water crossings will be completely submerged.',
                 'Roads and underpasses across the warned area are likely already flooding. This is a step above the typical flash flood warning.'
@@ -1224,33 +1463,33 @@ function _generate_alert_commentary(feature, motion, city) {
             'Half of all flash flood fatalities involve vehicles. If you encounter water on the road, turn around immediately.',
             'Flooding kills more people each year than tornadoes, hurricanes, or lightning. Take every flash flood warning seriously.',
             'If water is rising around your home, move to the highest floor. Do not go into the attic without a way to escape through the roof.',
-            'Stay off roads after dark in flooded areas — you cannot gauge water depth at night. Many fatal flood drownings happen after sunset.'
+            'Stay off roads after dark in flooded areas. You cannot gauge water depth at night. Many fatal flood drownings happen after sunset.'
         ]));
     } else if (event === 'Evacuation - Immediate') {
         lines.push(_pick_random([
-            'An IMMEDIATE EVACUATION order has been issued for ' + area + '. This is not a drill — leave the area now.',
+            'An IMMEDIATE EVACUATION order has been issued for ' + area + '. This is not a drill. Leave the area now.',
             'Emergency management has ordered an immediate evacuation of ' + area + '. Life-threatening conditions are present or imminent.',
             'A mandatory evacuation is in effect for ' + area + '. Residents must leave immediately for their own safety.',
-            'This is an emergency evacuation order for ' + area + '. Drop everything and get out — your safety depends on immediate action.',
+            'This is an emergency evacuation order for ' + area + '. Drop everything and get out. Your safety depends on immediate action.',
             'Officials have ordered everyone in ' + area + ' to evacuate immediately. Life-threatening conditions are expected to escalate rapidly.',
-            'An urgent evacuation order has been activated for ' + area + '. Do not wait for further updates — leave now.'
+            'An urgent evacuation order has been activated for ' + area + '. Do not wait for further updates. Leave now.'
         ]));
         if (desc.includes('FLOOD') || desc.includes('DAM') || desc.includes('LEVEE') || desc.includes('WATER')) {
             lines.push(_pick_random([
                 'This evacuation is driven by dangerous flooding conditions. Rising water levels pose an imminent threat to life and property.',
-                'Floodwaters are threatening the area. Roads may become impassable at any moment — do not delay your departure.',
+                'Floodwaters are threatening the area. Roads may become impassable at any moment. Do not delay your departure.',
                 'Water is rising rapidly in the evacuation zone. Get to higher ground and away from waterways immediately.',
                 'A dam, levee, or waterway is threatening to overflow or has already breached. The resulting flood surge could be swift and deadly.',
-                'Floodwaters are extremely deceptive — they move faster and carry more force than they appear. Evacuate to high ground now.',
+                'Floodwaters are extremely deceptive. They move faster and carry more force than they appear. Evacuate to high ground now.',
                 'The water threat in this area is escalating. Infrastructure failures could send a wall of water through the evacuation zone at any time.'
             ]));
         } else if (desc.includes('FIRE') || desc.includes('WILDFIRE')) {
             lines.push(_pick_random([
-                'A fast-moving wildfire is threatening the area. Flames and smoke can overtake roads quickly — evacuate now.',
+                'A fast-moving wildfire is threatening the area. Flames and smoke can overtake roads quickly. Evacuate now.',
                 'Fire conditions are extreme and the threat to life is imminent. Follow your evacuation route without delay.',
-                'This fire is moving rapidly. Grab essential items and leave immediately — do not wait for further notice.',
+                'This fire is moving rapidly. Grab essential items and leave immediately. Do not wait for further notice.',
                 'Wind-driven fire can travel faster than you can drive on congested roads. Do not underestimate how quickly this fire can spread.',
-                'Smoke alone can be deadly. Even if you can\'t see flames, evacuate immediately — toxic fumes can incapacitate you in minutes.',
+                'Smoke alone can be deadly. Even if you can\'t see flames, evacuate immediately. Toxic fumes can incapacitate you in minutes.',
                 'Embers from this fire can travel miles ahead of the main front. The entire area is at risk.'
             ]));
         } else {
@@ -1260,16 +1499,16 @@ function _generate_alert_commentary(feature, motion, city) {
                 'Do not ignore this order. Gather your family, essential medications, and important documents, and leave the area now.',
                 'Local authorities have determined that remaining in the area poses an immediate danger to your life. Comply with this evacuation order.',
                 'Time is critical. Conditions may prevent evacuation if you delay. Leave while routes are still passable.',
-                'This evacuation is mandatory — meaning officials believe the threat is severe enough that staying could result in death or serious injury.'
+                'This evacuation is mandatory, meaning officials believe the threat is severe enough that staying could result in death or serious injury.'
             ]));
         }
         lines.push(_pick_random([
             'If you need shelter, contact local emergency services or tune to local media for evacuation routes and shelter locations.',
             'Take phone chargers, medications, pets, and important documents with you. Check on your neighbors before you leave.',
-            'Follow designated evacuation routes. Do not take shortcuts — they may be blocked or dangerous.',
+            'Follow designated evacuation routes. Do not take shortcuts. They may be blocked or dangerous.',
             'Head to the nearest evacuation shelter. If you need transportation assistance, call 911 or your local emergency number.',
             'Bring a go-bag with essentials: water, medications, phone charger, ID, cash, and a change of clothes. Help elderly or disabled neighbors if you can.',
-            'Lock your home, turn off utilities if you have time, and take your evacuation route. Traffic will be heavy — stay patient and stay on route.'
+            'Lock your home, turn off utilities if you have time, and take your evacuation route. Traffic will be heavy. Stay patient and stay on route.'
         ]));
     }
 
@@ -1286,10 +1525,15 @@ function _extract_spc_stats(features) {
     var maxPct = 0;
     var hasHatched = false;
     for (var i = 0; i < features.length; i++) {
-        var lbl = String(features[i]?.properties?.label || '');
-        var n = parseInt(lbl);
-        if (!isNaN(n) && n > maxPct) maxPct = n;
-        if (lbl.toLowerCase().indexOf('hatched') !== -1 || String(features[i]?.properties?.label2 || '').toLowerCase().indexOf('hatched') !== -1) hasHatched = true;
+        var props = features[i]?.properties || {};
+        var lbl = String(props.label || '');
+        var lbl2 = String(props.label2 || '').toLowerCase();
+        var n = parseFloat(lbl);
+        if (!isNaN(n)) {
+            if (n > 0 && n <= 1) n = Math.round(n * 100);
+            if (n > maxPct) maxPct = n;
+        }
+        if (lbl.toLowerCase().indexOf('hatched') !== -1 || lbl2.indexOf('hatched') !== -1 || lbl2.indexOf('significant') !== -1) hasHatched = true;
     }
     return { maxPct: maxPct, hasHatched: hasHatched };
 }
@@ -1315,17 +1559,17 @@ function _generate_spc_commentary(hazard, geojson) {
 
         if (highest === 'HIGH') {
             lines.push(_pick_random([
-                'The SPC has issued a rare HIGH RISK — only issued a handful of times each year. All modes of severe weather are expected, including violent tornadoes.',
+                'The SPC has issued a rare HIGH RISK. This only happens a handful of times each year. All modes of severe weather are expected, including violent tornadoes.',
                 'This is one of the most dangerous days on the calendar. A HIGH RISK means widespread, significant severe weather is virtually certain.',
                 'A HIGH RISK day is as serious as it gets. The SPC is expecting a major severe weather outbreak with life-threatening hazards across the risk area.',
                 'We are looking at a HIGH RISK from the SPC ' + tod + '. This is an exceptionally rare outlook level that signals a high-end, potentially historic severe weather event.',
-                'The Storm Prediction Center has pulled the trigger on a HIGH RISK. This is reserved for the most extreme setups — major tornado outbreaks, widespread destructive winds, and giant hail.',
-                'A HIGH RISK is staring us in the face ' + tod + '. The atmosphere is loaded with energy — extreme instability, powerful shear, and a volatile synoptic setup.'
+                'The Storm Prediction Center has pulled the trigger on a HIGH RISK. This is reserved for the most extreme setups. Major tornado outbreaks, widespread destructive winds, and giant hail.',
+                'A HIGH RISK is staring us in the face ' + tod + '. The atmosphere is loaded with energy. Extreme instability, powerful shear, and a volatile synoptic setup.'
             ]));
             var highContext = _pick_random([
                 'The upper-level jet stream is providing exceptional wind shear, and surface moisture is off the charts.',
                 'A powerful low-pressure system and associated warm front are creating explosive conditions across the risk area.',
-                'All the ingredients are aligned — a vigorous shortwave, rich Gulf moisture, and a strongly sheared environment.',
+                'All the ingredients are aligned. A vigorous shortwave, rich Gulf moisture, and a strongly sheared environment.',
                 '', ''
             ]);
             if (highContext) lines.push(highContext);
@@ -1333,19 +1577,19 @@ function _generate_spc_commentary(hazard, geojson) {
                 'Everyone in the highlighted area should have shelter plans ready and multiple ways to receive warnings.',
                 'This is a day to stay vigilant from start to finish. Tornadoes, destructive winds, and very large hail are all on the table.',
                 'If you live in the risk area, charge your devices, know your safe room, and stay glued to weather updates.',
-                'Please take this seriously — a HIGH RISK day means you need a plan, a shelter, and situational awareness from now until the threat passes.',
+                'Please take this seriously. A HIGH RISK day means you need a plan, a shelter, and situational awareness from now until the threat passes.',
                 'Storm chasers will be out in force, but for everyone else, the safest place is indoors with a way to receive real-time warnings.',
                 'This is not a day to be caught off-guard. Violent tornadoes, destructive hail, and widespread damaging winds are all expected.'
             ]));
         } else if (highest === 'MDT') {
             lines.push(_pick_random([
                 'A MODERATE RISK is on the board ' + tod + '. The SPC expects widespread severe storms, and significant events are likely.',
-                'The SPC has elevated the outlook to MODERATE — a clear signal that a noteworthy severe weather event is unfolding.',
+                'The SPC has elevated the outlook to MODERATE. That\'s a clear signal that a noteworthy severe weather event is unfolding.',
                 'We\'re seeing a Moderate risk from the SPC, which tells us the atmosphere is primed for a serious round of severe weather.',
                 'A Moderate risk has been issued ' + tod + ', and historically, these days produce some of the most impactful severe weather events of the year.',
-                'The SPC is highlighting a MODERATE RISK — this tier is only issued a few dozen times per year. The threat level is significant.',
+                'The SPC is highlighting a MODERATE RISK. This tier is only issued a few dozen times per year. The threat level is significant.',
                 'We\'re dealing with a Moderate risk ' + tod + '. The ingredients are coming together for a substantial severe weather event across the highlighted area.',
-                'A MODERATE RISK from the Storm Prediction Center — the atmosphere is ripe with strong shear, ample moisture, and a forcing mechanism to kick things off.'
+                'A MODERATE RISK from the Storm Prediction Center. The atmosphere is ripe with strong shear, ample moisture, and a forcing mechanism to kick things off.'
             ]));
             var mdtContext = _pick_random([
                 'A potent shortwave trough and rich low-level moisture are the key players in this setup.',
@@ -1356,7 +1600,7 @@ function _generate_spc_commentary(hazard, geojson) {
             lines.push(_pick_random([
                 'People in the risk area should closely monitor conditions and have a shelter plan activated.',
                 'This level of risk means forecasters are highly confident in a significant severe event. Stay weather-aware.',
-                'Don\'t underestimate a Moderate risk day — some of the worst outbreaks in history have occurred under this category.',
+                'Don\'t underestimate a Moderate risk day. Some of the worst outbreaks in history have occurred under this category.',
                 'If you\'re in the risk area, now is the time to prepare. Know where your shelter is and keep your phone charged for alerts.',
                 'With a Moderate risk in play, expect storm reports to come in fast as the day progresses. Have multiple sources for weather information.',
                 'Emergency managers in the affected area should be on high alert. This has the potential to be a high-impact event.'
@@ -1366,14 +1610,14 @@ function _generate_spc_commentary(hazard, geojson) {
                 'An ENHANCED RISK is highlighted for today, meaning numerous severe storms are expected with the potential for a few significant ones.',
                 'The SPC outlook shows an Enhanced risk ' + tod + '. This is a step above Slight, and severe weather is becoming increasingly likely.',
                 'We\'re tracking an Enhanced risk from the Storm Prediction Center. Multiple rounds of organized severe storms could impact the region.',
-                'An Enhanced risk is in play ' + tod + ' — the SPC sees enough ingredients for a concentrated area of severe thunderstorms.',
+                'An Enhanced risk is in play ' + tod + '. The SPC sees enough ingredients for a concentrated area of severe thunderstorms.',
                 'The Day 1 outlook has been upgraded to Enhanced. Forecasters have growing confidence in a more organized severe weather event.',
                 'We\'re looking at an ENHANCED RISK across the outlook area. Surface boundaries and upper-level energy are coming together to support widespread severe storms.',
                 'An Enhanced risk from the SPC means we should see a noticeable step up in storm coverage and intensity compared to a Slight risk day.'
             ]));
             lines.push(_pick_random([
                 'Now is a good time to review your severe weather plan and know where your nearest shelter is.',
-                'Keep an eye on radar through the day — storms could ramp up quickly once they fire.',
+                'Keep an eye on radar through the day. Storms could ramp up quickly once they fire.',
                 'Have a way to receive warnings even while sleeping, as threats may persist into the night.',
                 'Stay tuned for mesoscale discussions and potential watch issuances from the SPC as the day progresses.',
                 'If you have outdoor plans in the risk area, consider flexible alternatives. Storms could develop rapidly.',
@@ -1382,21 +1626,21 @@ function _generate_spc_commentary(hazard, geojson) {
         } else if (highest === 'SLGT') {
             lines.push(_pick_random([
                 'The Day 1 outlook features a SLIGHT RISK, which means scattered severe storms are possible ' + tod + ' with isolated tornadoes, hail, and damaging winds.',
-                'A Slight risk is in play — not a guarantee of severe weather in any one spot, but enough ingredients are present for organized storms to produce hazards.',
+                'A Slight risk is in play. Not a guarantee of severe weather in any one spot, but enough ingredients are present for organized storms to produce hazards.',
                 'The SPC has placed parts of the country under a Slight risk. A few storms could turn severe as the day progresses.',
-                'We\'re tracking a Slight risk ' + tod + '. While it\'s the middle tier, a Slight risk can still produce a few dangerous storms — don\'t let the name fool you.',
+                'We\'re tracking a Slight risk ' + tod + '. While it\'s the middle tier, a Slight risk can still produce a few dangerous storms. Don\'t let the name fool you.',
                 'A SLIGHT RISK is on the map, and while it doesn\'t scream catastrophe, it does mean some storms will pack a punch.',
                 'The SPC has highlighted a Slight risk for portions of the region. Isolated to scattered severe storms are expected, with all hazard types possible.',
-                'A Slight risk day means scattered severe weather — a handful of storms could produce damaging winds, hail, or even a brief tornado.'
+                'A Slight risk day means scattered severe weather. A handful of storms could produce damaging winds, hail, or even a brief tornado.'
             ]));
         } else if (highest === 'MRGL') {
             lines.push(_pick_random([
-                'A MARGINAL RISK is outlined for today — the lowest tier of severe risk. An isolated storm or two could briefly reach severe limits.',
+                'A MARGINAL RISK is outlined for today, the lowest tier of severe risk. An isolated storm or two could briefly reach severe limits.',
                 'We\'re looking at a Marginal risk, meaning the severe weather threat is low but not zero. A stray damaging gust or hail report is possible.',
                 'The SPC has painted a Marginal risk area on the outlook. Confidence in widespread severe weather is low, but stay aware if storms develop near you.',
-                'A Marginal risk is on the board ' + tod + ' — think of it as a heads-up that a storm or two might get rowdy, but nothing widespread.',
+                'A Marginal risk is on the board ' + tod + '. Think of it as a heads-up that a storm or two might get rowdy, but nothing widespread.',
                 'The Day 1 outlook shows a Marginal risk. This is the SPC\'s way of saying the environment marginally supports a severe storm, but the odds are low.',
-                'We\'re at the Marginal level on the SPC outlook — the lowest rung of severe risk. An isolated gusty storm or small hail event is about the extent of it.',
+                'We\'re at the Marginal level on the SPC outlook, the lowest rung of severe risk. An isolated gusty storm or small hail event is about the extent of it.',
                 'A Marginal risk is highlighted, but most people in the risk area probably won\'t see severe weather. It\'s just worth having on your radar.'
             ]));
         } else {
@@ -1404,25 +1648,25 @@ function _generate_spc_commentary(hazard, geojson) {
                 'The Day 1 outlook is showing general thunderstorm coverage, but no organized severe risk has been identified by the SPC.',
                 'No categorical severe risk is outlined today. Any thunderstorms that develop should remain below severe criteria.',
                 'It\'s a relatively quiet setup on the convective outlook. The SPC doesn\'t see the ingredients for widespread severe weather today.',
-                'The SPC outlook is all green ' + tod + ' — general thunderstorm areas only. The severe weather threat is essentially zero.',
+                'The SPC outlook is all green ' + tod + '. General thunderstorm areas only. The severe weather threat is essentially zero.',
                 'Quiet day on the convective outlook. No severe risk areas have been highlighted by the Storm Prediction Center.',
                 'The atmosphere is relatively stable ' + tod + ' with no organized severe potential. Enjoy the calm while it lasts.',
-                'Nothing alarming on the Day 1 outlook — the SPC sees no real setup for severe weather across the lower 48 right now.'
+                'Nothing alarming on the Day 1 outlook. The SPC sees no real setup for severe weather across the lower 48 right now.'
             ]));
         }
     } else if (hazard === 'tornado') {
         var ts = _extract_spc_stats(features);
         if (ts.maxPct >= 30) {
             lines.push(_pick_random([
-                'The tornado outlook is screaming danger — a ' + ts.maxPct + '% probability area signals a full-blown tornado outbreak is expected.',
+                'The tornado outlook is screaming danger. A ' + ts.maxPct + '% probability area signals a full-blown tornado outbreak is expected.',
                 'At ' + ts.maxPct + '%, this is an exceptionally high tornado probability. Numerous strong to violent tornadoes are anticipated.',
                 'This ' + ts.maxPct + '% tornado probability is historic-level. The atmosphere is loaded for a major outbreak.',
-                'We are in rare territory with a ' + ts.maxPct + '% tornado probability — this is the kind of setup that produces long-track, violent tornadoes.',
+                'We are in rare territory with a ' + ts.maxPct + '% tornado probability. This is the kind of setup that produces long-track, violent tornadoes.',
                 'The SPC has drawn a ' + ts.maxPct + '% tornado contour, and that is about as alarming as it gets. Multiple significant tornadoes are expected.',
                 'At ' + ts.maxPct + '% tornado probability, the SPC is telling us to expect a prolific tornado event. EF3 or stronger tornadoes are a real possibility ' + tod + '.'
             ]));
             var torContext = _pick_random([
-                'The low-level jet is screaming, and hodographs are massive — textbook setup for long-track supercells.',
+                'The low-level jet is screaming, and hodographs are massive. Textbook setup for long-track supercells.',
                 'Extreme wind shear and a volatile warm sector are fueling this outbreak potential.',
                 '', ''
             ]);
@@ -1432,7 +1676,7 @@ function _generate_spc_commentary(hazard, geojson) {
                 'A ' + ts.maxPct + '% tornado probability area is drawn on the outlook. Multiple tornadoes, including potentially strong ones, are expected.',
                 'At ' + ts.maxPct + '%, the tornado threat is elevated well above average. Supercells with tornado potential will likely develop ' + tod + '.',
                 'The SPC has highlighted a notable ' + ts.maxPct + '% tornado probability zone. Several tornadoes are possible, and some could be significant.',
-                'A ' + ts.maxPct + '% tornado probability is noteworthy — this suggests discrete supercells capable of producing strong tornadoes within the highlighted area.',
+                'A ' + ts.maxPct + '% tornado probability is noteworthy. This suggests discrete supercells capable of producing strong tornadoes within the highlighted area.',
                 'The ' + ts.maxPct + '% tornado contour tells us the mesocyclone environment is favorable. Rotating storms are expected to develop ' + tod + '.',
                 'We\'re looking at ' + ts.maxPct + '% tornado probabilities, which is a clear signal that storm chasers and emergency managers will be active today.',
                 'At ' + ts.maxPct + '%, the tornado potential is significant. The low-level jet and shear profiles are strongly supportive of tornadic supercells.'
@@ -1440,19 +1684,19 @@ function _generate_spc_commentary(hazard, geojson) {
         } else if (ts.maxPct >= 5) {
             lines.push(_pick_random([
                 'A ' + ts.maxPct + '% tornado probability is in play. The environment supports supercell development with embedded tornado risk.',
-                'The tornado outlook shows a ' + ts.maxPct + '% zone — enough to warrant close attention. Isolated tornadoes are possible with the strongest storms.',
+                'The tornado outlook shows a ' + ts.maxPct + '% zone. Enough to warrant close attention. Isolated tornadoes are possible with the strongest storms.',
                 'We\'re seeing ' + ts.maxPct + '% tornado probabilities on the Day 1 outlook. Any storm that can sustain rotation will bear watching.',
                 'A ' + ts.maxPct + '% tornado probability area is outlined ' + tod + '. The hodographs and wind profiles suggest a window for brief tornadoes.',
-                'The SPC is showing ' + ts.maxPct + '% for tornado — not extreme, but definitely enough to have your weather radio on and shelter plan in mind.',
+                'The SPC is showing ' + ts.maxPct + '% for tornado. Not extreme, but definitely enough to have your weather radio on and shelter plan in mind.',
                 'At ' + ts.maxPct + '% tornado probabilities, we could see a few isolated tornadoes if cells can tap into the low-level shear.'
             ]));
         } else if (ts.maxPct >= 2) {
             lines.push(_pick_random([
-                'A ' + ts.maxPct + '% tornado probability is on the map — low, but not negligible. Brief, weak tornadoes can still cause damage and injury.',
+                'A ' + ts.maxPct + '% tornado probability is on the map. Low, but not negligible. Brief, weak tornadoes can still cause damage and injury.',
                 'The tornado risk sits at ' + ts.maxPct + '%, which is on the lower end. Still, it only takes one tornado to ruin someone\'s day.',
                 'Even at ' + ts.maxPct + '%, don\'t let your guard down. Tornadoes from low-probability setups can still be deadly if you\'re not prepared.',
                 'A ' + ts.maxPct + '% tornado signal is on the outlook. It\'s a low-end threat, but a brief spin-up tornado can\'t be ruled out with the stronger cells.',
-                'We\'re looking at ' + ts.maxPct + '% tornado probabilities — relatively low, but these are the kind of setups that produce the occasional surprise tornado.',
+                'We\'re looking at ' + ts.maxPct + '% tornado probabilities. Relatively low, but these are the kind of setups that produce the occasional surprise tornado.',
                 'At just ' + ts.maxPct + '%, the tornado threat is conditional, but the ingredients for a brief tornado are present if a storm can get its act together.'
             ]));
         } else if (features.length) {
@@ -1462,14 +1706,14 @@ function _generate_spc_commentary(hazard, geojson) {
                 'There\'s a non-zero tornado signal on the outlook. The risk is marginal, but worth monitoring if storms fire.',
                 'A low-end tornado signal is present on the Day 1 outlook. The environment has some supportive ingredients, but the setup isn\'t robust.',
                 'The SPC sees a slim chance of tornadoes ' + tod + '. The low-level wind fields are only weakly supportive.',
-                'Tornado potential is on the fringe today — the atmosphere could support a brief, weak tornado, but most storms should remain non-tornadic.'
+                'Tornado potential is on the fringe today. The atmosphere could support a brief, weak tornado, but most storms should remain non-tornadic.'
             ]));
         } else {
             lines.push(_pick_random([
                 'No significant tornado probabilities are highlighted on the Day 1 outlook at this time.',
-                'The tornado outlook is quiet — the ingredients for tornadic storms aren\'t coming together today.',
+                'The tornado outlook is quiet. The ingredients for tornadic storms aren\'t coming together today.',
                 'The SPC isn\'t seeing a meaningful tornado threat in the current forecast cycle.',
-                'Good news on the tornado front — the Day 1 outlook shows no tornado probability contours today.',
+                'Good news on the tornado front. The Day 1 outlook shows no tornado probability contours today.',
                 'No tornado risk to speak of ' + tod + '. The wind profiles don\'t support rotation in any developing storms.',
                 'The tornado outlook is clean across the board. The atmosphere isn\'t set up for tornadic activity today.'
             ]));
@@ -1477,11 +1721,11 @@ function _generate_spc_commentary(hazard, geojson) {
         if (ts.hasHatched) {
             lines.push(_pick_random([
                 'The hatched contour means there\'s a 10%+ chance of EF2 or stronger tornadoes within 25 miles of any point inside it.',
-                'Pay close attention to the hatched area — it flags a heightened risk of significant tornadoes, EF2 or stronger.',
+                'Pay close attention to the hatched area. It flags a heightened risk of significant tornadoes, EF2 or stronger.',
                 'Where you see hatching, the SPC is signaling that the strongest tornadoes are most likely to occur.',
-                'That hatching on the map is critical — it means the SPC expects a 10% or greater chance of significant tornadoes, potentially long-track and violent.',
+                'That hatching on the map is critical. The SPC expects a 10% or greater chance of significant tornadoes, potentially long-track and violent.',
                 'The hatched contour is where the real danger lies. EF2 or stronger tornadoes are expected within 25 miles of any point in that zone.',
-                'Notice the hatching — that represents the significant severe parameter. This is where we could see the most intense and potentially deadly tornadoes.'
+                'Notice the hatching. That represents the significant severe parameter. This is where we could see the most intense and potentially deadly tornadoes.'
             ]));
         }
     } else if (hazard === 'wind') {
@@ -1491,7 +1735,7 @@ function _generate_spc_commentary(hazard, geojson) {
                 'Widespread, destructive winds are expected ' + tod + '. A ' + ws.maxPct + '% probability area means a derecho-level event is possible.',
                 'The wind outlook is extremely aggressive at ' + ws.maxPct + '%. Expect widespread tree and power line damage, and potentially worse.',
                 'At ' + ws.maxPct + '%, the SPC is forecasting a prolific damaging wind event. Gusts above 75 mph are a genuine possibility.',
-                'A ' + ws.maxPct + '% wind probability is exceptionally high. This setup favors a widespread, destructive wind event — possibly a bow echo or derecho.',
+                'A ' + ws.maxPct + '% wind probability is exceptionally high. This setup favors a widespread, destructive wind event. Possibly a bow echo or derecho.',
                 'The SPC has painted a ' + ws.maxPct + '% wind contour ' + tod + ', and that spells trouble. Large-scale damaging winds are virtually certain.',
                 'At ' + ws.maxPct + '%, expect a major damaging wind event. Storms will likely organize into a squall line capable of producing hurricane-force gusts.',
                 'This ' + ws.maxPct + '% wind probability is as high as it gets. Significant structural damage is possible across a wide swath.'
@@ -1501,7 +1745,7 @@ function _generate_spc_commentary(hazard, geojson) {
                 'A significant damaging wind threat is highlighted at ' + ws.maxPct + '%. Storms will be capable of producing widespread 60-80 mph gusts.',
                 'The ' + ws.maxPct + '% wind probability tells us to expect numerous reports of damaging winds ' + tod + '. Secure outdoor objects.',
                 'With ' + ws.maxPct + '% wind probabilities, clusters of severe storms will likely produce damaging outflow winds across a large area.',
-                'The SPC is showing ' + ws.maxPct + '% wind probabilities — organized convective wind damage is a primary threat ' + tod + '.',
+                'The SPC is showing ' + ws.maxPct + '% wind probabilities. Organized convective wind damage is a primary threat ' + tod + '.',
                 'A ' + ws.maxPct + '% wind probability means damaging straight-line winds will be a major concern. Storms may organize into a fast-moving squall line.',
                 'At ' + ws.maxPct + '%, wind damage is going to be the headline story. Trees, power lines, and lightweight structures are all vulnerable.',
                 'The ' + ws.maxPct + '% wind contour is broad enough to suggest a widespread damaging wind event rather than just isolated gusts.'
@@ -1509,10 +1753,10 @@ function _generate_spc_commentary(hazard, geojson) {
         } else if (ws.maxPct >= 5) {
             lines.push(_pick_random([
                 'A ' + ws.maxPct + '% damaging wind probability is on the outlook. Isolated to scattered severe gusts are possible with stronger thunderstorms.',
-                'Wind damage is in the forecast at ' + ws.maxPct + '%. The main threat will be from storm outflow — gusts over 58 mph.',
+                'Wind damage is in the forecast at ' + ws.maxPct + '%. The main threat will be from storm outflow, gusts over 58 mph.',
                 'The ' + ws.maxPct + '% wind zone highlights where thunderstorm downbursts could produce tree damage and localized power outages.',
                 'A ' + ws.maxPct + '% wind probability means some storms ' + tod + ' will produce damaging downburst winds. Keep an eye on approaching lines.',
-                'We\'re seeing ' + ws.maxPct + '% wind probabilities — enough to warrant attention. Microbursts and strong outflow could produce locally damaging gusts.',
+                'We\'re seeing ' + ws.maxPct + '% wind probabilities. Enough to warrant attention. Microbursts and strong outflow could produce locally damaging gusts.',
                 'The wind threat sits at ' + ws.maxPct + '%. Not the highest we\'ve seen, but still capable of producing some nasty downbursts in the stronger cells.'
             ]));
         } else if (features.length) {
@@ -1521,40 +1765,40 @@ function _generate_spc_commentary(hazard, geojson) {
                 'A marginal wind threat exists. A stray severe gust is possible but shouldn\'t be a major concern area-wide.',
                 'The wind outlook shows limited probabilities. Any severe gusts would be isolated and brief.',
                 'A low-end wind signal is present, but the setup doesn\'t favor any organized damaging wind event.',
-                'The SPC notes some wind potential ' + tod + ', but it\'s on the fringe — an isolated strong gust at most.',
+                'The SPC notes some wind potential ' + tod + ', but it\'s on the fringe. An isolated strong gust at most.',
                 'There\'s a marginal wind component to today\'s outlook, but it shouldn\'t be the primary concern.'
             ]));
         } else {
             lines.push(_pick_random([
                 'No significant wind damage probabilities are highlighted today.',
-                'The Day 1 wind outlook is clean — no meaningful damaging wind signal in the current data.',
+                'The Day 1 wind outlook is clean. No meaningful damaging wind signal in the current data.',
                 'Winds shouldn\'t be a major player in today\'s weather story.',
                 'The wind outlook shows no concerning probabilities ' + tod + '. Gusty thunderstorm winds aren\'t expected.',
                 'No damaging wind threat on the board. Storms, if any develop, should produce sub-severe gusts.',
-                'The wind picture is quiet — the SPC doesn\'t see the ingredients for significant wind damage today.'
+                'The wind picture is quiet. The SPC doesn\'t see the ingredients for significant wind damage today.'
             ]));
         }
         if (ws.hasHatched) {
             lines.push(_pick_random([
-                'The hatched area flags a 10%+ chance of 75 mph or stronger gusts — winds that can cause structural damage.',
+                'The hatched area flags a 10%+ chance of 75 mph or stronger gusts. Those winds can cause structural damage.',
                 'Where you see hatching, the risk of significant wind damage (75+ mph) is elevated. This can rival weak tornado damage.',
                 'Inside the hatched zone, hurricane-force gusts above 75 mph are possible. Take these threats seriously.',
-                'The hatched contour highlights where 75+ mph gusts are anticipated — winds that can collapse roofs and snap utility poles.',
+                'The hatched contour highlights where 75+ mph gusts are anticipated. Winds that can collapse roofs and snap utility poles.',
                 'Pay special attention to the hatched area. Winds of 75 mph or greater can cause damage equivalent to an EF1 tornado.',
-                'That hatching means business — we\'re talking about the potential for 75+ mph gusts, which is genuinely dangerous and destructive.'
+                'That hatching means business. We\'re talking about the potential for 75+ mph gusts, which is genuinely dangerous and destructive.'
             ]));
         }
     } else if (hazard === 'hail') {
         var hs = _extract_spc_stats(features);
         if (hs.maxPct >= 30) {
             lines.push(_pick_random([
-                'A major hail event is expected ' + tod + '. The ' + hs.maxPct + '% probability area signals giant hail — baseball-sized stones or larger are on the table.',
+                'A major hail event is expected ' + tod + '. The ' + hs.maxPct + '% probability area signals giant hail. Baseball-sized stones or larger are on the table.',
                 'At ' + hs.maxPct + '%, the hail outlook is about as alarming as it gets. Expect significant property damage from very large hail.',
                 'The SPC is forecasting extreme hail probabilities at ' + hs.maxPct + '%. Supercells will likely produce destructive hailstones exceeding 2 inches.',
-                'A ' + hs.maxPct + '% hail probability is a big deal — this kind of setup produces the sort of hail that totals vehicles and punches through roofs.',
+                'A ' + hs.maxPct + '% hail probability is a big deal. This kind of setup produces the sort of hail that totals vehicles and punches through roofs.',
                 'The SPC has drawn a ' + hs.maxPct + '% hail contour ' + tod + '. Supercell updrafts will be strong enough to loft enormous hailstones.',
                 'At ' + hs.maxPct + '%, we are looking at a potentially devastating hail event. Baseball-sized or larger stones are expected with the most intense supercells.',
-                'The hail threat is about as serious as it gets at ' + hs.maxPct + '%. Get your vehicles under cover if you can — the damage potential is extreme.'
+                'The hail threat is about as serious as it gets at ' + hs.maxPct + '%. Get your vehicles under cover if you can. The damage potential is extreme.'
             ]));
         } else if (hs.maxPct >= 15) {
             lines.push(_pick_random([
@@ -1563,7 +1807,7 @@ function _generate_spc_commentary(hazard, geojson) {
                 'With ' + hs.maxPct + '% hail probabilities, the SPC expects an active day for large hail reports across this region.',
                 'The ' + hs.maxPct + '% hail probability tells us strong updrafts will support large hail production. Quarter to golf ball-sized stones are likely.',
                 'At ' + hs.maxPct + '%, hail damage is going to be a primary concern. Keep vehicles sheltered and stay indoors when storms pass overhead.',
-                'A ' + hs.maxPct + '% hail probability area is highlighted — the SPC expects these supercells to produce stones large enough to crack windshields.',
+                'A ' + hs.maxPct + '% hail probability area is highlighted. The SPC expects these supercells to produce stones large enough to crack windshields.',
                 'The hail outlook at ' + hs.maxPct + '% signals an active day. Powerful supercell updrafts will loft significant hailstones across the threat area.'
             ]));
         } else if (hs.maxPct >= 5) {
@@ -1587,19 +1831,19 @@ function _generate_spc_commentary(hazard, geojson) {
         } else {
             lines.push(_pick_random([
                 'No significant hail probabilities are highlighted on today\'s outlook.',
-                'The hail outlook is quiet — the environment doesn\'t favor large hail production today.',
+                'The hail outlook is quiet. The environment doesn\'t favor large hail production today.',
                 'Large hail isn\'t on the menu for today\'s weather pattern.',
                 'The hail outlook is clean ' + tod + '. Storms, if any, shouldn\'t produce significant hail.',
-                'No hail worries today — the updraft potential isn\'t strong enough to support large stones.',
+                'No hail worries today. The updraft potential isn\'t strong enough to support large stones.',
                 'Hail is a non-factor on today\'s outlook. The environment just doesn\'t support it.'
             ]));
         }
         if (hs.hasHatched) {
             lines.push(_pick_random([
-                'Hatching denotes a 10%+ chance of 2-inch or larger hail — stones that size can cause serious injury and total a vehicle.',
+                'Hatching denotes a 10%+ chance of 2-inch or larger hail. Stones that size can cause serious injury and total a vehicle.',
                 'The hatched area is where the very largest hail is expected. This is a significant threat to anyone caught outside.',
-                'Inside the hatched contour, expect the potential for truly destructive hail — 2 inches or larger in diameter.',
-                'That hatching means 2-inch-plus hail is expected — we\'re talking baseball-sized stones that can be lethal if you\'re caught outside.',
+                'Inside the hatched contour, expect the potential for truly destructive hail, 2 inches or larger in diameter.',
+                'That hatching means 2-inch-plus hail is expected. We\'re talking baseball-sized stones that can be lethal if you\'re caught outside.',
                 'The hatched zone highlights where the most destructive hail is anticipated. Stones of 2 inches or larger can cause catastrophic damage.',
                 'Where you see hatching, the SPC expects a 10%+ probability of hail 2 inches or larger. That\'s the kind of hail that makes the news.'
             ]));
@@ -1611,7 +1855,7 @@ function _generate_spc_commentary(hazard, geojson) {
         'We\'ll continue to monitor this as the day unfolds.',
         'Stay weather-aware and keep checking back for updates.',
         'We\'ll have more on this as conditions evolve.',
-        'Keep it right here — we\'re tracking this around the clock.'
+        'Keep it right here. We\'re tracking this around the clock.'
     ]);
     if (closing) lines.push(closing);
 
@@ -1637,26 +1881,26 @@ function _generate_conus_commentary() {
         'Here\'s a look at the national MRMS radar mosaic across the lower 48.',
         'Pulling up the full CONUS view on MRMS composite reflectivity.',
         'Let\'s zoom out to the national radar picture for a broader view of what\'s happening.',
-        'Time to take the big-picture view — here\'s the national MRMS radar composite across the continental U.S.',
+        'Time to take the big-picture view. Here\'s the national MRMS radar composite across the continental U.S.',
         'Stepping back to the nationwide radar mosaic ' + tod + '. Let\'s see what\'s going on coast to coast.',
-        'Here\'s the full continental view on MRMS reflectivity — a great way to see the overall pattern.',
+        'Here\'s the full continental view on MRMS reflectivity. A great way to see the overall pattern.',
         'Zooming out to the national scale ' + tod + '. The MRMS composite gives us the best picture of precipitation across the entire country.'
     ]));
 
     if (total === 0) {
         lines.push(_pick_random([
             'No active severe weather warnings across the nation right now. A relatively calm pattern is in place.',
-            'It\'s quiet out there ' + tod + ' — no severe thunderstorm, tornado, or flash flood warnings active.',
+            'It\'s quiet out there ' + tod + '. No severe thunderstorm, tornado, or flash flood warnings active.',
             'The warning map is clean at the moment. No severe weather warnings are currently in effect nationwide.',
             'No severe warnings anywhere across the lower 48 right now. A nice break from the action.',
             'The national warning count sits at zero ' + tod + '. The atmosphere is behaving itself for now.',
-            'All clear on the severe weather front — not a single tornado, severe thunderstorm, or flash flood warning active across the country.',
+            'All clear on the severe weather front. Not a single tornado, severe thunderstorm, or flash flood warning active across the country.',
             'A quiet pattern is in control nationwide ' + tod + '. No active severe weather warnings to report.'
         ]));
         var quietNote = _pick_random([
             '', '', '', '',
             ' Days like this are a good reminder to review your severe weather plan for when things do ramp up.',
-            ' Enjoy the calm — it never lasts forever in the weather world.',
+            ' Enjoy the calm. It never lasts forever in the weather world.',
             ' A good time to charge up those weather radios and make sure your alert apps are configured.',
             ' Even on quiet days, it\'s worth keeping an eye on the forecast a few days out.'
         ]);
@@ -1671,7 +1915,7 @@ function _generate_conus_commentary() {
             lines.push(_pick_random([
                 'It\'s an active pattern ' + tod + ' with ' + parts.join(', ') + ' across the country. Multiple areas are dealing with severe weather simultaneously.',
                 'The warning map is lit up ' + tod + ': ' + parts.join(', ') + '. This is a busy weather day across the U.S.',
-                'Plenty of action on the board — ' + parts.join(', ') + ' — a widespread severe weather event is underway.',
+                'Plenty of action on the board. ' + parts.join(', ') + '. A widespread severe weather event is underway.',
                 'We\'re tracking a very active pattern with ' + parts.join(', ') + ' spanning multiple states. A lot happening at once.',
                 'The severe weather machine is running full speed ' + tod + '. We\'ve got ' + parts.join(', ') + ' across the nation.'
             ]));
@@ -1680,16 +1924,16 @@ function _generate_conus_commentary() {
                 'Several warnings are active right now: ' + parts.join(', ') + '. Multiple storm clusters are producing hazardous conditions.',
                 'A moderate level of activity on the warning map with ' + parts.join(', ') + '. Several areas need to stay alert.',
                 'We\'re tracking ' + parts.join(', ') + ' ' + tod + '. A handful of storm complexes are causing trouble.',
-                'The warning count is climbing — ' + parts.join(', ') + ' across the country. Multiple areas are being impacted.',
+                'The warning count is climbing. ' + parts.join(', ') + ' across the country. Multiple areas are being impacted.',
                 'Active weather across parts of the country with ' + parts.join(', ') + ' on the board.'
             ]));
         } else {
             lines.push(_pick_random([
                 'Currently tracking ' + parts.join(' and ') + ' across the US.',
                 'A few warnings are active ' + tod + ': ' + parts.join(' and ') + '.',
-                'We\'ve got ' + parts.join(' and ') + ' on the map right now — let\'s keep an eye on those.',
+                'We\'ve got ' + parts.join(' and ') + ' on the map right now. Let\'s keep an eye on those.',
                 'Light activity on the warning map with ' + parts.join(' and ') + ' currently in effect.',
-                'The warning count is low but not zero — tracking ' + parts.join(' and ') + ' ' + tod + '.'
+                'The warning count is low but not zero. Tracking ' + parts.join(' and ') + ' ' + tod + '.'
             ]));
         }
 
@@ -1697,17 +1941,17 @@ function _generate_conus_commentary() {
             lines.push(_pick_random([
                 'With multiple tornado warnings active, this is a particularly dangerous weather situation unfolding in real time.',
                 'The tornado threat is elevated across multiple locations. Stay tuned for rapid developments.',
-                'Several tornado-warned storms are on the map — a sign of an active severe weather event in progress.',
-                'Multiple tornado warnings simultaneously — that\'s a hallmark of a significant severe weather outbreak.',
+                'Several tornado-warned storms are on the map. That\'s a sign of an active severe weather event in progress.',
+                'Multiple tornado warnings at the same time. That\'s a hallmark of a significant severe weather outbreak.',
                 torCount + ' tornado warnings are active at once. This is the kind of situation where you stay glued to your weather sources.',
-                'The tornado count is alarming — ' + torCount + ' active warnings tells us this is a serious and ongoing outbreak.'
+                'The tornado count is alarming. ' + torCount + ' active warnings tells us this is a serious and ongoing outbreak.'
             ]));
         } else if (torCount > 0) {
             lines.push(_pick_random([
                 'At least one tornado warning is active. We\'ll focus in on that threat shortly.',
                 'A tornado-warned storm is being tracked. Anyone in the warned area should be in shelter.',
                 'With a tornado warning on the board, conditions are dangerous for parts of the country right now.',
-                'There\'s a tornado warning active — we\'ll be zooming in on that shortly for a closer look.',
+                'There\'s a tornado warning active. We\'ll be zooming in on that shortly for a closer look.',
                 'A confirmed tornado threat is on the map. If you\'re in the warned polygon, take shelter immediately.',
                 'We\'ve got a tornado warning to keep our eye on. Stand by for a closer look at that storm.'
             ]));
@@ -1955,6 +2199,9 @@ function _run_alert_segment(resolve, forceFeature) {
             controller.state.speedMultiplier = PLAYBACK_SPEED;
         }
         station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D');
+        _show_radar_render();
+        _show_station_markers();
+        _show_radar_sweep();
         if (isSameStation && controller && controller.state.active && controller.state.supported) {
             controller.refresh_frames();
         }
@@ -2440,6 +2687,9 @@ function _run_spotlight_segment(resolve) {
             controller.state.speedMultiplier = PLAYBACK_SPEED;
         }
         station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D');
+        _show_radar_render();
+        _show_station_markers();
+        _show_radar_sweep();
         if (isSameStation && controller && controller.state.active && controller.state.supported) {
             controller.refresh_frames();
         }
@@ -2453,7 +2703,6 @@ function _run_spotlight_segment(resolve) {
         });
 
         _show_info_panel(_build_spotlight_panel_html(station));
-        _typewrite(_generate_spotlight_commentary(station), 1200);
 
         _trackAlertTimer(function () {
             if (isStale()) return finish();
@@ -2545,10 +2794,6 @@ function _run_conus_segment(resolve) {
             _stop_typewriter();
             _hide_info_panel();
             _remove_static_mrms_layer();
-            _show_radar_render();
-            _show_station_markers();
-            _show_alert_polygons();
-            _show_radar_sweep();
             _show_header_radar_info();
             resolve();
         });
@@ -3031,12 +3276,11 @@ function _run_conditions_segment(resolve) {
     map.flyTo({ center: region.center, zoom: region.zoom, speed: 1.2, essential: true });
 
     _fetch_observations(function (observations) {
-        if (!_active) { _show_all_map_overlays(); _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
+        if (!_active) { _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
 
         var obsKeys = Object.keys(observations);
         if (obsKeys.length === 0) {
             console.warn('[LiveMode] Conditions segment: no observation data returned');
-            _show_all_map_overlays();
             _show_header_radar_info();
             _hide_cond_legend();
             _hide_info_panel();
@@ -3044,21 +3288,16 @@ function _run_conditions_segment(resolve) {
         }
 
         _trackAlertTimer(function () {
-            if (!_active) { _show_all_map_overlays(); _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
+            if (!_active) { _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
             _add_conditions_layer(region, observations);
             _show_cond_legend();
-            _typewrite(_generate_conditions_commentary(region, observations), 1200);
 
             _segmentTimer = setTimeout(function () {
-                _wait_for_typewriter_then(function () {
-                    _stop_typewriter();
-                    _remove_conditions_layer();
-                    _hide_cond_legend();
-                    _show_all_map_overlays();
-                    _show_header_radar_info();
-                    _hide_info_panel();
-                    resolve();
-                });
+                _remove_conditions_layer();
+                _hide_cond_legend();
+                _show_header_radar_info();
+                _hide_info_panel();
+                resolve();
             }, CONDITIONS_DURATION_MS);
         }, 300);
     });
@@ -3228,154 +3467,54 @@ function _time_ago(ts) {
 }
 
 function _generate_earthquake_commentary(quakes) {
-    var lines = [];
     var tod = _time_of_day();
 
     if (quakes.length === 0) {
         return _pick_random([
-            'No significant earthquakes detected across the continental U.S. in the last 24 hours. Seismically quiet day.',
-            'The USGS reports no magnitude 2.5+ earthquakes within the lower 48 over the past day. All quiet on the seismic front.',
-            'It\'s a calm day seismically — no M2.5 or greater earthquakes across the lower 48 in the past 24 hours.',
-            'The seismographs have been quiet across the continental U.S. ' + tod + '. No noteworthy earthquake activity to report.',
-            'No significant shaking to report ' + tod + '. The Earth is giving us a break across the lower 48.',
-            'All quiet underground — the USGS hasn\'t recorded any M2.5+ events in the contiguous U.S. over the past day.',
-            'The seismic picture is flat ' + tod + '. Not a single M2.5+ event across the continental United States in the last 24 hours.'
+            'No significant earthquakes across the lower 48 in the last 24 hours.',
+            'The USGS reports no M2.5+ earthquakes within the lower 48 over the past day. Quiet day seismically.',
+            'The seismographs have been quiet ' + tod + '. No noteworthy earthquake activity to report.',
+            'All quiet underground. No M2.5+ events in the contiguous U.S. over the past day.'
         ]);
     }
 
+    var lines = [];
     lines.push(_pick_random([
-        'Let\'s check in on recent seismic activity across the United States.',
-        'Here\'s the latest earthquake activity reported by the USGS in the past 24 hours.',
-        'Monitoring seismic events across the lower 48 — here\'s what the USGS is tracking right now.',
-        'Shifting gears to earthquake activity ' + tod + '. The USGS has been tracking some seismic events across the country.',
-        'Time to check the seismographs — here\'s the latest earthquake activity across the continental United States.',
-        'Let\'s take a look at what\'s been shaking across the U.S. in the last 24 hours.',
-        'From the weather to the ground beneath our feet — here\'s the recent seismic picture across the lower 48.'
+        'Here\'s the latest earthquake activity from the USGS over the past 24 hours.',
+        'Let\'s check in on recent seismic activity across the U.S.',
+        'Time to check the seismographs. Here\'s what\'s been shaking across the lower 48.'
     ]));
 
     var strongest = quakes[0];
     for (var i = 1; i < quakes.length; i++) {
         if (quakes[i].properties.mag > strongest.properties.mag) strongest = quakes[i];
     }
-    var newest = quakes[0];
 
     var sMag = strongest.properties.mag;
     var sPlace = strongest.properties.place || 'an unknown location';
-    var sDepth = strongest.geometry.coordinates[2] ? Math.round(strongest.geometry.coordinates[2]) : 0;
 
     if (sMag >= 4.5) {
         lines.push(_pick_random([
-            'The most significant event is a magnitude ' + sMag.toFixed(1) + ' earthquake near ' + sPlace + '. That\'s strong enough to be widely felt and could cause minor damage.',
-            'A notable M' + sMag.toFixed(1) + ' was recorded near ' + sPlace + ' — that\'s a significant shake.',
-            'The standout event is an M' + sMag.toFixed(1) + ' near ' + sPlace + '. At this magnitude, people within dozens of miles likely felt it.',
-            'We\'re looking at a magnitude ' + sMag.toFixed(1) + ' near ' + sPlace + ' — this is the kind of earthquake that gets attention. Shaking would have been felt over a wide area.',
-            'An M' + sMag.toFixed(1) + ' struck near ' + sPlace + '. That\'s a significant event — strong enough to knock items off shelves and rattle nerves.',
-            'The biggest quake on the board is an M' + sMag.toFixed(1) + ' near ' + sPlace + '. Anything above 4.5 can cause light damage to buildings in the epicentral area.'
+            'The biggest event is a magnitude ' + sMag.toFixed(1) + ' near ' + sPlace + '. Strong enough to be widely felt and could cause minor damage.',
+            'A notable M' + sMag.toFixed(1) + ' was recorded near ' + sPlace + '. That\'s a significant shake.',
+            'We\'re looking at a magnitude ' + sMag.toFixed(1) + ' near ' + sPlace + '. Shaking would have been felt over a wide area.'
         ]));
     } else if (sMag >= 3.5) {
         lines.push(_pick_random([
-            'The largest event was a magnitude ' + sMag.toFixed(1) + ' near ' + sPlace + '. Likely felt by people nearby but unlikely to cause damage.',
-            'An M' + sMag.toFixed(1) + ' was recorded near ' + sPlace + ' — noticeable to anyone in the immediate area.',
-            'The strongest event is an M' + sMag.toFixed(1) + ' near ' + sPlace + '. People close to the epicenter probably felt a jolt, but structural damage is unlikely.',
-            'We saw a magnitude ' + sMag.toFixed(1) + ' near ' + sPlace + '. That\'s enough to rattle windows and get the attention of anyone nearby.',
-            'An M' + sMag.toFixed(1) + ' was picked up near ' + sPlace + ' — moderate magnitude. You\'d definitely notice it if you were sitting still indoors.',
-            'The highlight is an M' + sMag.toFixed(1) + ' near ' + sPlace + '. At this magnitude, it\'s felt locally but shouldn\'t cause any real damage.'
+            'The largest event was an M' + sMag.toFixed(1) + ' near ' + sPlace + '. Likely felt nearby but unlikely to cause damage.',
+            'An M' + sMag.toFixed(1) + ' was recorded near ' + sPlace + '. People close to the epicenter probably felt a jolt.',
+            'We saw a magnitude ' + sMag.toFixed(1) + ' near ' + sPlace + '. Enough to rattle windows if you were nearby.'
         ]));
     } else {
         lines.push(_pick_random([
-            'The strongest was an M' + sMag.toFixed(1) + ' near ' + sPlace + '. Minor activity — generally not felt.',
-            'We saw an M' + sMag.toFixed(1) + ' near ' + sPlace + '. Small magnitude, mostly picked up by instruments.',
-            'The largest event clocks in at M' + sMag.toFixed(1) + ' near ' + sPlace + '. At this size, it\'s really only detected by seismometers.',
-            'An M' + sMag.toFixed(1) + ' near ' + sPlace + ' leads the list. Minor stuff — you\'d be hard-pressed to feel this one.',
-            'The top event is a modest M' + sMag.toFixed(1) + ' near ' + sPlace + '. These micro-quakes happen constantly and go unnoticed by most people.',
-            'We\'re seeing an M' + sMag.toFixed(1) + ' near ' + sPlace + ' as the largest. Nothing dramatic — the seismometers caught it, but most people wouldn\'t have.'
-        ]));
-    }
-
-    if (sDepth > 0) {
-        if (sDepth < 5) {
-            lines.push(_pick_random([
-                'At just ' + sDepth + ' km deep, this was a very shallow event — shallow quakes tend to produce stronger shaking at the surface.',
-                'The ' + sDepth + ' km depth puts this very close to the surface. Shallow earthquakes like this are more likely to be felt even at lower magnitudes.',
-                'This event was only ' + sDepth + ' km deep — extremely shallow, which amplifies the shaking effect for anyone above the epicenter.'
-            ]));
-        } else if (sDepth < 15) {
-            lines.push(_pick_random([
-                'The earthquake occurred at a depth of about ' + sDepth + ' km — relatively shallow in the Earth\'s crust.',
-                'At ' + sDepth + ' km deep, this is a shallow crustal event, typical for tectonic activity in this part of the country.',
-                'A depth of ' + sDepth + ' km keeps this in the shallow category, meaning surface effects are more pronounced than a deeper event of the same magnitude.'
-            ]));
-        } else if (sDepth >= 50) {
-            lines.push(_pick_random([
-                'This event was ' + sDepth + ' km deep — a deeper earthquake, which usually means less intense surface shaking despite the magnitude.',
-                'At ' + sDepth + ' km, this is a deeper event. The energy has to travel through more rock before reaching the surface, spreading out the shaking.',
-                'The ' + sDepth + ' km depth is notable — deep quakes are felt over a wider area but with less concentrated shaking at any one point.'
-            ]));
-        }
-    }
-
-    var sPlaceLower = sPlace.toLowerCase();
-    if (sPlaceLower.indexOf('oklahoma') !== -1) {
-        lines.push(_pick_random([
-            'Oklahoma has seen a dramatic increase in seismicity over the past decade, largely linked to wastewater injection from oil and gas operations.',
-            'Central Oklahoma remains one of the most seismically active regions in the country, much of it tied to induced seismicity from injection wells.',
-            'Earthquake activity in Oklahoma has become a regular occurrence — most events there are attributed to deep wastewater disposal from energy production.'
-        ]));
-    } else if (sPlaceLower.indexOf('california') !== -1) {
-        lines.push(_pick_random([
-            'California sits along the San Andreas fault system, one of the most studied and closely monitored seismic zones in the world.',
-            'Earthquake activity is par for the course in California, where the Pacific and North American plates are constantly grinding past each other.',
-            'The Golden State is no stranger to earthquakes — California averages over 10,000 per year, though most are too small to feel.'
-        ]));
-    } else if (sPlaceLower.indexOf('yellowstone') !== -1 || sPlaceLower.indexOf('wyoming') !== -1) {
-        lines.push(_pick_random([
-            'The Yellowstone region sits atop one of the world\'s largest volcanic hotspots. Earthquake swarms there are common and closely monitored.',
-            'Seismic activity near Yellowstone is always worth watching given the massive magma chamber below, though most events are routine.'
-        ]));
-    } else if (sPlaceLower.indexOf('tennessee') !== -1 || sPlaceLower.indexOf('missouri') !== -1 || sPlaceLower.indexOf('arkansas') !== -1) {
-        lines.push(_pick_random([
-            'This area is part of the New Madrid Seismic Zone — one of the most active fault systems east of the Rockies.',
-            'The New Madrid fault zone runs through this region. It produced some of the strongest earthquakes in U.S. history back in 1811-1812.'
+            'The strongest was an M' + sMag.toFixed(1) + ' near ' + sPlace + '. Minor activity, generally not felt.',
+            'An M' + sMag.toFixed(1) + ' near ' + sPlace + ' leads the list. Small magnitude, mostly picked up by instruments.',
+            'The largest event is an M' + sMag.toFixed(1) + ' near ' + sPlace + '. Too small for most people to notice.'
         ]));
     }
 
     if (quakes.length > 1) {
-        lines.push(_pick_random([
-            'In total, ' + quakes.length + ' earthquakes of magnitude 2.5 or greater have been recorded across the U.S. in the past 24 hours.',
-            'The USGS has logged ' + quakes.length + ' seismic events M2.5+ in the continental U.S. today.',
-            'Across the lower 48, the USGS recorded ' + quakes.length + ' earthquakes at M2.5 or above in the past day.',
-            'That\'s ' + quakes.length + ' total events M2.5 or greater nationwide in the last 24 hours.',
-            'All told, ' + quakes.length + ' seismic events made the M2.5+ threshold across the contiguous United States recently.',
-            'The seismic tally stands at ' + quakes.length + ' events at M2.5 or greater across the lower 48 in the past day.'
-        ]));
-    }
-
-    if (newest !== strongest) {
-        var nMag = newest.properties.mag;
-        var nPlace = newest.properties.place || 'an unknown location';
-        var nAgo = _time_ago(newest.properties.time);
-        lines.push('The most recent event was an M' + nMag.toFixed(1) + ' near ' + nPlace + ', recorded ' + nAgo + '.');
-    }
-
-    var feltCount = quakes.filter(function (q) { return q.properties.felt && q.properties.felt > 0; }).length;
-    if (feltCount > 0) {
-        lines.push(_pick_random([
-            feltCount + ' of these events received "Did You Feel It?" reports from the public.',
-            'The USGS received felt reports on ' + feltCount + ' of these quakes.',
-            feltCount + ' quake' + (feltCount > 1 ? 's' : '') + ' generated "Did You Feel It?" responses — meaning people actually noticed the shaking.',
-            'The public weighed in on ' + feltCount + ' of these events through the USGS "Did You Feel It?" system.',
-            'Residents reported feeling ' + feltCount + ' of these earthquakes through the USGS crowd-sourced reporting tool.'
-        ]));
-    }
-
-    var depths = quakes.map(function (q) { return q.geometry.coordinates[2] || 0; });
-    var avgDepth = Math.round(depths.reduce(function (a, b) { return a + b; }, 0) / depths.length);
-    if (avgDepth > 0) {
-        lines.push(_pick_random([
-            'Average depth of activity is about ' + avgDepth + ' km — ' + (avgDepth < 10 ? 'very shallow, which means they\'re more easily felt.' : 'a moderate depth for this region.'),
-            'The average focal depth comes in around ' + avgDepth + ' km. ' + (avgDepth < 10 ? 'That\'s quite shallow — surface effects are more noticeable at these depths.' : 'A fairly typical depth for continental seismicity.'),
-            'Depths are averaging about ' + avgDepth + ' km across these events. ' + (avgDepth < 10 ? 'Shallow activity like this tends to produce more noticeable shaking.' : 'That\'s a moderate depth — pretty standard for this type of seismicity.')
-        ]));
+        lines.push(quakes.length + ' total events at M2.5 or greater across the lower 48 in the past day.');
     }
 
     return lines.join(' ');
@@ -3430,7 +3569,7 @@ function _hide_cond_legend() {
     setTimeout(function () { $el.hide(); }, 400);
 }
 
-function _build_spc_legend_html(geojson) {
+function _build_spc_legend_html(geojson, hazard) {
     var features = (geojson && geojson.features) || [];
     var seen = {};
     var items = [];
@@ -3441,35 +3580,43 @@ function _build_spc_legend_html(geojson) {
         if (label === 'TSTM' || label2.indexOf('GENERAL THUNDER') !== -1) continue;
         var isHatched = _is_hatched_feature(p);
         var isCig = _is_cig_feature(p);
-        if (isCig) continue;
         var fill = p.fill || '#8dc6ff';
         var stroke = p.stroke || '#59a9ff';
-        var displayLabel = p.label2 || p.label || 'Risk';
-        var key = fill + '|' + stroke + '|' + (isHatched ? 1 : 0);
+        var cigLevel = isCig ? _get_cig_level(p) : 0;
+        var displayLabel = isCig ? _format_cig_label(p, hazard) : (p.label2 || p.label || 'Risk');
+        var key = fill + '|' + stroke + '|' + (isHatched ? 1 : 0) + '|' + (isCig ? 1 : 0) + '|' + cigLevel;
         if (seen[key]) continue;
         seen[key] = true;
-        items.push({ label: displayLabel, fill: fill, stroke: stroke, isHatched: isHatched });
+        items.push({ label: displayLabel, fill: fill, stroke: stroke, isHatched: isHatched, isCig: isCig, cigLevel: cigLevel });
     }
     if (!items.length) return '';
     var html = '';
     for (var j = 0; j < items.length; j++) {
         var item = items[j];
-        var style = item.isHatched
-            ? 'background:transparent;border-color:' + item.stroke + ';color:' + item.stroke + ';'
-            : 'background:' + item.fill + ';border-color:' + item.stroke + ';';
-        var hatchClass = item.isHatched ? ' lmSpcLegendSwatch-hatched' : '';
+        var style;
+        if (item.isCig) {
+            style = 'background:#ffffff;border-color:#ffffff;';
+        } else if (item.isHatched) {
+            style = 'background:transparent;border-color:' + item.stroke + ';color:' + item.stroke + ';';
+        } else {
+            style = 'background:' + item.fill + ';border-color:' + item.stroke + ';';
+        }
+        var extraClass = '';
+        if (item.isCig) extraClass = ' lmSpcLegendSwatch-cig' + item.cigLevel;
+        else if (item.isHatched) extraClass = ' lmSpcLegendSwatch-hatched';
         html += '<div class="lmSpcLegendRow">';
-        html += '<span class="lmSpcLegendSwatch' + hatchClass + '" style="' + style + '"></span>';
+        html += '<span class="lmSpcLegendSwatch' + extraClass + '" style="' + style + '"></span>';
         html += ' ' + item.label;
         html += '</div>';
     }
     return html;
 }
 
-function _show_spc_legend(geojson) {
+function _show_spc_legend(geojson, hazard) {
+    if (_spcLegendHideTimer) { clearTimeout(_spcLegendHideTimer); _spcLegendHideTimer = null; }
     var $el = $('#lmSpcLegend');
     if (!$el.length) return;
-    var html = _build_spc_legend_html(geojson);
+    var html = _build_spc_legend_html(geojson, hazard);
     if (!html) return;
     $('#lmSpcLegendBody').html(html);
     $el.show();
@@ -3478,9 +3625,57 @@ function _show_spc_legend(geojson) {
 }
 
 function _hide_spc_legend() {
+    if (_spcLegendHideTimer) { clearTimeout(_spcLegendHideTimer); _spcLegendHideTimer = null; }
     var $el = $('#lmSpcLegend');
     $el.removeClass('lmSpcLegend-visible');
-    setTimeout(function () { $el.hide(); }, 400);
+    _spcLegendHideTimer = setTimeout(function () { _spcLegendHideTimer = null; $el.hide(); }, 400);
+}
+
+function _cluster_quakes_into_zones(quakes) {
+    var CLUSTER_RADIUS_DEG = 4;
+    var zones = [];
+    for (var i = 0; i < quakes.length; i++) {
+        var q = quakes[i];
+        var lon = q.geometry.coordinates[0];
+        var lat = q.geometry.coordinates[1];
+        var placed = false;
+        for (var z = 0; z < zones.length; z++) {
+            var dLon = Math.abs(lon - zones[z].centroid[0]);
+            var dLat = Math.abs(lat - zones[z].centroid[1]);
+            if (dLon < CLUSTER_RADIUS_DEG && dLat < CLUSTER_RADIUS_DEG) {
+                zones[z].quakes.push(q);
+                var n = zones[z].quakes.length;
+                zones[z].centroid[0] = zones[z].centroid[0] + (lon - zones[z].centroid[0]) / n;
+                zones[z].centroid[1] = zones[z].centroid[1] + (lat - zones[z].centroid[1]) / n;
+                if (!zones[z].newestTime || new Date(q.properties.time) > zones[z].newestTime) {
+                    zones[z].newestTime = new Date(q.properties.time);
+                }
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) {
+            zones.push({
+                centroid: [lon, lat],
+                quakes: [q],
+                newestTime: new Date(q.properties.time)
+            });
+        }
+    }
+    zones.sort(function (a, b) { return b.newestTime - a.newestTime; });
+    return zones;
+}
+
+function _eq_zone_bbox(zone) {
+    var minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
+    for (var i = 0; i < zone.quakes.length; i++) {
+        var c = zone.quakes[i].geometry.coordinates;
+        if (c[0] < minLon) minLon = c[0];
+        if (c[0] > maxLon) maxLon = c[0];
+        if (c[1] < minLat) minLat = c[1];
+        if (c[1] > maxLat) maxLat = c[1];
+    }
+    return [[minLon, minLat], [maxLon, maxLat]];
 }
 
 function _run_earthquake_segment(resolve) {
@@ -3496,7 +3691,6 @@ function _run_earthquake_segment(resolve) {
     function _cleanup() {
         _stop_typewriter();
         _remove_earthquake_layer();
-        _show_all_map_overlays();
         _show_header_radar_info();
         _hide_eq_legend();
         _hide_info_panel();
@@ -3504,17 +3698,11 @@ function _run_earthquake_segment(resolve) {
     }
 
     _fetch_earthquakes(function (quakes) {
-        if (!_active) { _show_all_map_overlays(); _show_header_radar_info(); return resolve(); }
+        if (!_active) { _show_header_radar_info(); return resolve(); }
 
-        var mostRecent = quakes.length > 0 ? quakes[0] : null;
-        if (mostRecent) {
-            var rc = mostRecent.geometry.coordinates;
-            map.flyTo({
-                center: [rc[0], rc[1]],
-                zoom: 7,
-                speed: 1.2,
-                essential: true
-            });
+        if (quakes.length > 0) {
+            var rc = quakes[0].geometry.coordinates;
+            map.flyTo({ center: [rc[0], rc[1]], zoom: 7, speed: 1.2, essential: true });
         } else {
             map.flyTo({ center: CONUS_CENTER, zoom: 4.0, speed: 1.2, essential: true });
         }
@@ -3535,31 +3723,42 @@ function _run_earthquake_segment(resolve) {
             _add_earthquake_layer(quakes);
             _typewrite(_generate_earthquake_commentary(quakes), 1200);
 
-            var MAX_PAN_QUAKES = 5;
-            var panList = quakes.slice(0, MAX_PAN_QUAKES);
-            var DWELL_PER_QUAKE = Math.floor(EARTHQUAKE_DURATION_MS / panList.length);
-            var panIndex = 1;
+            var zones = _cluster_quakes_into_zones(quakes);
 
-            function _pan_next() {
-                if (!_active || panIndex >= panList.length) {
-                    _segmentTimer = setTimeout(function () {
-                        _wait_for_typewriter_then(function () { _cleanup(); });
-                    }, Math.min(DWELL_PER_QUAKE, 6000));
-                    return;
+            if (zones.length <= 1) {
+                _segmentTimer = setTimeout(function () {
+                    _wait_for_typewriter_then(function () { _cleanup(); });
+                }, EARTHQUAKE_DURATION_MS);
+            } else {
+                var OVERVIEW_MS = Math.floor(EARTHQUAKE_DURATION_MS * 0.4);
+                var PAN_TOTAL_MS = EARTHQUAKE_DURATION_MS - OVERVIEW_MS;
+                var DWELL_PER_ZONE = Math.floor(PAN_TOTAL_MS / (zones.length - 1));
+                var zoneIndex = 1;
+
+                function _pan_next_zone() {
+                    if (!_active || zoneIndex >= zones.length) {
+                        _segmentTimer = setTimeout(function () {
+                            _wait_for_typewriter_then(function () { _cleanup(); });
+                        }, Math.min(DWELL_PER_ZONE, 5000));
+                        return;
+                    }
+                    var zone = zones[zoneIndex];
+                    if (zone.quakes.length === 1) {
+                        var qc = zone.quakes[0].geometry.coordinates;
+                        map.flyTo({ center: [qc[0], qc[1]], zoom: 7, speed: 0.8, essential: true });
+                    } else {
+                        var bbox = _eq_zone_bbox(zone);
+                        map.fitBounds(bbox, { padding: 60, maxZoom: 8, speed: 0.8, essential: true });
+                    }
+                    zoneIndex++;
+                    _segmentTimer = setTimeout(_pan_next_zone, DWELL_PER_ZONE);
                 }
-                var q = panList[panIndex];
-                var qc = q.geometry.coordinates;
-                map.flyTo({
-                    center: [qc[0], qc[1]],
-                    zoom: 7,
-                    speed: 0.8,
-                    essential: true
-                });
-                panIndex++;
-                _segmentTimer = setTimeout(_pan_next, DWELL_PER_QUAKE);
-            }
 
-            _segmentTimer = setTimeout(_pan_next, DWELL_PER_QUAKE);
+                _segmentTimer = setTimeout(function () {
+                    if (!_active) return _cleanup();
+                    _pan_next_zone();
+                }, OVERVIEW_MS);
+            }
         }, 300);
     });
 }
@@ -3591,6 +3790,109 @@ function _flash_transition() {
 
 function _show_segment_label() {}
 function _hide_segment_label() {}
+
+// ── New-Alert Banner ─────────────────────────────────────────────────────────
+
+var _alertBannerEl = null;
+var _alertBannerTimeout = null;
+var _alertBannerFadeTimeout = null;
+var _alertBannerQueue = [];
+var _alertBannerShowing = false;
+
+function _ensure_alert_banner_el() {
+    if (_alertBannerEl) return;
+    _alertBannerEl = document.createElement('div');
+    _alertBannerEl.className = 'lmAlertBanner';
+    document.body.appendChild(_alertBannerEl);
+}
+
+function _position_alert_banner() {
+    if (!_alertBannerEl) return;
+    var btn = document.getElementById('alertsCountBtn');
+    if (!btn) return;
+    var rect = btn.getBoundingClientRect();
+    _alertBannerEl.style.top = rect.top + 'px';
+    _alertBannerEl.style.height = rect.height + 'px';
+    _alertBannerEl.style.right = (window.innerWidth - rect.left) + 'px';
+}
+
+function _show_alert_banner(eventName, states) {
+    _ensure_alert_banner_el();
+    var colorInfo = get_polygon_colors(eventName);
+    var bgColor = colorInfo ? colorInfo.color : 'rgb(255, 0, 255)';
+
+    var text = 'New ' + eventName;
+    if (states && states.length) text += ' in ' + states.join(', ');
+    _alertBannerEl.textContent = text;
+    _alertBannerEl.style.background = bgColor;
+
+    var c = chroma(bgColor);
+    _alertBannerEl.style.color = c.luminance() > 0.35 ? '#000' : '#fff';
+
+    _position_alert_banner();
+    _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-fading');
+    void _alertBannerEl.offsetWidth;
+    _alertBannerEl.classList.add('lmAlertBanner-visible');
+    _alertBannerShowing = true;
+
+    if (_alertBannerTimeout) clearTimeout(_alertBannerTimeout);
+    if (_alertBannerFadeTimeout) clearTimeout(_alertBannerFadeTimeout);
+
+    _alertBannerTimeout = setTimeout(function () {
+        if (!_alertBannerEl) return;
+        _alertBannerEl.classList.add('lmAlertBanner-fading');
+        _alertBannerFadeTimeout = setTimeout(function () {
+            if (_alertBannerEl) _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-fading');
+            _alertBannerShowing = false;
+            _drain_alert_banner_queue();
+        }, 450);
+    }, 4000);
+}
+
+function _drain_alert_banner_queue() {
+    if (_alertBannerShowing) return;
+    if (_alertBannerQueue.length === 0) return;
+    var next = _alertBannerQueue.shift();
+    _show_alert_banner(next.event, next.states);
+}
+
+function _hide_alert_banner() {
+    _alertBannerQueue = [];
+    _alertBannerShowing = false;
+    if (_alertBannerTimeout) { clearTimeout(_alertBannerTimeout); _alertBannerTimeout = null; }
+    if (_alertBannerFadeTimeout) { clearTimeout(_alertBannerFadeTimeout); _alertBannerFadeTimeout = null; }
+    if (_alertBannerEl) {
+        _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-fading');
+    }
+}
+
+var _alertBannerListener = null;
+
+function _enable_alert_banner() {
+    if (_alertBannerListener) return;
+    _alertBannerListener = function (e) {
+        if (!_active) return;
+        var detail = e?.detail;
+        if (!detail || detail.type !== 'new') return;
+        var eventName = detail.event || '';
+        if (!eventName) return;
+        var states = detail.states || [];
+        if (_alertBannerShowing) {
+            _alertBannerQueue.push({ event: eventName, states: states });
+        } else {
+            _show_alert_banner(eventName, states);
+        }
+    };
+    window.addEventListener('alertNotification', _alertBannerListener);
+}
+
+function _disable_alert_banner() {
+    _hide_alert_banner();
+    if (_alertBannerListener) {
+        window.removeEventListener('alertNotification', _alertBannerListener);
+        _alertBannerListener = null;
+    }
+}
 
 var _infoPanelFadeTimer = null;
 
@@ -3725,7 +4027,10 @@ function _full_segment_cleanup() {
     _remove_static_mrms_layer();
     _remove_conditions_layer();
     _remove_earthquake_layer();
-    _show_all_map_overlays();
+    _hide_radar_render();
+    _hide_station_markers();
+    _hide_radar_sweep();
+    _show_alert_polygons();
     _show_header_radar_info();
     _hide_eq_legend();
     _hide_cond_legend();
@@ -3839,6 +4144,11 @@ function _restore_state() {
         station_markers.selectStation(_preSaveState.station, loc.type || 'WSR-88D');
     }
 
+    _show_radar_render();
+    _show_station_markers();
+    _show_alert_polygons();
+    _show_radar_sweep();
+
     if (_preSaveState.bounds) {
         try { map.fitBounds(_preSaveState.bounds, { padding: 0, duration: 800 }); } catch (_) {}
     }
@@ -3905,6 +4215,7 @@ function enable() {
     if (updater) updater.disable();
 
     _hide_storm_reports();
+    _enable_alert_banner();
 
     setTimeout(_run_next, 800);
 }
@@ -3916,6 +4227,7 @@ function disable() {
 
     stopMusic();
     _abort_current_segment();
+    _disable_alert_banner();
     _show_header_radar_info();
     _set_clock_mode('both');
     _hide_overlay();
@@ -3946,25 +4258,65 @@ function isActive() {
 // ── Background Music Player ─────────────────────────────────────────────────
 
 var _MUSIC_TRACKS = [
-    'music/bankside_breeze.mp3',
-    'music/bread_oven_breeze.mp3',
-    'music/city_sleeps.mp3',
-    'music/creaking_hull.mp3',
-    'music/crooked_fiddle.mp3',
-    'music/fields_at_dusk.mp3',
-    'music/forgotten_isle.mp3',
-    'music/mug_and_melody.mp3',
-    'music/old_magic.mp3',
-    'music/runes_in_rain.mp3',
-    'music/tavern_table_tap.mp3',
-    'music/welcome_back.mp3'
+    'music/After the Rain.mp3',
+    'music/Blue Sky Window.mp3',
+    'music/Calm Pressure.mp3',
+    'music/Cycle A.mp3',
+    'music/Data Stream.mp3',
+    'music/Digital Sky.mp3',
+    'music/Fade.mp3',
+    'music/Low Signal.mp3',
+    'music/Lowlight.mp3',
+    'music/Mesoman.mp3',
+    'music/Open Atmosphere.mp3',
+    'music/Phase Drift.mp3',
+    'music/Rain or Shine.mp3',
+    'music/Skyfall.mp3',
+    'music/Slow Horizon.mp3',
+    'music/Stormfront.mp3',
+    'music/Streamline.mp3'
 ];
 
+var MUSIC_BASE_ATTENUATION = 0.5;
 var _musicAudio = null;
 var _musicPlaying = false;
 var _musicVolume = 0.15;
 var _musicShuffled = [];
 var _musicIndex = 0;
+var _songPopupEl = null;
+var _songPopupTimeout = null;
+
+function _extract_song_title(path) {
+    var name = path.replace(/^.*\//, '').replace(/\.\w+$/, '');
+    return name;
+}
+
+function _show_song_popup(title) {
+    if (typeof document === 'undefined') return;
+    if (!_songPopupEl) {
+        _songPopupEl = document.createElement('div');
+        _songPopupEl.className = 'lmSongPopup';
+        document.body.appendChild(_songPopupEl);
+    }
+    if (_songPopupTimeout) clearTimeout(_songPopupTimeout);
+    _songPopupEl.textContent = title;
+    _songPopupEl.classList.remove('lmSongPopup-visible', 'lmSongPopup-fading');
+
+    var badge = document.querySelector('.liveModeBadge');
+    if (badge) {
+        var badgeW = badge.offsetWidth;
+        _songPopupEl.style.right = (14 + badgeW + 8) + 'px';
+    }
+
+    void _songPopupEl.offsetWidth;
+    _songPopupEl.classList.add('lmSongPopup-visible');
+    _songPopupTimeout = setTimeout(function () {
+        _songPopupEl.classList.add('lmSongPopup-fading');
+        _songPopupTimeout = setTimeout(function () {
+            _songPopupEl.classList.remove('lmSongPopup-visible', 'lmSongPopup-fading');
+        }, 500);
+    }, 4000);
+}
 
 function _shuffle_tracks() {
     _musicShuffled = _MUSIC_TRACKS.slice().sort(function () { return Math.random() - 0.5; });
@@ -3983,6 +4335,7 @@ function _play_next_track() {
     }
     _musicAudio = new Audio(src);
     _musicAudio.volume = _musicVolume;
+    _show_song_popup(_extract_song_title(src));
     _musicAudio.addEventListener('ended', function () {
         _play_next_track();
     });
@@ -4000,7 +4353,7 @@ function startMusic() {
     if (_musicPlaying) return;
     _musicPlaying = true;
     var saved = settings_store.load();
-    _musicVolume = (saved.liveModeVolume || 15) / 100;
+    _musicVolume = (saved.liveModeVolume || 15) / 100 * MUSIC_BASE_ATTENUATION;
     _shuffle_tracks();
 
     function _attempt() {
@@ -4032,10 +4385,14 @@ function stopMusic() {
         try { _musicAudio.pause(); } catch (_) {}
         _musicAudio = null;
     }
+    if (_songPopupEl) {
+        _songPopupEl.classList.remove('lmSongPopup-visible', 'lmSongPopup-fading');
+    }
+    if (_songPopupTimeout) { clearTimeout(_songPopupTimeout); _songPopupTimeout = null; }
 }
 
 function setMusicVolume(pct) {
-    _musicVolume = Math.max(0, Math.min(1, pct / 100));
+    _musicVolume = Math.max(0, Math.min(1, pct / 100)) * MUSIC_BASE_ATTENUATION;
     if (_musicAudio && !_musicDucked) _musicAudio.volume = _musicVolume;
 }
 

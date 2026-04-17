@@ -69,17 +69,20 @@ function _render_controls(state) {
     const is_preloading = !!state.preloading;
     const is_playing_or_preloading = !!(state.playing || is_preloading);
     const is_preview_mode = !!(window?.stormTrackData?.radarPreviewMode);
+    const station = window?.stormTrackData?.currentStation;
+    const keepSweepVisibleForLiveMode = !!(window?.stormTrackData?.liveModeActive && station);
 
-    if (!is_preview_mode && is_playing_or_preloading && !_sweepHiddenForPlayback) {
+    if (!is_preview_mode && is_playing_or_preloading && !_sweepHiddenForPlayback && !keepSweepVisibleForLiveMode) {
         _sweepHiddenForPlayback = true;
         radar_scan_animation.remove();
-    } else if ((!is_playing_or_preloading || is_preview_mode) && _sweepHiddenForPlayback) {
+    } else if ((!is_playing_or_preloading || is_preview_mode || keepSweepVisibleForLiveMode) && _sweepHiddenForPlayback) {
         _sweepHiddenForPlayback = false;
         var sweepEnabled = settings_store.load().radarSweep;
-        var station = window.stormTrackData?.currentStation;
-        if (sweepEnabled !== false && station) {
+        if ((keepSweepVisibleForLiveMode || sweepEnabled !== false) && station) {
             radar_scan_animation.update(station);
         }
+    } else if (keepSweepVisibleForLiveMode && station && !radar_scan_animation.is_active()) {
+        radar_scan_animation.update(station);
     }
 
     $('#radarLoopPanel').toggleClass('radarLoopPanel-disabled', !is_supported);

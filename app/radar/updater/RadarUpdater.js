@@ -86,10 +86,15 @@ class RadarUpdater {
 
         if (fetched_date.getTime() > this.latest_date.getTime()) {
             console.log(`Successfully found new radar scan at ${formatted_now}.`);
+            const previous_date = this.latest_date;
             this.latest_date = fetched_date;
             this._pending_plot = true;
 
             const radar_scan_animation = require('../station_markers/radar_scan_animation');
+            if (previous_date && fetched_date) {
+                const scan_gap_ms = fetched_date.getTime() - previous_date.getTime();
+                radar_scan_animation.set_sweep_period_ms(scan_gap_ms);
+            }
             if (radar_scan_animation.is_active()) {
                 // Preview mode wants instant frame swaps; keep sweep as a visual overlay only.
                 if (!window?.stormTrackData?.radarPreviewMode) {

@@ -59,6 +59,11 @@ var COMMANDS = {
         usage: 'lm [segment]',
         run: _cmd_lm_segment
     },
+    'lm-banner': {
+        description: 'Test the Live Mode new-alert banner (uses a random enabled alert, or specify an event name)',
+        usage: 'lm-banner [event name]',
+        run: _cmd_lm_banner
+    },
     'duck-test': {
         description: 'Test music ducking (fades background music for a few seconds)',
         usage: 'duck-test [seconds]',
@@ -99,6 +104,66 @@ function _cmd_lm_segment(args) {
 
     _log('Forcing Live Mode segment: <span class="devConsoleAccent">' + type + '</span>');
     live_mode.forceSegment(type);
+}
+
+var _LM_BANNER_STATE_NAMES = {
+    AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+    CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+    HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+    KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+    MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+    MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+    NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+    OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+    SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+    VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+    DC: 'District of Columbia', PR: 'Puerto Rico'
+};
+
+function _extract_states_from_feature(feature) {
+    var props = feature?.properties || {};
+    var ugc = props.geocode?.UGC;
+    var codes = Array.isArray(ugc) ? ugc : (ugc ? [ugc] : []);
+    var seen = {};
+    var names = [];
+    for (var i = 0; i < codes.length; i++) {
+        var abbr = String(codes[i]).slice(0, 2).toUpperCase();
+        if (!seen[abbr] && _LM_BANNER_STATE_NAMES[abbr]) {
+            seen[abbr] = true;
+            names.push(_LM_BANNER_STATE_NAMES[abbr]);
+        }
+    }
+    return names;
+}
+
+function _cmd_lm_banner(args) {
+    var live_mode = require('../live_mode/live_mode');
+    if (!live_mode.isActive()) {
+        _log('Live Mode is not running — start it first.', 'error');
+        return;
+    }
+
+    var eventName = args.length ? args.join(' ') : null;
+    var states = [];
+
+    if (!eventName) {
+        var eligible = _get_enabled_alerts();
+        if (eligible) {
+            var pick = eligible[Math.floor(Math.random() * eligible.length)];
+            eventName = (pick.properties && pick.properties.event) || 'Severe Thunderstorm Warning';
+            states = _extract_states_from_feature(pick);
+        } else {
+            eventName = 'Severe Thunderstorm Warning';
+            states = ['Michigan'];
+        }
+    }
+
+    window.dispatchEvent(new CustomEvent('alertNotification', {
+        detail: { event: eventName, type: 'new', count: 1, states: states }
+    }));
+
+    var stateStr = states.length ? ' in ' + states.join(', ') : '';
+    _log('Banner triggered: <strong>New ' + _escapeHtml(eventName) + stateStr + '</strong>', 'success');
 }
 
 function _cmd_help() {

@@ -1,6 +1,38 @@
 const filter_alerts = require('../filter_alerts');
 const turf = require('@turf/turf');
 
+const _STATE_ABBR_TO_NAME = {
+    AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+    CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+    HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+    KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+    MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+    MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+    NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+    OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+    SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+    VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+    DC: 'District of Columbia', PR: 'Puerto Rico'
+};
+
+function _extract_states_from_features(features) {
+    var seen = {};
+    var names = [];
+    for (var i = 0; i < features.length; i++) {
+        var props = features[i]?.properties || {};
+        var ugc = props.geocode?.UGC;
+        var codes = Array.isArray(ugc) ? ugc : (ugc ? [ugc] : []);
+        for (var j = 0; j < codes.length; j++) {
+            var abbr = String(codes[j]).slice(0, 2).toUpperCase();
+            if (!seen[abbr] && _STATE_ABBR_TO_NAME[abbr]) {
+                seen[abbr] = true;
+                names.push(_STATE_ABBR_TO_NAME[abbr]);
+            }
+        }
+    }
+    return names;
+}
+
 class AlertUpdater {
     constructor() {
         const return_data = require('../fetch_data').return_data;
@@ -181,7 +213,7 @@ class AlertUpdater {
             focus_new_alerts.focus_on_new_alerts(enabled);
         }
 
-        const eventCounts = {};
+        const eventFeatures = {};
         for (const f of enabled) {
             var event = f.properties?.event || 'Weather Alert';
             if (this._is_tornado_warning(f)) {
@@ -190,15 +222,16 @@ class AlertUpdater {
                     this._should_treat_tornado_continuity_as_new(f, previousFeatures)
                 ) ? 'issued' : 'updated';
                 window.dispatchEvent(new CustomEvent('alertNotification', {
-                    detail: { event: event, type: 'new', count: 1, tornadoStatus: tornadoStatus }
+                    detail: { event: event, type: 'new', count: 1, tornadoStatus: tornadoStatus, states: _extract_states_from_features([f]) }
                 }));
                 continue;
             }
-            eventCounts[event] = (eventCounts[event] || 0) + 1;
+            if (!eventFeatures[event]) eventFeatures[event] = [];
+            eventFeatures[event].push(f);
         }
-        for (const [event, count] of Object.entries(eventCounts)) {
+        for (const [event, features] of Object.entries(eventFeatures)) {
             window.dispatchEvent(new CustomEvent('alertNotification', {
-                detail: { event: event, type: 'new', count: count }
+                detail: { event: event, type: 'new', count: features.length, states: _extract_states_from_features(features) }
             }));
         }
 

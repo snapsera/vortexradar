@@ -3534,7 +3534,7 @@ function _build_earthquake_panel_html(quakes) {
     html += '<div class="fnAlertEventName">RECENT EARTHQUAKES</div>';
     html += '<div class="fnAlertSourceLine" style="margin-top:4px;opacity:0.75">' + count + ' event' + (count !== 1 ? 's' : '') + ' M2.5+ in past 24h</div>';
     if (maxMag > 0) {
-        html += '<div class="fnAlertSourceLine" style="margin-top:2px;opacity:0.6">Strongest: M' + maxMag.toFixed(1) + '</div>';
+        html += '<div class="fnAlertSourceLine" style="margin-top:2px;opacity:0.6;color:#ffd84d">Strongest: M' + maxMag.toFixed(1) + '</div>';
     }
     html += '</div>';
     html += '</div>';

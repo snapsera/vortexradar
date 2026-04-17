@@ -15,6 +15,7 @@ class LiveModeCommentator {
 
         this.typewriterTimer = null;
         this.commentaryFadeTimer = null;
+        this.autoScrollTimer = null;
         this.typewriterFinished = true;
         this.onTypewriterFinished = null;
     }
@@ -28,8 +29,32 @@ class LiveModeCommentator {
             clearTimeout(this.commentaryFadeTimer);
             this.commentaryFadeTimer = null;
         }
+        this.stopAutoScroll();
         this.typewriterFinished = true;
         this.onTypewriterFinished = null;
+    }
+
+    startAutoScroll() {
+        this.stopAutoScroll();
+        var $scroll = $('#lmCommentaryScroll');
+        if (!$scroll.length) return;
+
+        this.autoScrollTimer = setInterval(function () {
+            var el = $scroll.get(0);
+            if (!el) return;
+            var maxScrollTop = el.scrollHeight - el.clientHeight;
+            if (maxScrollTop <= 0) return;
+            if (el.scrollTop < maxScrollTop) {
+                el.scrollTop = Math.min(maxScrollTop, el.scrollTop + 1);
+            }
+        }, 65);
+    }
+
+    stopAutoScroll() {
+        if (this.autoScrollTimer) {
+            clearInterval(this.autoScrollTimer);
+            this.autoScrollTimer = null;
+        }
     }
 
     showCommentaryBox() {
@@ -47,6 +72,7 @@ class LiveModeCommentator {
             $box.removeClass('lmCommentaryBox-visible lmCommentaryBox-fading');
             $('#lmCommentary').text('');
             $('#lmCommentaryStatus').text('');
+            $('#lmCommentaryScroll').scrollTop(0);
             self.commentaryFadeTimer = null;
         }, 400);
     }
@@ -63,7 +89,9 @@ class LiveModeCommentator {
 
         $el.text('').removeClass('lmCommentary-done');
         $status.text(this.pickRandom(this.statusPhrases));
+        $('#lmCommentaryScroll').scrollTop(0);
         this.showCommentaryBox();
+        this.startAutoScroll();
 
         var self = this;
         var idx = 0;
@@ -78,6 +106,7 @@ class LiveModeCommentator {
                 }
                 $el.addClass('lmCommentary-done');
                 $status.text('');
+                self.stopAutoScroll();
                 self.typewriterFinished = true;
                 if (typeof self.onTypewriterFinished === 'function') {
                     var cb = self.onTypewriterFinished;

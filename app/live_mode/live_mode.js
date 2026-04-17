@@ -231,59 +231,106 @@ function _build_risk_label(geojson) {
 function _extract_storm_motion(feature) {
     var p = feature?.properties || {};
     var desc = p.description || '';
-    var params = p.parameters ? (typeof p.parameters === 'string' ? JSON.parse(p.parameters) : p.parameters) : {};
-
     var speedMph = null;
     var bearingDeg = null;
     var stormLat = null;
     var stormLon = null;
 
-    var tml = desc.match(/TIME\.\.\.MOT\.\.\.LOC\s+\d{4}Z?\s+(\d{3})DEG\s+(\d{1,3})KT\s+([\d.]+)\s+(-?[\d.]+)/i);
-    if (tml) {
-        bearingDeg = parseInt(tml[1], 10);
-        speedMph = Math.round(parseInt(tml[2], 10) * 1.15078);
-        stormLat = parseFloat(tml[3]);
-        stormLon = parseFloat(tml[4]);
-        if (stormLon > 0) stormLon = -stormLon;
+    function _normalize_bearing(deg) {
+        if (!Number.isFinite(deg)) return null;
+        var normalized = deg % 360;
+        return normalized < 0 ? normalized + 360 : normalized;
     }
 
-    if (bearingDeg == null) {
-        var movePat = /MOVING\s+([\w-]+)\s+AT\s+(\d{1,3})\s*(MPH|KT|KTS|KNOTS?)/i;
-        var moveMatch = desc.match(movePat);
-        if (moveMatch) {
-            var dirStr = moveMatch[1].toLowerCase().replace(/\s+/g, '');
-            bearingDeg = DIR_MAP[dirStr] != null ? DIR_MAP[dirStr] : null;
-            var rawSpeed = parseInt(moveMatch[2], 10);
-            var unit = moveMatch[3].toLowerCase();
-            speedMph = unit === 'mph' ? rawSpeed : Math.round(rawSpeed * 1.15078);
+    function _bearing_delta(a, b) {
+        if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+        var d = Math.abs(_normalize_bearing(a) - _normalize_bearing(b));
+        return d > 180 ? 360 - d : d;
+    }
+
+    function _is_valid_lat_lon(lat, lon) {
+        return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    }
+
+    function _parse_tml_coord(token, isLon) {
+        if (!token) return null;
+        var txt = String(token).trim();
+        if (!txt) return null;
+        var val = parseFloat(txt);
+        if (!Number.isFinite(val)) return null;
+        if (txt.indexOf('.') === -1 && Math.abs(val) > 180) val = val / 100;
+        if (isLon && val > 0) val = -val;
+        return val;
+    }
+
+    function _parse_speed_mph(rawSpeed, unit) {
+        var sp = parseInt(rawSpeed, 10);
+        if (!Number.isFinite(sp)) return null;
+        var u = (unit || 'mph').toLowerCase();
+        return u === 'mph' ? sp : Math.round(sp * 1.15078);
+    }
+
+    var descMoveBearing = null;
+    var descMoveSpeedMph = null;
+    var movePat = /MOVING\s+([A-Z\-\s]+?)\s+AT\s+(\d{1,3})\s*(MPH|KT|KTS|KNOTS?)/i;
+    var moveMatch = desc.match(movePat);
+    if (moveMatch) {
+        var dirStr = moveMatch[1].toLowerCase().replace(/\s+/g, '');
+        if (DIR_MAP[dirStr] != null) descMoveBearing = DIR_MAP[dirStr];
+        descMoveSpeedMph = _parse_speed_mph(moveMatch[2], moveMatch[3]);
+    }
+
+    var tml = desc.match(/TIME\.\.\.MOT\.\.\.LOC\s+\d{4}Z?\s+(\d{3})DEG\s+(\d{1,3})\s*(MPH|KT|KTS|KNOTS?)\s+([-\d.]+)\s+([-\d.]+)/i);
+    if (tml) {
+        var rawTmlBearing = parseInt(tml[1], 10);
+        if (Number.isFinite(rawTmlBearing)) {
+            var tmlToward = _normalize_bearing(rawTmlBearing + 180);
+            var tmlFrom = _normalize_bearing(rawTmlBearing);
+            if (descMoveBearing != null) {
+                bearingDeg = _bearing_delta(tmlToward, descMoveBearing) <= _bearing_delta(tmlFrom, descMoveBearing)
+                    ? tmlToward
+                    : tmlFrom;
+            } else {
+                // TIME...MOT...LOC vectors are typically "from" bearings in NWS text.
+                bearingDeg = tmlToward;
+            }
+        }
+        speedMph = _parse_speed_mph(tml[2], tml[3]);
+
+        var parsedLat = _parse_tml_coord(tml[4], false);
+        var parsedLon = _parse_tml_coord(tml[5], true);
+        if (_is_valid_lat_lon(parsedLat, parsedLon)) {
+            stormLat = parsedLat;
+            stormLon = parsedLon;
         }
     }
 
+    if (bearingDeg == null && descMoveBearing != null) bearingDeg = descMoveBearing;
+    if (speedMph == null && descMoveSpeedMph != null) speedMph = descMoveSpeedMph;
+
     if (speedMph == null) {
-        var patterns = [
+        var speedOnlyPatterns = [
             /moving\s+[a-z\-\s]+?\s+at\s+(\d{1,3})\s*(mph|kt|kts|knot|knots)\b/i,
             /moving\s+at\s+(\d{1,3})\s*(mph|kt|kts|knot|knots)\b/i
         ];
-        for (var pi = 0; pi < patterns.length; pi++) {
-            var mm = desc.match(patterns[pi]);
+        for (var pi = 0; pi < speedOnlyPatterns.length; pi++) {
+            var mm = desc.match(speedOnlyPatterns[pi]);
             if (mm && mm[1]) {
-                var sp = parseInt(mm[1], 10);
-                var u = (mm[2] || 'mph').toLowerCase();
-                speedMph = u === 'mph' ? sp : Math.round(sp * 1.15078);
-                break;
+                speedMph = _parse_speed_mph(mm[1], mm[2]);
+                if (speedMph != null) break;
             }
         }
     }
 
     if (bearingDeg == null) {
-        var dirOnly = desc.match(/MOVING\s+([\w-]+)/i);
+        var dirOnly = desc.match(/MOVING\s+([A-Z\-\s]+)/i);
         if (dirOnly) {
             var dk = dirOnly[1].toLowerCase().replace(/\s+/g, '');
             if (DIR_MAP[dk] != null) bearingDeg = DIR_MAP[dk];
         }
     }
 
-    if (!stormLat && feature.geometry) {
+    if (!_is_valid_lat_lon(stormLat, stormLon) && feature.geometry) {
         try {
             var c = turf.centroid(turf.feature(feature.geometry));
             stormLat = c.geometry.coordinates[1];
@@ -343,15 +390,169 @@ function _find_major_city_in_polygon(feature, callback) {
     } catch (_) { callback(null); }
 }
 
-function _city_distance_miles(motion, city) {
-    if (!motion || !city || motion.stormLat == null || city.lat == null) return null;
+function _city_path_metrics(motion, city) {
+    if (!motion || !city || motion.stormLat == null || city.lat == null || city.lng == null) return null;
     try {
-        return turf.distance(
+        var distMiles = turf.distance(
             turf.point([motion.stormLon, motion.stormLat]),
             turf.point([city.lng, city.lat]),
             { units: 'miles' }
         );
+        if (!Number.isFinite(distMiles)) return null;
+        var cityBearing = turf.bearing(
+            turf.point([motion.stormLon, motion.stormLat]),
+            turf.point([city.lng, city.lat])
+        );
+        var deltaDeg = ((cityBearing - motion.bearingDeg + 540) % 360) - 180;
+        var deltaRad = deltaDeg * Math.PI / 180;
+        var alongMiles = distMiles * Math.cos(deltaRad);
+        var crossMiles = Math.abs(distMiles * Math.sin(deltaRad));
+        return { distMiles: distMiles, alongMiles: alongMiles, crossMiles: crossMiles };
     } catch (_) { return null; }
+}
+
+function _collect_geometry_points(feature) {
+    var geom = feature?.geometry;
+    var out = [];
+    if (!geom || !geom.type || !Array.isArray(geom.coordinates)) return out;
+    if (geom.type === 'Polygon') {
+        for (var ri = 0; ri < geom.coordinates.length; ri++) {
+            var ring = geom.coordinates[ri] || [];
+            for (var pi = 0; pi < ring.length; pi++) {
+                var pt = ring[pi];
+                if (Array.isArray(pt) && pt.length >= 2) out.push(pt);
+            }
+        }
+    } else if (geom.type === 'MultiPolygon') {
+        for (var mi = 0; mi < geom.coordinates.length; mi++) {
+            var poly = geom.coordinates[mi] || [];
+            for (var rj = 0; rj < poly.length; rj++) {
+                var mRing = poly[rj] || [];
+                for (var pj = 0; pj < mRing.length; pj++) {
+                    var mPt = mRing[pj];
+                    if (Array.isArray(mPt) && mPt.length >= 2) out.push(mPt);
+                }
+            }
+        }
+    }
+    return out;
+}
+
+function _get_track_extents(feature, motion) {
+    if (!feature?.geometry || !motion || motion.stormLat == null || motion.stormLon == null) return null;
+    var vertices = _collect_geometry_points(feature);
+    if (!vertices.length) return null;
+    var minAlong = Infinity;
+    var maxAlong = -Infinity;
+    var maxCross = 0;
+    var origin = turf.point([motion.stormLon, motion.stormLat]);
+    for (var i = 0; i < vertices.length; i++) {
+        try {
+            var pt = turf.point(vertices[i]);
+            var distMiles = turf.distance(origin, pt, { units: 'miles' });
+            var bearing = turf.bearing(origin, pt);
+            var deltaDeg = ((bearing - motion.bearingDeg + 540) % 360) - 180;
+            var deltaRad = deltaDeg * Math.PI / 180;
+            var along = distMiles * Math.cos(deltaRad);
+            var cross = Math.abs(distMiles * Math.sin(deltaRad));
+            if (along < minAlong) minAlong = along;
+            if (along > maxAlong) maxAlong = along;
+            if (cross > maxCross) maxCross = cross;
+        } catch (_) {}
+    }
+    if (!Number.isFinite(minAlong) || !Number.isFinite(maxAlong)) return null;
+    return { minAlongMiles: minAlong, maxAlongMiles: maxAlong, maxCrossMiles: maxCross };
+}
+
+function _is_city_in_path_corridor(motion, city, halfWidthMiles, maxEtaMin) {
+    var metrics = _city_path_metrics(motion, city);
+    if (!metrics || !motion?.speedMph || motion.speedMph <= 0) return null;
+    if (metrics.alongMiles <= 0) return null;
+    var eta = _city_eta_minutes(metrics.alongMiles, motion.speedMph);
+    if (!eta || eta <= 0) return null;
+    var maxEta = maxEtaMin || 120;
+    if (eta > maxEta) return null;
+    var halfWidth = Number.isFinite(halfWidthMiles) ? halfWidthMiles : 12;
+    if (metrics.crossMiles > halfWidth) return null;
+    return {
+        etaMin: eta,
+        alongMiles: metrics.alongMiles,
+        crossMiles: metrics.crossMiles,
+        distMiles: metrics.distMiles
+    };
+}
+
+function _find_city_in_storm_path(feature, motion, callback) {
+    if (!motion || motion.stormLat == null || motion.stormLon == null) return callback(null);
+    var extents = _get_track_extents(feature, motion);
+    var halfWidthMiles = Math.min(22, Math.max(5, (extents?.maxCrossMiles || 10) * 0.8));
+    var leadMinutes = [20, 35, 50, 70];
+    var idx = 0;
+
+    function finish(city) {
+        if (!city) return callback(null);
+        var corridorCheck = _is_city_in_path_corridor(motion, city, halfWidthMiles, 120);
+        if (!corridorCheck) return callback(null);
+        city.etaMin = corridorCheck.etaMin;
+        city.alongMiles = corridorCheck.alongMiles;
+        city.crossMiles = corridorCheck.crossMiles;
+        callback(city);
+    }
+
+    function queryNext() {
+        if (idx >= leadMinutes.length) {
+            _find_major_city_in_polygon(feature, function (fallbackCity) {
+                if (!fallbackCity) return callback(null);
+                finish(fallbackCity);
+            });
+            return;
+        }
+
+        var mins = leadMinutes[idx++];
+        var distanceMiles = Math.max(8, motion.speedMph * (mins / 60));
+        var target = turf.destination(
+            turf.point([motion.stormLon, motion.stormLat]),
+            distanceMiles,
+            motion.bearingDeg,
+            { units: 'miles' }
+        );
+        var coords = target.geometry.coordinates;
+        var url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
+            coords[0].toFixed(4) + ',' + coords[1].toFixed(4) +
+            '.json?types=place&limit=5&country=us&access_token=' + MAPBOX_TOKEN;
+
+        fetch(url)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                var places = (data && Array.isArray(data.features)) ? data.features : [];
+                for (var i = 0; i < places.length; i++) {
+                    var place = places[i];
+                    var candidate = {
+                        name: place.text || place.place_name,
+                        lng: place.center?.[0],
+                        lat: place.center?.[1]
+                    };
+                    if (!candidate.name || candidate.lng == null || candidate.lat == null) continue;
+                    var fitsPath = _is_city_in_path_corridor(motion, candidate, halfWidthMiles, 120);
+                    if (fitsPath) {
+                        candidate.etaMin = fitsPath.etaMin;
+                        candidate.alongMiles = fitsPath.alongMiles;
+                        candidate.crossMiles = fitsPath.crossMiles;
+                        return callback(candidate);
+                    }
+                }
+                queryNext();
+            })
+            .catch(function () { queryNext(); });
+    }
+
+    queryNext();
+}
+
+function _city_distance_miles(motion, city) {
+    var metrics = _city_path_metrics(motion, city);
+    if (!metrics) return null;
+    return metrics.alongMiles > 0 ? metrics.alongMiles : metrics.distMiles;
 }
 
 function _city_eta_minutes(distMiles, speedMph) {
@@ -365,10 +566,25 @@ function _add_storm_track(motion, feature) {
     _remove_storm_track();
     if (!motion || motion.stormLat == null || motion.stormLon == null) return;
 
-    var startPt = [motion.stormLon, motion.stormLat];
-    var distanceMiles = motion.speedMph * 1.0;
-    var endPt = turf.destination(turf.point(startPt), distanceMiles * 1.60934, motion.bearingDeg, { units: 'kilometers' });
-    var endCoords = endPt.geometry.coordinates;
+    var origin = [motion.stormLon, motion.stormLat];
+    var extents = _get_track_extents(feature, motion);
+    var startAlong = extents ? Math.min(extents.minAlongMiles, 0) : 0;
+    var frontAlong = extents ? Math.max(extents.maxAlongMiles, 0) : 0;
+    var leadMiles = Math.min(70, Math.max(20, motion.speedMph * 0.75));
+    var endAlong = frontAlong + leadMiles;
+
+    function _point_at_along_miles(alongMiles) {
+        var bearing = motion.bearingDeg;
+        var distance = alongMiles;
+        if (alongMiles < 0) {
+            bearing = (bearing + 180) % 360;
+            distance = Math.abs(alongMiles);
+        }
+        return turf.destination(turf.point(origin), distance, bearing, { units: 'miles' }).geometry.coordinates;
+    }
+
+    var startPt = _point_at_along_miles(startAlong);
+    var endCoords = _point_at_along_miles(endAlong);
 
     var geojson = turf.featureCollection([
         turf.lineString([startPt, endCoords], { role: 'track' }),
@@ -1609,13 +1825,13 @@ function _generate_alert_commentary(feature, motion, city, context) {
             ]));
         } else if (torSrc.toLowerCase().includes('radar indicated') || desc.includes('RADAR INDICATED')) {
             lines.push(_pick_random([
-                'Doppler radar is showing strong, persistent rotation in a thunderstorm threatening ' + area + '. A tornado is likely developing.',
-                'We\'re picking up tight rotation on radar over ' + area + '. This storm has the hallmarks of a tornado producer.',
-                'Radar data reveals a well-defined mesocyclone bearing down on ' + area + '. Tornado formation is imminent or already occurring.',
-                'Strong rotational signatures on Doppler radar indicate a likely tornado embedded in this storm over ' + area + '.',
-                'The radar presentation over ' + area + ' is textbook for tornado development. A tight couplet on velocity and strong inbound-outbound signatures.',
-                'Dual-pol radar data suggests debris may already be lofted near ' + area + '. This storm is very likely producing a tornado right now.',
-                'We\'re seeing a pronounced hook echo and tight velocity couplet on the radar targeting ' + area + '. Tornado development is highly probable.'
+                'Doppler radar is showing strong rotation in a thunderstorm near ' + area + '. No confirmed tornado at this time, but one could develop if conditions intensify.',
+                'We\'re seeing a tight rotational signature on radar over ' + area + '. This is radar-indicated right now, and a tornado could form if the storm strengthens.',
+                'Radar data shows a well-defined mesocyclone near ' + area + '. This warning is precautionary, and tornado potential increases if low-level rotation tightens.',
+                'Strong rotation is being tracked on Doppler radar around ' + area + '. Treat this as a serious setup where a tornado could develop quickly if intensification continues.',
+                'The radar presentation over ' + area + ' shows organized rotation. A tornado is not confirmed, but the environment can support rapid development.',
+                'This is a radar-indicated tornado warning for ' + area + '. That means rotation is present and residents should be ready in case the storm ramps up.',
+                'We\'re seeing a classic rotating storm signal near ' + area + '. Not confirmed on the ground, but this can escalate fast if the storm tightens further.'
             ]));
         } else {
             lines.push(_pick_random([
@@ -2585,10 +2801,10 @@ function _run_alert_segment(resolve, forceFeature) {
     var isTornado = TORNADO_EVENTS.includes(feature?.properties?.event || '');
     var motion = isTornado ? _extract_storm_motion(feature) : null;
 
-    if (motion) _add_storm_track(motion, feature);
+    // Keep motion/path logic for commentary targeting, but do not render the track overlay.
 
     if (isTornado && motion) {
-        _find_major_city_in_polygon(feature, function (city) {
+        _find_city_in_storm_path(feature, motion, function (city) {
             if (isStale()) return;
             _typewrite(_generate_alert_commentary(feature, motion, city, alertContext), 1200);
         });

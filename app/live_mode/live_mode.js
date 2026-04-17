@@ -42,7 +42,7 @@ const TORNADO_EVENTS = ['Tornado Warning', 'PDS Tornado Warning', 'Tornado Emerg
 const SEVERE_ALERT_EVENTS = [
     'Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning',
     'Severe Thunderstorm Warning', 'Flash Flood Warning',
-    'Evacuation - Immediate'
+    'Evacuation - Immediate', 'Special Weather Statement'
 ];
 
 const SPC_SEGMENT_DURATION_MS = 18000;
@@ -1620,6 +1620,7 @@ function _score_alert_for_focus(feature, context, nowMs) {
     else if (event === 'Tornado Warning') score += 90;
     else if (event === 'Severe Thunderstorm Warning') score += (_is_tornado_eligible(feature) ? 55 : 38);
     else if (event === 'Flash Flood Warning') score += 35;
+    else if (event === 'Special Weather Statement') score += 30;
     else score += 22;
 
     if (context.lastUpdateMs) {
@@ -2050,6 +2051,35 @@ function _generate_alert_commentary(feature, motion, city, context) {
             'Head to the nearest evacuation shelter. If you need transportation assistance, call 911 or your local emergency number.',
             'Bring a go-bag with essentials: water, medications, phone charger, ID, cash, and a change of clothes. Help elderly or disabled neighbors if you can.',
             'Lock your home, turn off utilities if you have time, and take your evacuation route. Traffic will be heavy. Stay patient and stay on route.'
+        ]));
+    } else if (event === 'Special Weather Statement') {
+        lines.push(_pick_random([
+            'A Special Weather Statement is active for ' + area + ' ' + tod + '. Conditions are hazardous, even if this is below warning criteria.',
+            'The National Weather Service has issued a Special Weather Statement for ' + area + '. This is a heads-up for impactful weather in progress.',
+            'We are tracking a Special Weather Statement across ' + area + ' right now, signaling notable weather hazards nearby.',
+            'A Special Weather Statement is in effect for ' + area + '. This often means strong storms, reduced visibility, or other short-fuse hazards.',
+            'Heads up for ' + area + ': a Special Weather Statement is active ' + tod + '. Impacts may increase quickly in this area.'
+        ]));
+        if (wind || (hail && !isNaN(hailNum) && hailNum > 0)) {
+            var swsThreats = [];
+            if (wind) swsThreats.push('wind gusts up to ' + wind);
+            if (hail && !isNaN(hailNum) && hailNum > 0) swsThreats.push(hailNum.toFixed(2) + '" hail');
+            lines.push(_pick_random([
+                'Main impacts include ' + swsThreats.join(' and ') + '.',
+                'The statement highlights ' + swsThreats.join(' and ') + ' as the primary threats.',
+                'Expect pockets of ' + swsThreats.join(' and ') + ' with this cell.'
+            ]));
+        } else {
+            lines.push(_pick_random([
+                'Even without a formal warning, this can still produce dangerous travel and outdoor conditions.',
+                'These statements are often issued ahead of stronger impacts, so stay weather-aware through the next hour.',
+                'Treat this as an early warning signal and monitor radar closely for any upgrades.'
+            ]));
+        }
+        lines.push(_pick_random([
+            'If you are outdoors, move inside until this passes.',
+            'Stay off exposed roads if heavy rain, gusty winds, or lightning move into your area.',
+            'Keep your weather alerts on. A warning upgrade can happen quickly if conditions intensify.'
         ]));
     }
 
@@ -2513,7 +2543,8 @@ function _build_live_alert_html(feature, radarStation) {
     var desc = (p.description || '').toUpperCase();
     var isTor = TORNADO_EVENTS.includes(event);
     var isConvective = ['Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning',
-        'Severe Thunderstorm Warning', 'Severe Thunderstorm Watch', 'Tornado Watch'].indexOf(event) !== -1;
+        'Severe Thunderstorm Warning', 'Severe Thunderstorm Watch', 'Tornado Watch',
+        'Special Weather Statement'].indexOf(event) !== -1;
 
     var pills = [];
     function _get_tone_from_text(text) {
@@ -4988,13 +5019,25 @@ function _position_alert_banner() {
     _alertBannerEl.style.setProperty('--lmAlertBannerSafeRight', fallbackSafeRightTextInsetPx + 'px');
 }
 
+function _format_alert_banner_locations(states) {
+    if (!Array.isArray(states) || states.length === 0) return '';
+    var clean = states
+        .map(function (s) { return (s == null ? '' : String(s)).trim(); })
+        .filter(function (s) { return s.length > 0; });
+    if (!clean.length) return '';
+    if (clean.length === 1) return clean[0];
+    if (clean.length === 2) return clean[0] + ' and ' + clean[1];
+    return clean.slice(0, -1).join(', ') + ', and ' + clean[clean.length - 1];
+}
+
 function _show_alert_banner(eventName, states) {
     _ensure_alert_banner_el();
     var colorInfo = get_polygon_colors(eventName);
     var bgColor = colorInfo ? colorInfo.color : 'rgb(255, 0, 255)';
 
     var text = 'New ' + eventName;
-    if (states && states.length) text += ' in ' + states.join(', ');
+    var locationList = _format_alert_banner_locations(states);
+    if (locationList) text += ' in ' + locationList;
     var category = _get_alert_category_for_banner(eventName);
     var iconClass = (ALERT_CATEGORY_ICON_META[category] || ALERT_CATEGORY_ICON_META.Other).icon;
     _alertBannerEl.innerHTML =
@@ -5520,7 +5563,20 @@ function unduckMusic(fadeDurationMs) {
     _musicController.unduck(fadeDurationMs);
 }
 
-function forceSegment(type) {
+function _resolve_forced_alert_feature(options) {
+    var target = String(options?.eventName || '').trim().toLowerCase();
+    if (!target) return null;
+    if (target === 'sps') target = 'special weather statement';
+
+    var alerts = _get_active_severe_alerts();
+    for (var i = 0; i < alerts.length; i++) {
+        var eventName = String(alerts[i]?.properties?.event || '').trim().toLowerCase();
+        if (eventName === target) return alerts[i];
+    }
+    return null;
+}
+
+function forceSegment(type, options) {
     if (!_active) {
         enable();
     }
@@ -5536,7 +5592,10 @@ function forceSegment(type) {
     }
 
     if (type === 'spc') _run_spc_segment(advance);
-    else if (type === 'alert') _run_alert_segment(advance);
+    else if (type === 'alert') {
+        var forceFeature = _resolve_forced_alert_feature(options);
+        _run_alert_segment(advance, forceFeature);
+    }
     else if (type === 'spotlight') _run_spotlight_segment(advance);
     else if (type === 'conditions') _run_conditions_segment(advance);
     else if (type === 'earthquake') _run_earthquake_segment(advance);

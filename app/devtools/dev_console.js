@@ -55,8 +55,8 @@ var COMMANDS = {
         run: _cmd_notify
     },
     'lm': {
-        description: 'Force a Live Mode segment (spc, alert, conus, spotlight, conditions, earthquake)',
-        usage: 'lm [segment]',
+        description: 'Force a Live Mode segment (for alert, optional event name: e.g. lm alert sps)',
+        usage: 'lm [segment] [event name for alert]',
         run: _cmd_lm_segment
     },
     'lm-banner': {
@@ -95,15 +95,28 @@ function _cmd_lm_segment(args) {
     var live_mode = require('../live_mode/live_mode');
     var valid = ['spc', 'alert', 'conus', 'spotlight', 'conditions', 'earthquake'];
     var type = (args[0] || '').toLowerCase();
+    var eventName = args.slice(1).join(' ').trim();
+    var options = null;
 
     if (!type || !valid.includes(type)) {
-        _log('Usage: <span class="devConsoleCmd">lm [segment]</span><br>' +
+        _log('Usage: <span class="devConsoleCmd">lm [segment] [event name for alert]</span><br>' +
             'Available segments: <span class="devConsoleAccent">' + valid.join(', ') + '</span>', 'warning');
         return;
     }
 
-    _log('Forcing Live Mode segment: <span class="devConsoleAccent">' + type + '</span>');
-    live_mode.forceSegment(type);
+    if (type === 'alert' && eventName) {
+        if (eventName.toLowerCase() === 'sps') eventName = 'Special Weather Statement';
+        options = { eventName: eventName };
+    }
+
+    if (type === 'alert' && options?.eventName) {
+        _log('Forcing Live Mode segment: <span class="devConsoleAccent">' + type +
+            '</span> (event: <span class="devConsoleAccent">' + _escapeHtml(options.eventName) + '</span>)');
+    } else {
+        _log('Forcing Live Mode segment: <span class="devConsoleAccent">' + type + '</span>');
+    }
+
+    live_mode.forceSegment(type, options);
 }
 
 var _LM_BANNER_STATE_NAMES = {

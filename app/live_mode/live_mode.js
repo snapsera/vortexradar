@@ -10,10 +10,15 @@ const turf = require('@turf/turf');
 const chroma = require('chroma-js');
 const settings_store = require('../core/menu/settings_store');
 const alert_helpers = require('../alerts/alert_helpers');
+const alerts_display_state = require('../alerts/alerts_display_state');
 const filter_alerts = require('../alerts/filter_alerts');
 const get_polygon_colors = require('../alerts/colors/polygon_colors');
 const station_markers = require('../radar/station_markers/station_markers');
-const nexrad_locations = require('../radar/libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
+const lightning = require('../lightning/lightning');
+const {
+    NEXRAD_LOCATIONS: nexrad_locations,
+    get_station_timezone
+} = require('../radar/libnexrad/nexrad_locations');
 const LiveModeHeaderController = require('./live_mode_header_controller');
 const LiveModeMusicController = require('./live_mode_music_controller');
 const LiveModeCommentator = require('./live_mode_commentator');
@@ -48,6 +53,7 @@ const VELOCITY_HOLD_MS = 8000;
 const PLAYBACK_LOOP_TARGET = 8;
 const PLAYBACK_SPEED = 10;
 const PLAYBACK_FRAME_COUNT = 14;
+const SPOTLIGHT_FORECAST_CACHE_TTL_MS = 8 * 60 * 1000;
 
 const EARTHQUAKE_DURATION_MS = 22000;
 const EARTHQUAKE_FEED_URL = '/api/earthquakes';
@@ -57,12 +63,24 @@ const LM_QUAKE_LABEL = 'lmQuakeLabel';
 const LM_QUAKE_PULSE = 'lmQuakePulse';
 
 const SEGMENT_WEIGHTS = { spc: 3, alert: 5, conus: 2, spotlight: 4, conditions: 3, earthquake: 2 };
+const ALERT_CATEGORY_ICON_META = {
+    'Severe Weather': { icon: 'fa-bolt-lightning' },
+    'Winter': { icon: 'fa-snowflake' },
+    'Fire': { icon: 'fa-fire' },
+    'Marine': { icon: 'fa-water' },
+    'Flood': { icon: 'fa-house-flood-water' },
+    'Tropical': { icon: 'fa-hurricane' },
+    'Other': { icon: 'fa-triangle-exclamation' },
+    'Watches': { icon: 'fa-eye' }
+};
 
 // ── State ────────────────────────────────────────────────────────────────────
 
 let _active = false;
 let _segmentTimer = null;
 let _currentSegmentType = null;
+let _spotlightForecastRequestEpoch = 0;
+let _spotlightForecastCache = {};
 
 let _preSaveState = null;
 let _recentSegments = [];
@@ -90,6 +108,7 @@ const LM_TRACK_LINE_LAYER = 'lmStormTrackLine';
 const LM_TRACK_ARROW_LAYER = 'lmStormTrackArrow';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
+const NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
 
 const DIR_MAP = {
     'north': 0, 'n': 0, 'nne': 22.5, 'ne': 45, 'north-northeast': 22.5, 'northeast': 45,
@@ -165,9 +184,21 @@ function _recent_type_count(type, lookback) {
 // ── Header Clock Control ─────────────────────────────────────────────────────
 
 const _headerController = new LiveModeHeaderController();
+var _clockMode = 'both';
+var _clockSuppressed = false;
+
+function _apply_clock_mode() {
+    _headerController.setClockMode(_clockSuppressed ? 'hidden' : _clockMode);
+}
 
 function _set_clock_mode(mode) {
-    _headerController.setClockMode(mode);
+    _clockMode = mode || 'both';
+    _apply_clock_mode();
+}
+
+function _set_clock_suppressed(suppressed) {
+    _clockSuppressed = !!suppressed;
+    _apply_clock_mode();
 }
 
 // ── Header Radar Info Control ────────────────────────────────────────────────
@@ -255,6 +286,19 @@ function _extract_storm_motion(feature) {
 
     if (bearingDeg == null || speedMph == null) return null;
     return { bearingDeg: bearingDeg, speedMph: speedMph, stormLat: stormLat, stormLon: stormLon };
+}
+
+function _get_alert_category_for_banner(eventName) {
+    var resolved = eventName === 'Tornado Emergency' || eventName === 'PDS Tornado Warning'
+        ? 'Tornado Warning'
+        : eventName;
+    var categories = alerts_display_state?.ALERT_TYPES_BY_CATEGORY || {};
+    for (var category in categories) {
+        if (!Object.prototype.hasOwnProperty.call(categories, category)) continue;
+        var events = categories[category] || [];
+        if (events.indexOf(resolved) !== -1) return category;
+    }
+    return 'Other';
 }
 
 function _bearing_to_cardinal(deg) {
@@ -423,8 +467,7 @@ function _format_cig_label(props, hazard) {
         else if (level === 2) suffix = ' EF3+';
         else if (level === 3) suffix = ' EF4+';
     }
-    if (nameUpper === 'TORNADO') return 'CIG' + level + suffix;
-    return name + ' CIG' + level + suffix;
+    return 'CIG' + level + suffix;
 }
 
 function _simplify_spc_legend_label(label, hazard, isCig) {
@@ -432,24 +475,24 @@ function _simplify_spc_legend_label(label, hazard, isCig) {
     if (!raw) return 'Risk';
     if (hazard === 'tornado' && !isCig) {
         var pct = raw.match(/(\d+\s*%)/);
-        if (pct && pct[1]) return pct[1].replace(/\s+/g, '');
-        return raw.replace(/\bTornado\b/ig, '').replace(/\bRisk\b/ig, '').replace(/\s+/g, ' ').trim();
+        if (pct && pct[1]) return pct[1].replace(/\s+/g, '') + ' Tornado Risk';
+        return raw;
     }
     return raw;
 }
 
 function _spc_legend_rank(item) {
     if (!item) return -1;
-    if (item.isCig) return 100 + (item.cigLevel || 0);
+    if (item.isCig) return 5000 + (item.cigLevel || 0);
 
     var label = String(item.rawLabel || item.label || '');
     var pct = label.match(/(\d+)\s*%/);
-    if (pct && pct[1]) return Number(pct[1]);
+    if (pct && pct[1]) return 1000 + Number(pct[1]);
 
     var risk = _classify_risk({ label: label, label2: label });
     var riskOrder = ['TSTM', 'MRGL', 'SLGT', 'ENH', 'MDT', 'HIGH'];
     var riskIdx = riskOrder.indexOf(risk);
-    if (riskIdx >= 0) return riskIdx * 10;
+    if (riskIdx >= 0) return 100 + (riskIdx * 10);
 
     return 0;
 }
@@ -936,11 +979,32 @@ function _show_storm_reports() {
     } catch (_) {}
 }
 
+function _hide_lightning_overlay() {
+    try {
+        for (var i = 0; i < lightning.LAYERS.length; i++) {
+            if (map.getLayer(lightning.LAYERS[i])) map.setLayoutProperty(lightning.LAYERS[i], 'visibility', 'none');
+        }
+    } catch (_) {}
+}
+
+function _show_lightning_overlay() {
+    try {
+        var station = window.stormTrackData?.currentStation;
+        if (!station) return;
+        var s = settings_store.load();
+        if (!s.lightning) return;
+        for (var i = 0; i < lightning.LAYERS.length; i++) {
+            if (map.getLayer(lightning.LAYERS[i])) map.setLayoutProperty(lightning.LAYERS[i], 'visibility', 'visible');
+        }
+    } catch (_) {}
+}
+
 function _hide_all_map_overlays() {
     _hide_radar_render();
     _hide_station_markers();
     _hide_alert_polygons();
     _hide_radar_sweep();
+    _hide_lightning_overlay();
 }
 
 function _show_all_map_overlays() {
@@ -948,6 +1012,7 @@ function _show_all_map_overlays() {
     _show_station_markers();
     _show_alert_polygons();
     _show_radar_sweep();
+    _show_lightning_overlay();
 }
 
 function _run_spc_segment(resolve) {
@@ -960,6 +1025,7 @@ function _run_spc_segment(resolve) {
     _hide_radar_render();
     _hide_station_markers();
     _hide_radar_sweep();
+    _hide_lightning_overlay();
     _hide_header_radar_info(null);
     _show_info_panel(_build_spc_panel_html(_spc_label(hazard)));
 
@@ -1940,7 +2006,7 @@ function _generate_conus_commentary() {
     return lines.join(' ');
 }
 
-function _build_live_alert_html(feature) {
+function _build_live_alert_html(feature, radarStation) {
     var p = feature.properties || {};
     var event = p.event || 'Alert';
     var hexColor = '#ff4444';
@@ -1954,26 +2020,49 @@ function _build_live_alert_html(feature) {
         'Severe Thunderstorm Warning', 'Severe Thunderstorm Watch', 'Tornado Watch'].indexOf(event) !== -1;
 
     var pills = [];
+    function _get_tone_from_text(text) {
+        var t = String(text || '').toUpperCase();
+        if (!t) return '';
+        if (t.includes('OBSERVED')) return 'danger';
+        if (t.includes('RADAR INDICATED')) return 'warning';
+        if (t.includes('TORNADO POSSIBLE') || t.includes('POSSIBLE TORNADO') || t === 'POSSIBLE') return 'warning';
+        return '';
+    }
+    function _push_pill(text, tone) {
+        if (!text) return;
+        pills.push({
+            text: String(text).toUpperCase(),
+            tone: tone || _get_tone_from_text(text)
+        });
+    }
 
     if (isTor) {
         var torVal = _fn_arr(params.tornadoDetection);
         var torDisplay = torVal
             || (desc.includes('RADAR INDICATED') ? 'RADAR INDICATED' : null)
             || 'POSSIBLE';
-        pills.push(torDisplay.toUpperCase());
+        _push_pill(torDisplay);
+    }
+
+    if (event === 'Severe Thunderstorm Warning') {
+        var stwTornadoDetection = _fn_arr(params.tornadoDetection);
+        var hasTornadoPossibleTag = (stwTornadoDetection && String(stwTornadoDetection).toUpperCase().includes('POSSIBLE'))
+            || desc.includes('TORNADO POSSIBLE')
+            || desc.includes('POSSIBLE TORNADO');
+        if (hasTornadoPossibleTag) _push_pill('TORNADO POSSIBLE', 'warning');
     }
 
     var windVal = _fn_arr(params.maxWindGust);
-    if (isConvective && windVal) pills.push(windVal);
+    if (isConvective && windVal) _push_pill(windVal);
 
     var hailVal = _fn_arr(params.maxHailSize);
     var hailNum = parseFloat(hailVal);
     if (isConvective && hailVal && !isNaN(hailNum) && hailNum > 0) {
-        pills.push(hailNum.toFixed(2) + '" HAIL');
+        _push_pill(hailNum.toFixed(2) + '" HAIL');
     }
 
     var damageThreat = _fn_arr(params.flashFloodDamageThreat) || _fn_arr(params.damageThreat);
-    if (damageThreat) pills.push(damageThreat.toUpperCase());
+    if (damageThreat) _push_pill(damageThreat.toUpperCase());
 
     var areaDesc = p.areaDesc || '';
 
@@ -1988,6 +2077,7 @@ function _build_live_alert_html(feature) {
             sourceStr = 'Radar.';
         }
     }
+    var sourceTone = _get_tone_from_text(sourceStr);
 
     var html = '<div class="fnAlert" style="--fn-accent:' + hexColor + '">';
     html += '<div class="fnAlertShine"></div>';
@@ -1997,7 +2087,9 @@ function _build_live_alert_html(feature) {
     if (pills.length) {
         html += '<div class="fnAlertPills">';
         for (var i = 0; i < pills.length; i++) {
-            html += '<span class="fnAlertPill">' + pills[i] + '</span>';
+            var pill = pills[i];
+            var pillToneClass = pill.tone ? ' fnAlertPill-' + pill.tone : '';
+            html += '<span class="fnAlertPill' + pillToneClass + '">' + pill.text + '</span>';
         }
         html += '</div>';
     }
@@ -2015,7 +2107,8 @@ function _build_live_alert_html(feature) {
     if (sourceStr) {
         html += '<div class="fnAlertRow">';
         html += '<span class="fnAlertRowLabel">Source</span>';
-        html += '<span class="fnAlertRowValue">' + sourceStr + '</span>';
+        var sourceToneClass = sourceTone ? ' fnAlertRowValue-' + sourceTone : '';
+        html += '<span class="fnAlertRowValue' + sourceToneClass + '">' + sourceStr + '</span>';
         html += '</div>';
     }
 
@@ -2027,16 +2120,34 @@ function _build_live_alert_html(feature) {
             var diffMs = expiresMs - nowMs;
             var expiresText = '';
             if (diffMs <= 0) {
-                expiresText = 'Expired';
+                expiresText = 'Expired.';
             } else {
                 var totalMin = Math.floor(diffMs / 60000);
                 var hours = Math.floor(totalMin / 60);
                 var mins = totalMin % 60;
-                if (hours > 0) {
-                    expiresText = hours + 'h ' + mins + 'm remaining';
-                } else {
-                    expiresText = mins + 'm remaining';
+                var durationParts = [];
+                if (hours > 0) durationParts.push(hours + ' hour' + (hours === 1 ? '' : 's'));
+                if (mins > 0 || !durationParts.length) durationParts.push(mins + ' minute' + (mins === 1 ? '' : 's'));
+                var stationCode = radarStation || window.stormTrackData?.currentStation || null;
+                var timeZone = '';
+                var expiresClock = '';
+                if (stationCode) {
+                    try { timeZone = get_station_timezone(stationCode); } catch (_) {}
                 }
+                try {
+                    var clockOpts = {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true,
+                        timeZoneName: 'short'
+                    };
+                    if (timeZone) clockOpts.timeZone = timeZone;
+                    expiresClock = new Intl.DateTimeFormat('en-US', clockOpts).format(new Date(expiresMs));
+                } catch (_) {
+                    expiresClock = new Date(expiresMs).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                }
+                expiresText = 'In ' + durationParts.join(' ') + '.';
+                if (expiresClock) expiresText += ' At ' + expiresClock + '.';
             }
             html += '<div class="fnAlertRow">';
             html += '<span class="fnAlertRowLabel">Expires</span>';
@@ -2181,6 +2292,7 @@ function _run_alert_segment(resolve, forceFeature) {
         _show_radar_render();
         _show_station_markers();
         _show_radar_sweep();
+        _show_lightning_overlay();
         if (isSameStation && controller && controller.state.active && controller.state.supported) {
             controller.refresh_frames();
         }
@@ -2188,7 +2300,7 @@ function _run_alert_segment(resolve, forceFeature) {
 
     _fly_to_alert(feature);
     _add_focus_glow(feature);
-    _show_info_panel(_build_live_alert_html(feature));
+    _show_info_panel(_build_live_alert_html(feature, station));
 
     var torEligible = _is_tornado_eligible(feature);
     var isTornado = TORNADO_EVENTS.includes(feature?.properties?.event || '');
@@ -2616,6 +2728,371 @@ function _build_spotlight_panel_html(station) {
     return html;
 }
 
+function _escape_html(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _truncate_text(value, maxChars) {
+    var text = String(value || '').trim();
+    if (!text) return '';
+    if (text.length <= maxChars) return text;
+    return text.slice(0, Math.max(0, maxChars - 1)).trimEnd() + '…';
+}
+
+function _nws_fetch_json(url) {
+    var headers = new Headers();
+    headers.append('User-Agent', NWS_UA);
+    headers.append('Accept', 'application/geo+json');
+    return fetch(url, { headers: headers, cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('NWS ' + r.status);
+        return r.json();
+    });
+}
+
+function _get_spotlight_station_coords(station) {
+    var loc = nexrad_locations[station] || {};
+    var lat = Number(loc.lat || loc.latitude);
+    var lon = Number(loc.lon || loc.lng || loc.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat: lat, lon: lon };
+}
+
+function _resolve_spotlight_location_name(pointsData, station) {
+    var relative = pointsData?.properties?.relativeLocation?.properties || {};
+    var city = relative.city || '';
+    var state = relative.state || '';
+    if (city && state) return city + ', ' + state;
+
+    var stationLoc = nexrad_locations[station] || {};
+    return stationLoc.name || station;
+}
+
+function _pick_today_forecast_periods(periods) {
+    var now = new Date();
+    var todayDay = null;
+    var todayNight = null;
+
+    for (var i = 0; i < periods.length; i++) {
+        var period = periods[i];
+        if (!period) continue;
+        var start = new Date(period.startTime);
+        if (isNaN(start.getTime())) continue;
+        if (start.getFullYear() !== now.getFullYear() || start.getMonth() !== now.getMonth() || start.getDate() !== now.getDate()) continue;
+        if (period.isDaytime && !todayDay) todayDay = period;
+        if (!period.isDaytime && !todayNight) todayNight = period;
+        if (todayDay && todayNight) break;
+    }
+
+    var fallbackPeriod = periods[0] || null;
+    if (!todayDay || !todayNight) {
+        for (var j = 0; j < periods.length; j++) {
+            var p = periods[j];
+            if (!p) continue;
+            if (p.isDaytime && !todayDay) todayDay = p;
+            if (!p.isDaytime && !todayNight) todayNight = p;
+            if (todayDay && todayNight) break;
+        }
+    }
+
+    return { dayPeriod: todayDay, nightPeriod: todayNight, fallbackPeriod: fallbackPeriod };
+}
+
+function _format_temp_text(temp, unit) {
+    if (!Number.isFinite(Number(temp))) return 'N/A';
+    return String(temp) + '°' + (unit || 'F');
+}
+
+function _build_spotlight_forecast_period_html(label, period, options) {
+    if (!period) return '';
+    options = options || {};
+
+    var tempUnit = period.temperatureUnit || 'F';
+    var forecastTemp = _format_temp_text(period.temperature, tempUnit);
+    var tempText = forecastTemp;
+    if (label === 'Day') {
+        tempText = 'High of ' + forecastTemp;
+    } else if (label === 'Night') {
+        tempText = 'Low of ' + forecastTemp;
+    }
+    var windParts = [period.windSpeed || '', period.windDirection || ''].join(' ').trim();
+    var windText = windParts || 'Wind unavailable';
+    var shortForecast = _truncate_text(period.shortForecast || 'Forecast unavailable.', 140);
+
+    var html = '<div class="lmSpotlightForecastPeriod">';
+    html += '<div class="lmSpotlightForecastPeriodHeader">' + _escape_html(label) + ' <span>' + _escape_html(tempText) + '</span></div>';
+    html += '<div class="lmSpotlightForecastWind">' + _escape_html(windText) + '</div>';
+    html += '<div class="lmSpotlightForecastText">' + _escape_html(shortForecast) + '</div>';
+    html += '</div>';
+    return html;
+}
+
+function _format_time_local(isoString, timeZone) {
+    if (!isoString) return 'N/A';
+    try {
+        var date = new Date(isoString);
+        if (isNaN(date.getTime())) return 'N/A';
+        var opts = { hour: 'numeric', minute: '2-digit' };
+        if (timeZone) opts.timeZone = timeZone;
+        return new Intl.DateTimeFormat('en-US', opts).format(date);
+    } catch (_) {
+        return 'N/A';
+    }
+}
+
+function _get_moon_phase_info() {
+    var now = new Date();
+    var synodicMonth = 29.53058867;
+    var knownNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
+    var daysSince = (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - knownNewMoon) / 86400000;
+    var phase = ((daysSince % synodicMonth) + synodicMonth) % synodicMonth;
+
+    if (phase < 1.84566) return { icon: '🌑', label: 'New Moon' };
+    if (phase < 5.53699) return { icon: '🌒', label: 'Waxing Crescent' };
+    if (phase < 9.22831) return { icon: '🌓', label: 'First Quarter' };
+    if (phase < 12.91963) return { icon: '🌔', label: 'Waxing Gibbous' };
+    if (phase < 16.61096) return { icon: '🌕', label: 'Full Moon' };
+    if (phase < 20.30228) return { icon: '🌖', label: 'Waning Gibbous' };
+    if (phase < 23.99361) return { icon: '🌗', label: 'Last Quarter' };
+    if (phase < 27.68493) return { icon: '🌘', label: 'Waning Crescent' };
+    return { icon: '🌑', label: 'New Moon' };
+}
+
+function _fetch_solar_times(lat, lon) {
+    var url = 'https://api.sunrise-sunset.org/json?lat=' + lat + '&lng=' + lon + '&formatted=0';
+    return fetch(url, { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+            var results = data && data.results ? data.results : null;
+            if (!results) return null;
+            return {
+                sunriseIso: results.sunrise || null,
+                sunsetIso: results.sunset || null
+            };
+        })
+        .catch(function () { return null; });
+}
+
+function _build_spotlight_risk_summary(alertsData) {
+    var features = alertsData?.features || [];
+    if (!features.length) {
+        return {
+            level: 'clear',
+            label: 'No active alerts',
+            icon: 'fa-solid fa-circle-check',
+            message: ''
+        };
+    }
+
+    var events = [];
+    var seen = {};
+    for (var i = 0; i < features.length; i++) {
+        var eventName = features[i]?.properties?.event;
+        if (!eventName || seen[eventName]) continue;
+        seen[eventName] = true;
+        events.push(eventName);
+    }
+
+    var combined = events.join(' | ').toLowerCase();
+    var topRisk = 'elevated';
+    var label = 'Active alerts nearby';
+    if (combined.indexOf('tornado') !== -1 || combined.indexOf('emergency') !== -1) {
+        topRisk = 'high';
+        label = 'High risk area';
+    } else if (combined.indexOf('severe thunderstorm') !== -1 || combined.indexOf('flash flood') !== -1) {
+        topRisk = 'elevated';
+        label = 'Elevated risk area';
+    }
+
+    return {
+        level: topRisk,
+        label: label,
+        icon: topRisk === 'high' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-exclamation',
+        message: events.slice(0, 2).join(' | ') + (events.length > 2 ? ' +' + (events.length - 2) + ' more' : '')
+    };
+}
+
+function _build_spotlight_extra_details_html(summary) {
+    var moon = summary.moon || { icon: '🌙', label: 'Moon phase unavailable' };
+    var sunrise = summary.sunriseText || 'N/A';
+    var sunset = summary.sunsetText || 'N/A';
+    var risk = summary.risk || {
+        level: 'clear',
+        label: 'No active alerts',
+        icon: 'fa-solid fa-circle-check',
+        message: ''
+    };
+
+    var html = '<div class="lmSpotlightForecastDetails">';
+    html += '<div class="lmSpotlightForecastDetailRow"><i class="fa-solid fa-sun lmSpotlightForecastIcon"></i><span>Sunrise</span><strong>' + _escape_html(sunrise) + '</strong></div>';
+    html += '<div class="lmSpotlightForecastDetailRow"><i class="fa-solid fa-cloud-sun lmSpotlightForecastIcon"></i><span>Sunset</span><strong>' + _escape_html(sunset) + '</strong></div>';
+    html += '<div class="lmSpotlightForecastDetailRow"><span class="lmSpotlightForecastMoonIcon">' + _escape_html(moon.icon) + '</span><span>Moon</span><strong>' + _escape_html(moon.label) + '</strong></div>';
+    html += '</div>';
+    html += '<div class="lmSpotlightForecastRisk lmSpotlightForecastRisk-' + _escape_html(risk.level) + '">';
+    html += '<div class="lmSpotlightForecastRiskTitle"><i class="' + _escape_html(risk.icon) + '"></i><span>' + _escape_html(risk.label) + '</span></div>';
+    if (risk.message) html += '<div class="lmSpotlightForecastRiskText">' + _escape_html(risk.message) + '</div>';
+    html += '</div>';
+    return html;
+}
+
+function _build_spotlight_forecast_loading_html(station) {
+    var html = '<div class="fnAlert lmSpotlightForecastCard" style="--fn-accent:#22d3ee">';
+    html += '<div class="fnAlertBody">';
+    html += '<div class="fnAlertEventName">TODAY\'S FORECAST</div>';
+    html += '<div class="lmSpotlightForecastLoading">Loading local forecast from NWS...</div>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
+function _build_spotlight_forecast_error_html(station) {
+    var html = '<div class="fnAlert lmSpotlightForecastCard" style="--fn-accent:#22d3ee">';
+    html += '<div class="fnAlertBody">';
+    html += '<div class="fnAlertEventName">TODAY\'S FORECAST</div>';
+    if (station) html += '<div class="lmSpotlightForecastRegion">' + _escape_html(_resolve_spotlight_location_name({}, station)) + '</div>';
+    html += '<div class="lmSpotlightForecastUnavailable">Forecast data is temporarily unavailable for this radar site.</div>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
+function _build_spotlight_forecast_panel_html(station, summary) {
+    var dayPeriod = summary.dayPeriod;
+    var nightPeriod = summary.nightPeriod;
+    var fallbackPeriod = summary.fallbackPeriod;
+    var locationName = summary.locationName || station;
+
+    var html = '<div class="fnAlert lmSpotlightForecastCard" style="--fn-accent:#22d3ee">';
+    html += '<div class="fnAlertBody">';
+    html += '<div class="fnAlertEventName">TODAY\'S FORECAST</div>';
+    html += '<div class="lmSpotlightForecastRegion">' + _escape_html(locationName) + '</div>';
+    html += '<div class="lmSpotlightForecastPeriods">';
+    html += _build_spotlight_forecast_period_html('Day', dayPeriod);
+    html += _build_spotlight_forecast_period_html('Night', nightPeriod);
+    if (!dayPeriod && !nightPeriod) {
+        html += _build_spotlight_forecast_period_html((fallbackPeriod && fallbackPeriod.name) || 'Latest', fallbackPeriod);
+    }
+    html += '</div>';
+    html += _build_spotlight_extra_details_html(summary);
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
+function _with_timeout(promise, timeoutMs) {
+    return Promise.race([
+        promise,
+        new Promise(function (_, reject) {
+            setTimeout(function () { reject(new Error('timeout')); }, timeoutMs);
+        })
+    ]);
+}
+
+function _fetch_nws_json_with_retry(url, timeoutMs, retries) {
+    var attempts = 0;
+    function attempt() {
+        attempts++;
+        return _with_timeout(_nws_fetch_json(url), timeoutMs).catch(function (err) {
+            if (attempts > retries) throw err;
+            return attempt();
+        });
+    }
+    return attempt();
+}
+
+function _get_cached_spotlight_forecast_html(station) {
+    var entry = _spotlightForecastCache[station];
+    if (!entry) return null;
+    if ((Date.now() - entry.ts) > SPOTLIGHT_FORECAST_CACHE_TTL_MS) {
+        delete _spotlightForecastCache[station];
+        return null;
+    }
+    return entry.html || null;
+}
+
+function _set_cached_spotlight_forecast_html(station, html) {
+    _spotlightForecastCache[station] = {
+        ts: Date.now(),
+        html: html
+    };
+}
+
+function _load_spotlight_forecast_panel(station, segmentEpoch, onReady) {
+    if (typeof onReady !== 'function') onReady = function () {};
+    var requestEpoch = ++_spotlightForecastRequestEpoch;
+    var coords = _get_spotlight_station_coords(station);
+    if (!coords) {
+        onReady(_build_spotlight_forecast_error_html(station));
+        return;
+    }
+
+    var cachedHtml = _get_cached_spotlight_forecast_html(station);
+    if (cachedHtml) {
+        onReady(cachedHtml);
+        return;
+    }
+
+    var lat = coords.lat.toFixed(4);
+    var lon = coords.lon.toFixed(4);
+    var pointsUrl = 'https://api.weather.gov/points/' + lat + ',' + lon;
+
+    function isStale() {
+        return !_active ||
+            _currentSegmentType !== 'spotlight' ||
+            segmentEpoch !== _alertEpoch ||
+            requestEpoch !== _spotlightForecastRequestEpoch;
+    }
+
+    _fetch_nws_json_with_retry(pointsUrl, 6500, 1)
+        .then(function (pointsData) {
+            if (isStale()) return null;
+            var forecastUrl = pointsData?.properties?.forecast;
+            var alertsUrl = 'https://api.weather.gov/alerts/active?point=' + lat + ',' + lon;
+            if (!forecastUrl) throw new Error('Missing forecast URL');
+            return Promise.all([
+                _fetch_nws_json_with_retry(forecastUrl, 6500, 1),
+                _with_timeout(_nws_fetch_json(alertsUrl), 1600).catch(function () { return { features: [] }; }),
+                _with_timeout(_fetch_solar_times(lat, lon), 1400).catch(function () { return null; })
+            ]).then(function (results) {
+                return {
+                    pointsData: pointsData,
+                    forecastData: results[0],
+                    alertsData: results[1],
+                    solarData: results[2]
+                };
+            });
+        })
+        .then(function (result) {
+            if (!result || isStale()) return;
+            var periods = result.forecastData?.properties?.periods || [];
+            var picked = _pick_today_forecast_periods(periods);
+            var timeZone = result.pointsData?.properties?.timeZone || '';
+            var moon = _get_moon_phase_info();
+            var summary = {
+                locationName: _resolve_spotlight_location_name(result.pointsData, station),
+                dayPeriod: picked.dayPeriod,
+                nightPeriod: picked.nightPeriod,
+                fallbackPeriod: picked.fallbackPeriod,
+                sunriseText: _format_time_local(result.solarData?.sunriseIso, timeZone),
+                sunsetText: _format_time_local(result.solarData?.sunsetIso, timeZone),
+                moon: moon,
+                risk: _build_spotlight_risk_summary(result.alertsData)
+            };
+            var html = _build_spotlight_forecast_panel_html(station, summary);
+            _set_cached_spotlight_forecast_html(station, html);
+            onReady(html);
+        })
+        .catch(function () {
+            if (isStale()) return;
+            var staleHtml = _spotlightForecastCache[station]?.html || null;
+            onReady(staleHtml || _build_spotlight_forecast_error_html(station));
+        });
+}
+
 function _run_spotlight_segment(resolve) {
     _currentSegmentType = 'spotlight';
 
@@ -2641,6 +3118,7 @@ function _run_spotlight_segment(resolve) {
         _cleanup_loop_listener();
         _stop_typewriter();
         _hide_info_panel();
+        _hide_spotlight_forecast_panel();
         try {
             var ctrl = window.stormTrackData?.radarLoopController;
             if (ctrl) ctrl.stop();
@@ -2669,17 +3147,57 @@ function _run_spotlight_segment(resolve) {
         _show_radar_render();
         _show_station_markers();
         _show_radar_sweep();
+        _show_lightning_overlay();
         if (isSameStation && controller && controller.state.active && controller.state.supported) {
             controller.refresh_frames();
         }
 
+        var forecastPanelHtml = null;
+        var forecastPanelReady = false;
+        var forecastPanelVisible = false;
+        var revealTriggered = false;
+        var loadingRevealTimer = null;
+        function revealForecastPanel() {
+            if (revealTriggered) return;
+            revealTriggered = true;
+            forecastPanelVisible = true;
+            if (forecastPanelReady && forecastPanelHtml) {
+                _show_spotlight_forecast_panel(forecastPanelHtml);
+            } else {
+                loadingRevealTimer = setTimeout(function () {
+                    loadingRevealTimer = null;
+                    if (forecastPanelVisible && !isStale() && !forecastPanelReady) {
+                        _show_spotlight_forecast_panel(_build_spotlight_forecast_loading_html(station));
+                    }
+                }, 650);
+            }
+        }
+        _load_spotlight_forecast_panel(station, epoch, function (html) {
+            if (isStale()) return;
+            forecastPanelReady = true;
+            forecastPanelHtml = html;
+            if (loadingRevealTimer) {
+                clearTimeout(loadingRevealTimer);
+                loadingRevealTimer = null;
+            }
+            if (forecastPanelVisible && forecastPanelHtml) {
+                _show_spotlight_forecast_panel(forecastPanelHtml, { animate: false });
+            }
+        });
+
         var loc = nexrad_locations[station];
+        try {
+            map.once('moveend', function () {
+                _trackAlertTimer(revealForecastPanel, 250);
+            });
+        } catch (_) {}
         map.flyTo({
             center: [loc.lon, loc.lat],
             zoom: 7,
             speed: 1.2,
             essential: true
         });
+        _trackAlertTimer(revealForecastPanel, 1700);
 
         _show_info_panel(_build_spotlight_panel_html(station));
 
@@ -2762,6 +3280,7 @@ function _run_conus_segment(resolve) {
     _hide_station_markers();
     _hide_alert_polygons();
     _hide_radar_sweep();
+    _hide_lightning_overlay();
     _add_static_mrms_layer();
     map.flyTo({ center: CONUS_CENTER, zoom: CONUS_ZOOM, speed: 1.2, essential: true });
     if (Math.random() > 0.35) {
@@ -2785,6 +3304,11 @@ const CONDITIONS_DURATION_MS = 20000;
 const LM_CONDITIONS_SOURCE = 'lmConditionsSource';
 const LM_CONDITIONS_CIRCLE = 'lmConditionsCircle';
 const LM_CONDITIONS_LABEL = 'lmConditionsLabel';
+const CONDITIONS_BUBBLE_REVEAL_SPAN_MIN_MS = 500;
+const CONDITIONS_BUBBLE_REVEAL_SPAN_MAX_MS = 900;
+const CONDITIONS_BUBBLE_REVEAL_PER_BUBBLE_MS = 55;
+const CONDITIONS_BUBBLE_REVEAL_FLY_FALLBACK_MS = 1100;
+const CONDITIONS_BUBBLE_REVEAL_FADE_MS = 320;
 
 var CONDITION_REGIONS = [
     {
@@ -2918,12 +3442,14 @@ var CONDITION_REGIONS = [
     }
 ];
 
-function _get_all_region_stations() {
+function _get_region_stations(region) {
+    if (!region || !Array.isArray(region.cities)) return [];
     var stations = [];
-    for (var r = 0; r < CONDITION_REGIONS.length; r++) {
-        for (var c = 0; c < CONDITION_REGIONS[r].cities.length; c++) {
-            stations.push(CONDITION_REGIONS[r].cities[c].station);
-        }
+    for (var i = 0; i < region.cities.length; i++) {
+        var station = region.cities[i] && region.cities[i].station;
+        if (!station) continue;
+        if (stations.indexOf(station) !== -1) continue;
+        stations.push(station);
     }
     return stations;
 }
@@ -2946,9 +3472,9 @@ function _compute_feels_like(tempF, dewF, wspd) {
     return Math.round(tempF);
 }
 
-function _fetch_observations(callback) {
-    var allStations = _get_all_region_stations();
-    var unique = allStations.filter(function (s, i) { return allStations.indexOf(s) === i; });
+function _fetch_observations(stations, callback) {
+    var unique = Array.isArray(stations) ? stations.filter(function (s, i) { return stations.indexOf(s) === i; }) : [];
+    if (!unique.length) return callback({});
     var url = '/api/metar?ids=' + unique.join(',');
     fetch(url, { cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -2979,8 +3505,24 @@ function _fetch_observations(callback) {
 var LM_CONDITIONS_CITY_LABEL = 'lmConditionsCityLabel';
 var LM_CONDITIONS_FEELS_LABEL = 'lmConditionsFeelsLabel';
 
-function _add_conditions_layer(region, observations) {
-    _remove_conditions_layer();
+function _shuffle_array_copy(list) {
+    var copy = list.slice();
+    for (var i = copy.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+    }
+    return copy;
+}
+
+function _set_conditions_source_features(features) {
+    var source = map.getSource(LM_CONDITIONS_SOURCE);
+    if (!source) return;
+    source.setData(turf.featureCollection(features));
+}
+
+function _build_conditions_features(region, observations) {
     var getTempColor = require('../core/misc/temp_colors');
 
     var cities = region.cities;
@@ -2994,17 +3536,28 @@ function _add_conditions_layer(region, observations) {
         var bgColor = typeof colors[0] === 'string' ? colors[0] : colors[0].css();
         var tempLabel = ob.tempF + '°';
         var feelsLabel = (feelsLike != null && feelsLike !== ob.tempF) ? ('Feels ' + feelsLike + '°') : '';
-        features.push(turf.point([city.lng, city.lat], {
+        var feature = turf.point([city.lng, city.lat], {
             name: city.name,
             tempLabel: tempLabel,
             feelsLabel: feelsLabel,
             tempF: ob.tempF,
             feelsLike: feelsLike,
             color: bgColor,
-            textColor: colors[1]
-        }));
+            textColor: colors[1],
+            bubbleOpacity: 0,
+            bubbleStrokeOpacity: 0,
+            tempTextOpacity: 0,
+            cityTextOpacity: 0,
+            feelsTextOpacity: 0
+        });
+        feature.id = city.station || (city.name + '-' + i);
+        features.push(feature);
     }
+    return features;
+}
 
+function _add_conditions_layer(features) {
+    _remove_conditions_layer();
     map.addSource(LM_CONDITIONS_SOURCE, {
         type: 'geojson',
         data: turf.featureCollection(features)
@@ -3022,9 +3575,12 @@ function _add_conditions_layer(region, observations) {
                 7, 32
             ],
             'circle-color': ['get', 'color'],
-            'circle-opacity': 0.88,
+            'circle-opacity': ['get', 'bubbleOpacity'],
+            'circle-opacity-transition': { duration: CONDITIONS_BUBBLE_REVEAL_FADE_MS, delay: 0 },
             'circle-stroke-width': 2,
-            'circle-stroke-color': 'rgba(255,255,255,0.5)'
+            'circle-stroke-color': 'rgba(255,255,255,0.5)',
+            'circle-stroke-opacity': ['get', 'bubbleStrokeOpacity'],
+            'circle-stroke-opacity-transition': { duration: CONDITIONS_BUBBLE_REVEAL_FADE_MS, delay: 0 }
         }
     });
 
@@ -3048,7 +3604,9 @@ function _add_conditions_layer(region, observations) {
         paint: {
             'text-color': '#ffffff',
             'text-halo-color': 'rgba(0,0,0,0.6)',
-            'text-halo-width': 1.5
+            'text-halo-width': 1.5,
+            'text-opacity': ['get', 'tempTextOpacity'],
+            'text-opacity-transition': { duration: CONDITIONS_BUBBLE_REVEAL_FADE_MS, delay: 0 }
         }
     });
 
@@ -3073,7 +3631,9 @@ function _add_conditions_layer(region, observations) {
         paint: {
             'text-color': 'rgba(255, 255, 255, 0.9)',
             'text-halo-color': 'rgba(0,0,0,0.9)',
-            'text-halo-width': 1.5
+            'text-halo-width': 1.5,
+            'text-opacity': ['get', 'cityTextOpacity'],
+            'text-opacity-transition': { duration: CONDITIONS_BUBBLE_REVEAL_FADE_MS, delay: 0 }
         }
     });
 
@@ -3098,9 +3658,59 @@ function _add_conditions_layer(region, observations) {
         paint: {
             'text-color': 'rgba(255, 255, 255, 0.6)',
             'text-halo-color': 'rgba(0,0,0,0.8)',
-            'text-halo-width': 1.2
+            'text-halo-width': 1.2,
+            'text-opacity': ['get', 'feelsTextOpacity'],
+            'text-opacity-transition': { duration: CONDITIONS_BUBBLE_REVEAL_FADE_MS, delay: 0 }
         }
     });
+
+    return {
+        featureCount: features.length,
+        startReveal: function () {
+            if (!Array.isArray(features) || !features.length) {
+                _set_conditions_source_features([]);
+                return;
+            }
+            var revealOrder = _shuffle_array_copy(features);
+            var revealWindowMs = Math.max(
+                CONDITIONS_BUBBLE_REVEAL_SPAN_MIN_MS,
+                Math.min(CONDITIONS_BUBBLE_REVEAL_SPAN_MAX_MS, revealOrder.length * CONDITIONS_BUBBLE_REVEAL_PER_BUBBLE_MS)
+            );
+            var scheduled = revealOrder.map(function (feature, idx) {
+                return {
+                    feature: feature,
+                    delayMs: idx === 0 ? 0 : Math.floor(Math.random() * revealWindowMs)
+                };
+            }).sort(function (a, b) {
+                return a.delayMs - b.delayMs;
+            });
+
+            for (var r = 0; r < revealOrder.length; r++) {
+                var resetProps = revealOrder[r].properties || {};
+                resetProps.bubbleOpacity = 0;
+                resetProps.bubbleStrokeOpacity = 0;
+                resetProps.tempTextOpacity = 0;
+                resetProps.cityTextOpacity = 0;
+                resetProps.feelsTextOpacity = 0;
+            }
+            _set_conditions_source_features(features);
+            for (var i = 0; i < scheduled.length; i++) {
+                (function (entry) {
+                    _trackAlertTimer(function () {
+                        if (!_active) return;
+                        if (!map.getSource(LM_CONDITIONS_SOURCE)) return;
+                        var props = entry.feature.properties || {};
+                        props.bubbleOpacity = 0.88;
+                        props.bubbleStrokeOpacity = 1;
+                        props.tempTextOpacity = 1;
+                        props.cityTextOpacity = 0.95;
+                        props.feelsTextOpacity = 0.75;
+                        _set_conditions_source_features(features);
+                    }, entry.delayMs);
+                })(scheduled[i]);
+            }
+        }
+    };
 }
 
 function _remove_conditions_layer() {
@@ -3252,9 +3862,34 @@ function _run_conditions_segment(resolve) {
     _remove_static_mrms_layer();
     _show_info_panel(_build_conditions_panel_html(region.name));
 
-    map.flyTo({ center: region.center, zoom: region.zoom, speed: 1.2, essential: true });
+    var conditionsFlyComplete = false;
+    var conditionsLayerReady = false;
+    var conditionsRevealStarted = false;
+    var conditionsLayerController = null;
+    function _start_conditions_reveal_when_ready() {
+        if (conditionsRevealStarted) return;
+        if (!conditionsFlyComplete || !conditionsLayerReady || !conditionsLayerController) return;
+        conditionsRevealStarted = true;
+        conditionsLayerController.startReveal();
+    }
 
-    _fetch_observations(function (observations) {
+    try {
+        map.once('moveend', function () {
+            conditionsFlyComplete = true;
+            _start_conditions_reveal_when_ready();
+        });
+    } catch (_) {
+        conditionsFlyComplete = true;
+    }
+
+    map.flyTo({ center: region.center, zoom: region.zoom, speed: 1.2, essential: true });
+    _trackAlertTimer(function () {
+        if (conditionsFlyComplete) return;
+        conditionsFlyComplete = true;
+        _start_conditions_reveal_when_ready();
+    }, CONDITIONS_BUBBLE_REVEAL_FLY_FALLBACK_MS);
+
+    _fetch_observations(_get_region_stations(region), function (observations) {
         if (!_active) { _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
 
         var obsKeys = Object.keys(observations);
@@ -3268,8 +3903,11 @@ function _run_conditions_segment(resolve) {
 
         _trackAlertTimer(function () {
             if (!_active) { _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
-            _add_conditions_layer(region, observations);
+            var features = _build_conditions_features(region, observations);
+            conditionsLayerController = _add_conditions_layer(features);
             _show_cond_legend();
+            conditionsLayerReady = true;
+            _start_conditions_reveal_when_ready();
 
             _segmentTimer = setTimeout(function () {
                 _remove_conditions_layer();
@@ -3278,7 +3916,7 @@ function _run_conditions_segment(resolve) {
                 _hide_info_panel();
                 resolve();
             }, CONDITIONS_DURATION_MS);
-        }, 300);
+        }, 80);
     });
 }
 
@@ -3806,22 +4444,49 @@ var _alertBannerTimeout = null;
 var _alertBannerFadeTimeout = null;
 var _alertBannerQueue = [];
 var _alertBannerShowing = false;
+var _ALERT_BANNER_MIN_MS = 10000;
+var _ALERT_BANNER_MAX_MS = 15000;
+var _ALERT_BANNER_EXIT_MS = 560;
 
 function _ensure_alert_banner_el() {
     if (_alertBannerEl) return;
     _alertBannerEl = document.createElement('div');
     _alertBannerEl.className = 'lmAlertBanner';
-    document.body.appendChild(_alertBannerEl);
+    var host = document.getElementById('top-right');
+    (host || document.body).appendChild(_alertBannerEl);
 }
 
 function _position_alert_banner() {
     if (!_alertBannerEl) return;
+    var host = document.getElementById('top-right');
     var btn = document.getElementById('alertsCountBtn');
     if (!btn) return;
+    if (host) {
+        if (_alertBannerEl.parentElement !== host) host.appendChild(_alertBannerEl);
+        var tuckUnderPx = Math.round(Math.min(btn.offsetWidth * 0.28, 14));
+        var gapPx = 0;
+        var btnRect = btn.getBoundingClientRect();
+        var maxBannerWidthPx = Math.max(140, Math.floor(btnRect.left + tuckUnderPx - 12));
+        var safeRightTextInsetPx = tuckUnderPx + 6;
+        _alertBannerEl.style.top = btn.offsetTop + 'px';
+        _alertBannerEl.style.height = btn.offsetHeight + 'px';
+        _alertBannerEl.style.right = Math.max(0, (host.clientWidth - btn.offsetLeft) - tuckUnderPx + gapPx) + 'px';
+        _alertBannerEl.style.maxWidth = maxBannerWidthPx + 'px';
+        _alertBannerEl.style.setProperty('--lmAlertBannerSafeRight', safeRightTextInsetPx + 'px');
+        return;
+    }
+
     var rect = btn.getBoundingClientRect();
+    var fallbackTuckUnderPx = Math.round(Math.min(rect.width * 0.28, 14));
+    var fallbackGapPx = 0;
+    var fallbackLeftSpacePx = Math.max(140, Math.floor(rect.left - 12 + fallbackTuckUnderPx - fallbackGapPx));
+    var fallbackMaxWidthPx = fallbackLeftSpacePx;
+    var fallbackSafeRightTextInsetPx = fallbackTuckUnderPx + 6;
     _alertBannerEl.style.top = rect.top + 'px';
     _alertBannerEl.style.height = rect.height + 'px';
-    _alertBannerEl.style.right = (window.innerWidth - rect.left) + 'px';
+    _alertBannerEl.style.right = Math.max(0, (window.innerWidth - rect.left) - fallbackTuckUnderPx + fallbackGapPx) + 'px';
+    _alertBannerEl.style.maxWidth = fallbackMaxWidthPx + 'px';
+    _alertBannerEl.style.setProperty('--lmAlertBannerSafeRight', fallbackSafeRightTextInsetPx + 'px');
 }
 
 function _show_alert_banner(eventName, states) {
@@ -3831,30 +4496,38 @@ function _show_alert_banner(eventName, states) {
 
     var text = 'New ' + eventName;
     if (states && states.length) text += ' in ' + states.join(', ');
-    _alertBannerEl.textContent = text;
+    var category = _get_alert_category_for_banner(eventName);
+    var iconClass = (ALERT_CATEGORY_ICON_META[category] || ALERT_CATEGORY_ICON_META.Other).icon;
+    _alertBannerEl.innerHTML =
+        '<i class="lmAlertBannerIcon fa-solid ' + iconClass + '" aria-hidden="true"></i>' +
+        '<span class="lmAlertBannerText">' + _escape_html(text) + '</span>';
     _alertBannerEl.style.background = bgColor;
 
     var c = chroma(bgColor);
     _alertBannerEl.style.color = c.luminance() > 0.35 ? '#000' : '#fff';
 
     _position_alert_banner();
-    _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-fading');
+    _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
     void _alertBannerEl.offsetWidth;
     _alertBannerEl.classList.add('lmAlertBanner-visible');
     _alertBannerShowing = true;
+    _set_clock_suppressed(true);
 
     if (_alertBannerTimeout) clearTimeout(_alertBannerTimeout);
     if (_alertBannerFadeTimeout) clearTimeout(_alertBannerFadeTimeout);
+    var visibleMs = _ALERT_BANNER_MIN_MS + Math.floor(Math.random() * ((_ALERT_BANNER_MAX_MS - _ALERT_BANNER_MIN_MS) + 1));
 
     _alertBannerTimeout = setTimeout(function () {
         if (!_alertBannerEl) return;
-        _alertBannerEl.classList.add('lmAlertBanner-fading');
+        _alertBannerEl.classList.remove('lmAlertBanner-visible');
+        _alertBannerEl.classList.add('lmAlertBanner-closing');
         _alertBannerFadeTimeout = setTimeout(function () {
-            if (_alertBannerEl) _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-fading');
+            if (_alertBannerEl) _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
             _alertBannerShowing = false;
+            _set_clock_suppressed(false);
             _drain_alert_banner_queue();
-        }, 450);
-    }, 4000);
+        }, _ALERT_BANNER_EXIT_MS);
+    }, visibleMs);
 }
 
 function _drain_alert_banner_queue() {
@@ -3870,8 +4543,9 @@ function _hide_alert_banner() {
     if (_alertBannerTimeout) { clearTimeout(_alertBannerTimeout); _alertBannerTimeout = null; }
     if (_alertBannerFadeTimeout) { clearTimeout(_alertBannerFadeTimeout); _alertBannerFadeTimeout = null; }
     if (_alertBannerEl) {
-        _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-fading');
+        _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
     }
+    _set_clock_suppressed(false);
 }
 
 var _alertBannerListener = null;
@@ -3903,6 +4577,7 @@ function _disable_alert_banner() {
 }
 
 var _infoPanelFadeTimer = null;
+var _spotlightForecastPanelFadeTimer = null;
 
 function _show_info_panel(html) {
     if (_infoPanelFadeTimer) { clearTimeout(_infoPanelFadeTimer); _infoPanelFadeTimer = null; }
@@ -3920,6 +4595,30 @@ function _hide_info_panel() {
     _infoPanelFadeTimer = setTimeout(function () {
         $p.removeClass('liveModeInfoPanel-visible liveModeInfoPanel-fading').html('');
         _infoPanelFadeTimer = null;
+    }, 550);
+}
+
+function _show_spotlight_forecast_panel(html, options) {
+    options = options || {};
+    var animate = options.animate !== false;
+    if (_spotlightForecastPanelFadeTimer) { clearTimeout(_spotlightForecastPanelFadeTimer); _spotlightForecastPanelFadeTimer = null; }
+    var $p = $('#liveModeSpotlightForecastPanel');
+    $p.removeClass('liveModeSpotlightForecastPanel-fading');
+    if (animate) $p.removeClass('liveModeSpotlightForecastPanel-noanim');
+    else $p.addClass('liveModeSpotlightForecastPanel-noanim');
+    $p.html(html).addClass('liveModeSpotlightForecastPanel-visible');
+}
+
+function _hide_spotlight_forecast_panel() {
+    _spotlightForecastRequestEpoch++;
+    if (_spotlightForecastPanelFadeTimer) { clearTimeout(_spotlightForecastPanelFadeTimer); _spotlightForecastPanelFadeTimer = null; }
+    var $p = $('#liveModeSpotlightForecastPanel');
+    if (!$p.hasClass('liveModeSpotlightForecastPanel-visible')) { $p.html(''); return; }
+    $p.removeClass('liveModeSpotlightForecastPanel-noanim');
+    $p.addClass('liveModeSpotlightForecastPanel-fading');
+    _spotlightForecastPanelFadeTimer = setTimeout(function () {
+        $p.removeClass('liveModeSpotlightForecastPanel-visible liveModeSpotlightForecastPanel-fading liveModeSpotlightForecastPanel-noanim').html('');
+        _spotlightForecastPanelFadeTimer = null;
     }, 550);
 }
 
@@ -4038,12 +4737,14 @@ function _full_segment_cleanup() {
     _hide_radar_render();
     _hide_station_markers();
     _hide_radar_sweep();
+    _hide_lightning_overlay();
     _show_alert_polygons();
     _show_header_radar_info();
     _hide_eq_legend();
     _hide_cond_legend();
     _hide_spc_legend();
     _hide_info_panel();
+    _hide_spotlight_forecast_panel();
     _hide_segment_label();
 
     var controller = window.stormTrackData?.radarLoopController;
@@ -4156,6 +4857,7 @@ function _restore_state() {
     _show_station_markers();
     _show_alert_polygons();
     _show_radar_sweep();
+    _show_lightning_overlay();
 
     if (_preSaveState.bounds) {
         try { map.fitBounds(_preSaveState.bounds, { padding: 0, duration: 800 }); } catch (_) {}

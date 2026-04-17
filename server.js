@@ -5,6 +5,17 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+function getLocalLaunchTimestamp() {
+    const now = new Date();
+    const datePart = now.toLocaleDateString('en-US');
+    const timePart = now.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    }).replace(' ', '');
+    return `${datePart} @ ${timePart} Local`;
+}
+
 app.use(express.json());
 
 app.post('/api/save-defaults', (req, res) => {
@@ -75,7 +86,17 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log('Vortex Radar running on port ' + PORT);
+    console.log(String.raw`
+ /$$    /$$                      /$$                         /$$$$$$$                  /$$
+| $$   | $$                     | $$                        | $$__  $$                | $$
+| $$   | $$ /$$$$$$   /$$$$$$  /$$$$$$    /$$$$$$  /$$   /$$| $$  \ $$  /$$$$$$   /$$$$$$$  /$$$$$$   /$$$$$$
+|  $$ / $$//$$__  $$ /$$__  $$|_  $$_/   /$$__  $$|  $$ /$$/| $$$$$$$/ |____  $$ /$$__  $$ |____  $$ /$$__  $$
+ \  $$ $$/| $$  \ $$| $$  \__/  | $$    | $$$$$$$$ \  $$$$/ | $$__  $$  /$$$$$$$| $$  | $$  /$$$$$$$| $$  \__/
+  \  $$$/ | $$  | $$| $$        | $$ /$$| $$_____/  >$$  $$ | $$  \ $$ /$$__  $$| $$  | $$ /$$__  $$| $$
+   \  $/  |  $$$$$$/| $$        |  $$$$/|  $$$$$$$ /$$/\  $$| $$  | $$|  $$$$$$$|  $$$$$$$|  $$$$$$$| $$
+    \_/    \______/ |__/         \___/   \_______/|__/  \__/|__/  |__/ \_______/ \_______/ \_______/|__/
+`);
+    console.log(`Running on port ${PORT} -- ${getLocalLaunchTimestamp()}`);
 }).on('error', (err) => {
     console.error('Failed to start server:', err);
     process.exit(1);

@@ -696,6 +696,16 @@
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.8);
 }
+.fnAlertPill-warning {
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.45);
+  background: rgba(250, 204, 21, 0.14);
+}
+.fnAlertPill-danger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.14);
+}
 .fnAlertDivider {
   height: 2px;
   background: rgba(255, 255, 255, 0.06);
@@ -747,6 +757,8 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.fnAlertRowValue-warning { color: #facc15; }
+.fnAlertRowValue-danger { color: #f87171; }
 
 /* Warning counter floating overlay */
 .warningCounterOverlay {

@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
     "start": "node server.js",
-    "dev": "npm run build && node server.js",
+    "predev": "node scripts/ensure_port_free.js 3000",
+    "dev": "npm run build && nodemon --watch .cursor/restart-trigger.txt --ext txt --signal SIGTERM --exec \"node server.js\"",
     "generate:icon": "node scripts/generate_app_icon.js",
     "serve": "watchify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js -v"
   },
@@ -32,6 +33,7 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.22.1",
     "glslify-require": "^1.1.0",
+    "nodemon": "^3.1.14",
     "png-to-ico": "^2.1.8",
     "sharp": "^0.34.4",
     "shelljs": "^0.8.5",

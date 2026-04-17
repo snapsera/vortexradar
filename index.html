@@ -726,8 +726,11 @@
     <!-- 24/7 Live Mode overlays -->
     <div id="liveModeOverlay" class="liveModeOverlay" style="display:none;">
         <div id="liveModeBadge" class="liveModeBadge">
-            <span class="liveModeBadgeDot"></span>
-            LIVE
+            <div class="liveModeBadgeMain">
+                <span class="liveModeBadgeDot"></span>
+                <span>LIVE</span>
+            </div>
+            <div id="liveModeViewerCount" class="liveModeViewerCount">-- viewers</div>
         </div>
         <div class="lmScanlines"></div>
         <div id="liveModeInfoPanel" class="liveModeInfoPanel"></div>
@@ -914,6 +917,7 @@
                 <div style="font-size: 13px; color: rgb(161, 161, 161)"><span id="radarVCP"></span></div>
             </span>
         </div>
+        <div id="liveModeHeaderBetaTag" class="liveModeHeaderBetaTag" aria-label="Live Mode is in beta">Live Mode - BETA</div>
         <div id="top-right" style="font-weight: bold">
             <div id="headerClock" class="headerClock">
                 <div class="headerClockLine"><span class="headerClockLabel">Local Clock:</span> <span id="headerClockLocal">--:--:--</span></div>

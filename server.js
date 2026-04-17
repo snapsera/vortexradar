@@ -4,6 +4,8 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const liveModeViewerStreams = new Map();
+let liveModeViewerSeq = 0;
 
 function getLocalLaunchTimestamp() {
     const now = new Date();
@@ -60,6 +62,51 @@ app.get('/api/earthquakes', async (req, res) => {
         console.error('[Earthquake proxy]', e.message);
         res.status(502).json({ error: 'Fetch failed' });
     }
+});
+
+function getLiveModeViewerCount() {
+    return liveModeViewerStreams.size;
+}
+
+function sendLiveModeViewerEvent(res, count) {
+    res.write('event: viewers\n');
+    res.write('data: ' + JSON.stringify({ count }) + '\n\n');
+}
+
+function broadcastLiveModeViewerCount() {
+    const count = getLiveModeViewerCount();
+    for (const stream of liveModeViewerStreams.values()) {
+        sendLiveModeViewerEvent(stream.res, count);
+    }
+}
+
+app.get('/api/live-mode/viewers', (req, res) => {
+    res.json({ count: getLiveModeViewerCount() });
+});
+
+app.get('/api/live-mode/viewers/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    const clientId = String(++liveModeViewerSeq);
+    const keepAliveTimer = setInterval(() => {
+        res.write(': keepalive\n\n');
+    }, 25000);
+
+    liveModeViewerStreams.set(clientId, { res, keepAliveTimer });
+    sendLiveModeViewerEvent(res, getLiveModeViewerCount());
+    broadcastLiveModeViewerCount();
+
+    req.on('close', () => {
+        const stream = liveModeViewerStreams.get(clientId);
+        if (stream) {
+            clearInterval(stream.keepAliveTimer);
+            liveModeViewerStreams.delete(clientId);
+        }
+        broadcastLiveModeViewerCount();
+    });
 });
 
 app.use(express.static(path.join(__dirname), {

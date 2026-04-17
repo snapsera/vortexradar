@@ -13,6 +13,7 @@ class LiveModeMusicController {
         this.musicShuffled = [];
         this.musicIndex = 0;
         this.songPopupEl = null;
+        this.songPopupHost = null;
         this.songPopupTimeout = null;
         this.musicDucked = false;
         this.duckFadeInterval = null;
@@ -22,22 +23,48 @@ class LiveModeMusicController {
         return path.replace(/^.*\//, '').replace(/\.\w+$/, '');
     }
 
-    showSongPopup(title) {
+    ensureSongPopupEl() {
         if (typeof document === 'undefined') return;
+        var host = document.getElementById('liveModeOverlay') || document.body;
         if (!this.songPopupEl) {
             this.songPopupEl = document.createElement('div');
             this.songPopupEl.className = 'lmSongPopup';
-            document.body.appendChild(this.songPopupEl);
+            host.appendChild(this.songPopupEl);
+            this.songPopupHost = host;
+            return;
         }
+        if (this.songPopupHost !== host || this.songPopupEl.parentElement !== host) {
+            host.appendChild(this.songPopupEl);
+            this.songPopupHost = host;
+        }
+    }
+
+    positionSongPopup() {
+        if (typeof document === 'undefined' || !this.songPopupEl) return;
+        var badge = document.getElementById('liveModeBadge') || document.querySelector('.liveModeBadge');
+        if (!badge) return;
+        var host = this.songPopupHost || this.songPopupEl.parentElement || document.body;
+        var badgeRect = badge.getBoundingClientRect();
+        var hostRect = host.getBoundingClientRect ? host.getBoundingClientRect() : { top: 0, left: 0, width: window.innerWidth };
+        var tuckUnderPx = Math.round(Math.min(badgeRect.width * 0.28, 16));
+        var gapPx = 0;
+        var maxBannerWidthPx = Math.max(180, Math.floor(badgeRect.left + tuckUnderPx - 20));
+        var safeRightTextInsetPx = tuckUnderPx + 8;
+        this.songPopupEl.style.top = Math.max(0, badgeRect.top - hostRect.top) + 'px';
+        this.songPopupEl.style.height = Math.max(26, badgeRect.height) + 'px';
+        this.songPopupEl.style.right = Math.max(0, (hostRect.width - (badgeRect.left - hostRect.left)) - tuckUnderPx + gapPx) + 'px';
+        this.songPopupEl.style.maxWidth = maxBannerWidthPx + 'px';
+        this.songPopupEl.style.setProperty('--lmSongPopupSafeRight', safeRightTextInsetPx + 'px');
+    }
+
+    showSongPopup(title) {
+        if (typeof document === 'undefined') return;
+        this.ensureSongPopupEl();
+        if (!this.songPopupEl) return;
         if (this.songPopupTimeout) clearTimeout(this.songPopupTimeout);
         this.songPopupEl.textContent = title;
         this.songPopupEl.classList.remove('lmSongPopup-visible', 'lmSongPopup-fading');
-
-        var badge = document.querySelector('.liveModeBadge');
-        if (badge) {
-            var badgeW = badge.offsetWidth;
-            this.songPopupEl.style.right = (14 + badgeW + 8) + 'px';
-        }
+        this.positionSongPopup();
 
         void this.songPopupEl.offsetWidth;
         this.songPopupEl.classList.add('lmSongPopup-visible');

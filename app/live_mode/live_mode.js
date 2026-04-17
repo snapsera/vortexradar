@@ -48,6 +48,16 @@ const SEVERE_ALERT_EVENTS = [
 const SPC_SEGMENT_DURATION_MS = 18000;
 const ALERT_SEGMENT_DURATION_MS = 25000;
 const CONUS_SEGMENT_DURATION_MS = 22000;
+const CONUS_OVERVIEW_SHARE = 0.38;
+const CONUS_REGION_FOCUS_COUNT = 3;
+const CONUS_REGION_MIN_DWELL_MS = 2400;
+const CONUS_SEVERE_FOCUS_REGIONS = [
+    { name: 'Southern Plains', center: [-98.4, 34.1], zoom: 5.85 },
+    { name: 'Mid-South', center: [-90.4, 35.2], zoom: 5.8 },
+    { name: 'Dixie Alley', center: [-87.2, 33.3], zoom: 5.75 },
+    { name: 'Central Plains', center: [-97.6, 39.4], zoom: 5.65 },
+    { name: 'Upper Midwest', center: [-93.8, 43.8], zoom: 5.5 }
+];
 const SPOTLIGHT_DURATION_MS = 20000;
 const VELOCITY_HOLD_MS = 8000;
 const PLAYBACK_LOOP_TARGET = 8;
@@ -100,6 +110,9 @@ let _spcLegendHideTimer = null;
 let _sweepBaseSelectionListener = null;
 let _sweepBaseLoadedListener = null;
 let _nonSiteGuardTimer = null;
+let _viewerCountEventSource = null;
+let _viewerCountPollTimer = null;
+let _viewerCountReconnectTimer = null;
 
 const LM_FOCUS_SOURCE = 'lmFocusGlowSource';
 const LM_FOCUS_GLOW_OUTER = 'lmFocusGlowOuter';
@@ -111,6 +124,10 @@ const LM_TRACK_ARROW_LAYER = 'lmStormTrackArrow';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
 const NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
+const LM_VIEWER_STREAM_URL = '/api/live-mode/viewers/stream';
+const LM_VIEWER_COUNT_URL = '/api/live-mode/viewers';
+const LM_VIEWER_POLL_MS = 10000;
+const LM_VIEWER_RETRY_MS = 4000;
 
 const DIR_MAP = {
     'north': 0, 'n': 0, 'nne': 22.5, 'ne': 45, 'north-northeast': 22.5, 'northeast': 45,
@@ -2715,11 +2732,14 @@ function _build_spc_panel_html(label, validity) {
     return html;
 }
 
-function _build_conus_panel_html() {
+function _build_conus_panel_html(regionLabel) {
     var html = '<div class="fnAlert" style="--fn-accent:#22c55e">';
     html += '<div class="fnAlertShine"></div>';
     html += '<div class="fnAlertBody">';
     html += '<div class="fnAlertEventName">CONUS MRMS RADAR</div>';
+    if (regionLabel) {
+        html += '<div class="fnAlertSourceLine" style="margin-top:4px;opacity:0.75">Regional Focus: ' + regionLabel + '</div>';
+    }
     html += '</div>';
     html += '</div>';
     return html;
@@ -3815,7 +3835,26 @@ function _run_conus_segment(resolve) {
         _typewrite(_generate_conus_commentary(), 1200);
     }
 
-    _segmentTimer = setTimeout(function () {
+    var focusRegions = _shuffle_array_copy(CONUS_SEVERE_FOCUS_REGIONS).slice(0, CONUS_REGION_FOCUS_COUNT);
+    var overviewDwellMs = Math.round(CONUS_SEGMENT_DURATION_MS * CONUS_OVERVIEW_SHARE);
+    var regionBudgetMs = Math.max(0, CONUS_SEGMENT_DURATION_MS - overviewDwellMs);
+
+    if (focusRegions.length) {
+        var maxRegionCount = Math.max(1, Math.floor(regionBudgetMs / CONUS_REGION_MIN_DWELL_MS));
+        if (maxRegionCount < focusRegions.length) {
+            focusRegions = focusRegions.slice(0, maxRegionCount);
+        }
+    }
+
+    var regionDwellMs = focusRegions.length
+        ? Math.max(CONUS_REGION_MIN_DWELL_MS, Math.floor(regionBudgetMs / focusRegions.length))
+        : 0;
+    if (!focusRegions.length) overviewDwellMs = CONUS_SEGMENT_DURATION_MS;
+
+    var didResolve = false;
+    function finish() {
+        if (didResolve) return;
+        didResolve = true;
         _wait_for_typewriter_then(function () {
             _stop_typewriter();
             _hide_info_panel();
@@ -3823,7 +3862,30 @@ function _run_conus_segment(resolve) {
             _show_header_radar_info();
             resolve();
         });
-    }, CONUS_SEGMENT_DURATION_MS);
+    }
+
+    var focusIdx = 0;
+    function run_next_focus() {
+        if (!_active || _currentSegmentType !== 'conus') return;
+        if (focusIdx >= focusRegions.length) return finish();
+
+        var region = focusRegions[focusIdx++];
+        _show_info_panel(_build_conus_panel_html(region.name));
+        map.flyTo({
+            center: region.center,
+            zoom: region.zoom,
+            speed: 1.05,
+            essential: true
+        });
+
+        _segmentTimer = setTimeout(run_next_focus, regionDwellMs);
+    }
+
+    _segmentTimer = setTimeout(function () {
+        if (!_active || _currentSegmentType !== 'conus') return;
+        if (!focusRegions.length) return finish();
+        run_next_focus();
+    }, overviewDwellMs);
 }
 
 // ── Current Conditions Segment ───────────────────────────────────────────────
@@ -4957,6 +5019,111 @@ function _hide_overlay() {
     map.resize();
 }
 
+function _set_live_viewer_count_text(text) {
+    var el = document.getElementById('liveModeViewerCount');
+    if (!el) return;
+    el.textContent = text;
+}
+
+function _format_live_viewer_count(count) {
+    if (!Number.isFinite(count) || count < 0) return '-- viewers';
+    var rounded = Math.round(count);
+    var noun = rounded === 1 ? 'visitor' : 'visitors';
+    return new Intl.NumberFormat('en-US').format(rounded) + ' ' + noun;
+}
+
+function _render_live_viewer_count(count) {
+    _set_live_viewer_count_text(_format_live_viewer_count(count));
+}
+
+function _clear_live_viewer_timers() {
+    if (_viewerCountPollTimer) {
+        clearInterval(_viewerCountPollTimer);
+        _viewerCountPollTimer = null;
+    }
+    if (_viewerCountReconnectTimer) {
+        clearTimeout(_viewerCountReconnectTimer);
+        _viewerCountReconnectTimer = null;
+    }
+}
+
+function _fetch_live_viewer_count_once() {
+    return fetch(LM_VIEWER_COUNT_URL, { cache: 'no-store' })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (payload) {
+            if (!payload || !Number.isFinite(payload.count)) return;
+            _render_live_viewer_count(payload.count);
+        })
+        .catch(function () {});
+}
+
+function _start_live_viewer_polling() {
+    if (_viewerCountPollTimer) return;
+    _fetch_live_viewer_count_once();
+    _viewerCountPollTimer = setInterval(_fetch_live_viewer_count_once, LM_VIEWER_POLL_MS);
+}
+
+function _close_live_viewer_stream() {
+    if (_viewerCountEventSource) {
+        try { _viewerCountEventSource.close(); } catch (_) {}
+        _viewerCountEventSource = null;
+    }
+}
+
+function _schedule_live_viewer_reconnect() {
+    if (_viewerCountReconnectTimer || !_active) return;
+    _viewerCountReconnectTimer = setTimeout(function () {
+        _viewerCountReconnectTimer = null;
+        if (!_active) return;
+        _connect_live_viewer_count_stream();
+    }, LM_VIEWER_RETRY_MS);
+}
+
+function _connect_live_viewer_count_stream() {
+    _close_live_viewer_stream();
+    if (_viewerCountPollTimer) {
+        clearInterval(_viewerCountPollTimer);
+        _viewerCountPollTimer = null;
+    }
+    if (typeof window.EventSource !== 'function') {
+        _start_live_viewer_polling();
+        return;
+    }
+
+    try {
+        _viewerCountEventSource = new EventSource(LM_VIEWER_STREAM_URL);
+    } catch (_) {
+        _start_live_viewer_polling();
+        _schedule_live_viewer_reconnect();
+        return;
+    }
+
+    _viewerCountEventSource.addEventListener('viewers', function (evt) {
+        try {
+            var payload = JSON.parse(evt.data || '{}');
+            if (Number.isFinite(payload.count)) _render_live_viewer_count(payload.count);
+        } catch (_) {}
+    });
+
+    _viewerCountEventSource.onerror = function () {
+        _close_live_viewer_stream();
+        _start_live_viewer_polling();
+        _schedule_live_viewer_reconnect();
+    };
+}
+
+function _start_live_viewer_count() {
+    _set_live_viewer_count_text('-- viewers');
+    _clear_live_viewer_timers();
+    _connect_live_viewer_count_stream();
+}
+
+function _stop_live_viewer_count() {
+    _clear_live_viewer_timers();
+    _close_live_viewer_stream();
+    _set_live_viewer_count_text('-- viewers');
+}
+
 function _flash_transition() {
     var $flash = $('#lmTransitionFlash');
     $flash.removeClass('lmTransitionFlash-active');
@@ -5045,8 +5212,7 @@ function _show_alert_banner(eventName, states) {
         '<span class="lmAlertBannerText">' + _escape_html(text) + '</span>';
     _alertBannerEl.style.background = bgColor;
 
-    var c = chroma(bgColor);
-    _alertBannerEl.style.color = c.luminance() > 0.35 ? '#000' : '#fff';
+    _alertBannerEl.style.color = '#000';
 
     _position_alert_banner();
     _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
@@ -5454,6 +5620,7 @@ function enable() {
 
     _save_state();
     _show_overlay();
+    _start_live_viewer_count();
     _lock_map();
 
     _tornadoInterruptListener = _on_tornado_interrupt;
@@ -5489,6 +5656,7 @@ function disable() {
     _disable_alert_banner();
     _show_header_radar_info();
     _set_clock_mode('both');
+    _stop_live_viewer_count();
     _hide_overlay();
     _unlock_map();
     _restore_state();

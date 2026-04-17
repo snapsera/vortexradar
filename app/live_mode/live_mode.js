@@ -47,10 +47,11 @@ const SEVERE_ALERT_EVENTS = [
 
 const SPC_SEGMENT_DURATION_MS = 18000;
 const ALERT_SEGMENT_DURATION_MS = 25000;
-const CONUS_SEGMENT_DURATION_MS = 22000;
-const CONUS_OVERVIEW_SHARE = 0.38;
+const CONUS_SEGMENT_DURATION_MS = 28000;
+const CONUS_OVERVIEW_SHARE = 10 / 28;
 const CONUS_REGION_FOCUS_COUNT = 3;
 const CONUS_REGION_MIN_DWELL_MS = 2400;
+const CONUS_REGION_EXTRA_ZOOM = 0.3;
 const CONUS_SEVERE_FOCUS_REGIONS = [
     { name: 'Southern Plains', center: [-98.4, 34.1], zoom: 5.85 },
     { name: 'Mid-South', center: [-90.4, 35.2], zoom: 5.8 },
@@ -4020,7 +4021,7 @@ function _run_conus_segment(resolve) {
         _show_info_panel(_build_conus_panel_html(region.name));
         map.flyTo({
             center: region.center,
-            zoom: region.zoom,
+            zoom: region.zoom + CONUS_REGION_EXTRA_ZOOM,
             speed: 1.05,
             essential: true
         });
@@ -4037,7 +4038,7 @@ function _run_conus_segment(resolve) {
 
 // ── Current Conditions Segment ───────────────────────────────────────────────
 
-const CONDITIONS_DURATION_MS = 20000;
+const CONDITIONS_DURATION_MS = 15000;
 const LM_CONDITIONS_SOURCE = 'lmConditionsSource';
 const LM_CONDITIONS_CIRCLE = 'lmConditionsCircle';
 const LM_CONDITIONS_LABEL = 'lmConditionsLabel';

@@ -14,6 +14,9 @@ const filter_alerts = require('../alerts/filter_alerts');
 const get_polygon_colors = require('../alerts/colors/polygon_colors');
 const station_markers = require('../radar/station_markers/station_markers');
 const nexrad_locations = require('../radar/libnexrad/nexrad_locations').NEXRAD_LOCATIONS;
+const LiveModeHeaderController = require('./live_mode_header_controller');
+const LiveModeMusicController = require('./live_mode_music_controller');
+const LiveModeCommentator = require('./live_mode_commentator');
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -75,6 +78,8 @@ let _alertEpoch = 0;
 let _alertPendingTimers = [];
 let _scanLoadListener = null;
 let _spcLegendHideTimer = null;
+let _sweepBaseSelectionListener = null;
+let _sweepBaseLoadedListener = null;
 
 const LM_FOCUS_SOURCE = 'lmFocusGlowSource';
 const LM_FOCUS_GLOW_OUTER = 'lmFocusGlowOuter';
@@ -159,85 +164,28 @@ function _recent_type_count(type, lookback) {
 
 // ── Header Clock Control ─────────────────────────────────────────────────────
 
+const _headerController = new LiveModeHeaderController();
+
 function _set_clock_mode(mode) {
-    var $clock = $('#headerClock');
-    var $lines = $clock.find('.headerClockLine');
-    if (!$clock.length) return;
-    if (mode === 'site-only') {
-        $lines.eq(0).hide();
-        $lines.eq(1).show();
-    } else if (mode === 'hidden') {
-        $lines.hide();
-    } else {
-        $lines.show();
-    }
+    _headerController.setClockMode(mode);
 }
 
 // ── Header Radar Info Control ────────────────────────────────────────────────
 
-var _SPC_RISK_LEVEL = {
-    'TSTM': { num: '0', name: 'General Thunder', color: '#c1e9c1' },
-    'MRGL': { num: '1', name: 'Marginal', color: '#66c566' },
-    'SLGT': { num: '2', name: 'Slight', color: '#f6f67f' },
-    'ENH':  { num: '3', name: 'Enhanced', color: '#e5993e' },
-    'MDT':  { num: '4', name: 'Moderate', color: '#e5433e' },
-    'HIGH': { num: '5', name: 'HIGH', color: '#ff52ff' }
-};
-
 function _hide_header_radar_info(riskLabel) {
-    var $info = $('#radarInfoSpan');
-    $info.data('lm-was-visible', $info.is(':visible'));
-    $info.hide();
-    var $lmHeader = $('#lmHeaderInfo');
-    if (!$lmHeader.length) {
-        $('<span id="lmHeaderInfo" style="font-size:14px;font-weight:600;letter-spacing:0.02em;"></span>')
-            .insertAfter($info);
-        $lmHeader = $('#lmHeaderInfo');
-    }
-    if (riskLabel) {
-        $lmHeader.html(riskLabel).show();
-    } else {
-        $lmHeader.html('').show();
-    }
+    _headerController.hideRadarInfo(riskLabel);
 }
 
 function _show_header_radar_info() {
-    var $lmHeader = $('#lmHeaderInfo');
-    if ($lmHeader.length) $lmHeader.hide().html('');
-    var $info = $('#radarInfoSpan');
-    if ($info.data('lm-was-visible')) {
-        $info.show();
-    }
+    _headerController.showRadarInfo();
 }
 
 function _classify_risk(props) {
-    var label = String(props.label || '').toUpperCase().trim();
-    var label2 = String(props.label2 || '').toUpperCase().trim();
-    var text = label + ' ' + label2;
-    if (text.indexOf('HIGH') !== -1 || label === 'HIGH') return 'HIGH';
-    if (text.indexOf('MODERATE') !== -1 || label === 'MDT') return 'MDT';
-    if (text.indexOf('ENHANCED') !== -1 || label === 'ENH') return 'ENH';
-    if (text.indexOf('SLIGHT') !== -1 || label === 'SLGT') return 'SLGT';
-    if (text.indexOf('MARGINAL') !== -1 || label === 'MRGL') return 'MRGL';
-    if (text.indexOf('GENERAL THUNDER') !== -1 || label === 'TSTM' || text.indexOf('THUNDERSTORM') !== -1) return 'TSTM';
-    return null;
+    return _headerController.classifyRisk(props);
 }
 
 function _build_risk_label(geojson) {
-    if (!geojson || !geojson.features || !geojson.features.length) return null;
-    var highest = null;
-    var order = ['TSTM', 'MRGL', 'SLGT', 'ENH', 'MDT', 'HIGH'];
-    for (var i = 0; i < geojson.features.length; i++) {
-        var risk = _classify_risk(geojson.features[i]?.properties || {});
-        if (!risk) continue;
-        var idx = order.indexOf(risk);
-        if (idx >= 0 && (!highest || idx > order.indexOf(highest))) highest = risk;
-    }
-    if (!highest) return null;
-    var info = _SPC_RISK_LEVEL[highest];
-    if (!info) return null;
-    return '<span style="color:' + info.color + ';font-size:15px">' + info.num + '/5</span>' +
-        ' <span style="color:rgba(255,255,255,0.5);font-size:12px">' + info.name + ' Risk</span>';
+    return _headerController.buildRiskLabel(geojson);
 }
 
 // ── Storm Motion Parsing ─────────────────────────────────────────────────────
@@ -475,7 +423,35 @@ function _format_cig_label(props, hazard) {
         else if (level === 2) suffix = ' EF3+';
         else if (level === 3) suffix = ' EF4+';
     }
+    if (nameUpper === 'TORNADO') return 'CIG' + level + suffix;
     return name + ' CIG' + level + suffix;
+}
+
+function _simplify_spc_legend_label(label, hazard, isCig) {
+    var raw = String(label || '').trim();
+    if (!raw) return 'Risk';
+    if (hazard === 'tornado' && !isCig) {
+        var pct = raw.match(/(\d+\s*%)/);
+        if (pct && pct[1]) return pct[1].replace(/\s+/g, '');
+        return raw.replace(/\bTornado\b/ig, '').replace(/\bRisk\b/ig, '').replace(/\s+/g, ' ').trim();
+    }
+    return raw;
+}
+
+function _spc_legend_rank(item) {
+    if (!item) return -1;
+    if (item.isCig) return 100 + (item.cigLevel || 0);
+
+    var label = String(item.rawLabel || item.label || '');
+    var pct = label.match(/(\d+)\s*%/);
+    if (pct && pct[1]) return Number(pct[1]);
+
+    var risk = _classify_risk({ label: label, label2: label });
+    var riskOrder = ['TSTM', 'MRGL', 'SLGT', 'ENH', 'MDT', 'HIGH'];
+    var riskIdx = riskOrder.indexOf(risk);
+    if (riskIdx >= 0) return riskIdx * 10;
+
+    return 0;
 }
 
 function _spc_draw_polygon_ring(ctx, ringCoords) {
@@ -870,16 +846,78 @@ function _hide_radar_sweep() {
     try { radar_scan_animation.remove(); } catch (_) {}
 }
 
+function _is_scan_rendered_for_station(station) {
+    if (!station) return false;
+    try {
+        if (!map.getLayer('baseReflectivity')) return false;
+        if (map.getLayoutProperty('baseReflectivity', 'visibility') === 'none') return false;
+    } catch (_) {
+        return false;
+    }
+    var factoryStation = window.stormTrackData?.nexrad_factory?.station;
+    if (!factoryStation || factoryStation !== station) return false;
+    return true;
+}
+
 function _show_radar_sweep() {
     try {
         var s = settings_store.load();
         var station = window.stormTrackData?.currentStation;
-        if (!station) return;
+        if (!station || !_is_scan_rendered_for_station(station)) {
+            _hide_radar_sweep();
+            return;
+        }
         var forceLiveModeSweep = !!(_active && station);
-        if (forceLiveModeSweep || s.radarSweep) {
+        if (forceLiveModeSweep || s.radarSweep !== false) {
             radar_scan_animation.update(station);
+        } else {
+            _hide_radar_sweep();
         }
     } catch (_) {}
+}
+
+function _bind_sweep_sync_listeners() {
+    if (_sweepBaseSelectionListener || _sweepBaseLoadedListener) return;
+
+    _sweepBaseSelectionListener = function (e) {
+        if (!_active) return;
+        var detail = e?.detail || {};
+        var station = window.stormTrackData?.currentStation;
+        if (!station) {
+            _hide_radar_sweep();
+            return;
+        }
+        // Hide sweep immediately while the new base scan is loading.
+        if (!detail.station || detail.station === station) {
+            _hide_radar_sweep();
+        }
+    };
+
+    _sweepBaseLoadedListener = function (e) {
+        if (!_active) return;
+        var detail = e?.detail || {};
+        var station = window.stormTrackData?.currentStation;
+        if (!station) {
+            _hide_radar_sweep();
+            return;
+        }
+        if (detail.station && detail.station !== station) return;
+        _show_radar_sweep();
+    };
+
+    window.addEventListener('radarBaseSelectionRequested', _sweepBaseSelectionListener);
+    window.addEventListener('radarBaseFactoryLoaded', _sweepBaseLoadedListener);
+}
+
+function _unbind_sweep_sync_listeners() {
+    if (_sweepBaseSelectionListener) {
+        window.removeEventListener('radarBaseSelectionRequested', _sweepBaseSelectionListener);
+        _sweepBaseSelectionListener = null;
+    }
+    if (_sweepBaseLoadedListener) {
+        window.removeEventListener('radarBaseFactoryLoaded', _sweepBaseLoadedListener);
+        _sweepBaseLoadedListener = null;
+    }
 }
 
 function _hide_storm_reports() {
@@ -1125,89 +1163,30 @@ function _fn_arr(val) {
 
 // ── Typewriter + Commentary ─────────────────────────────────────────────────
 
-var _typewriterTimer = null;
-var _commentaryFadeTimer = null;
-var _typewriterFinished = true;
-var _onTypewriterFinished = null;
+const _commentator = new LiveModeCommentator({
+    isActive: function () { return _active; },
+    schedule: function (callback, ms) { _trackAlertTimer(callback, ms); },
+    pickRandom: _pick_random
+});
 
 function _stop_typewriter() {
-    if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
-    if (_commentaryFadeTimer) { clearTimeout(_commentaryFadeTimer); _commentaryFadeTimer = null; }
-    _typewriterFinished = true;
-    _onTypewriterFinished = null;
+    _commentator.stopTypewriter();
 }
 
 function _show_commentary_box() {
-    var $box = $('#lmCommentaryBox');
-    $box.removeClass('lmCommentaryBox-fading');
-    $box.addClass('lmCommentaryBox-visible');
+    _commentator.showCommentaryBox();
 }
 
 function _hide_commentary_box() {
-    var $box = $('#lmCommentaryBox');
-    if (!$box.hasClass('lmCommentaryBox-visible')) return;
-    $box.addClass('lmCommentaryBox-fading');
-    _commentaryFadeTimer = setTimeout(function () {
-        $box.removeClass('lmCommentaryBox-visible lmCommentaryBox-fading');
-        $('#lmCommentary').text('');
-        $('#lmCommentaryStatus').text('');
-        _commentaryFadeTimer = null;
-    }, 400);
+    _commentator.hideCommentaryBox();
 }
-
-var _STATUS_PHRASES = ['ANALYZING RADAR DATA', 'SCANNING WEATHER DATA', 'PROCESSING ALERT DATA', 'READING FORECAST DATA'];
 
 function _typewrite(text, delayMs) {
-    _stop_typewriter();
-    _typewriterFinished = false;
-    var $el = $('#lmCommentary');
-    var $status = $('#lmCommentaryStatus');
-    if (!$el.length || !text) { _typewriterFinished = true; return; }
-
-    $el.text('').removeClass('lmCommentary-done');
-    $status.text(_pick_random(_STATUS_PHRASES));
-    _show_commentary_box();
-
-    var idx = 0;
-    var baseDelay = 22;
-    var queue = text.split('');
-
-    function _tick() {
-        if (!_active || idx >= queue.length) {
-            if (_typewriterTimer) { clearTimeout(_typewriterTimer); _typewriterTimer = null; }
-            $el.addClass('lmCommentary-done');
-            $status.text('');
-            _typewriterFinished = true;
-            if (typeof _onTypewriterFinished === 'function') {
-                var cb = _onTypewriterFinished;
-                _onTypewriterFinished = null;
-                cb();
-            }
-            return;
-        }
-        if (idx === 0) $status.text('');
-        var ch = queue[idx++];
-        $el.text($el.text() + ch);
-
-        var next = baseDelay + Math.random() * 12;
-        if (ch === '.' || ch === '!' || ch === '?') next += 180;
-        else if (ch === ',') next += 80;
-        _typewriterTimer = setTimeout(_tick, next);
-    }
-
-    _typewriterTimer = setTimeout(_tick, delayMs || 800);
+    _commentator.typewrite(text, delayMs);
 }
 
-var DWELL_AFTER_TYPING_MS = 4000;
-
 function _wait_for_typewriter_then(callback) {
-    if (_typewriterFinished) {
-        _trackAlertTimer(callback, DWELL_AFTER_TYPING_MS);
-    } else {
-        _onTypewriterFinished = function () {
-            _trackAlertTimer(callback, DWELL_AFTER_TYPING_MS);
-        };
-    }
+    _commentator.waitForTypewriterThen(callback);
 }
 
 function _time_of_day() {
@@ -3466,6 +3445,20 @@ function _time_ago(ts) {
     return Math.floor(hrs / 24) + 'd ago';
 }
 
+function _to_miles(km) {
+    return Math.max(1, Math.round(km * 0.621371));
+}
+
+function _format_quake_place_miles(place) {
+    if (!place) return place;
+    // USGS often reports locations like "59 km SSW of Whites City, New Mexico".
+    return String(place).replace(/\b(\d+(?:\.\d+)?)\s*km\b/gi, function (_, kmText) {
+        var km = parseFloat(kmText);
+        if (isNaN(km)) return _;
+        return _to_miles(km) + ' mi';
+    });
+}
+
 function _generate_earthquake_commentary(quakes) {
     var tod = _time_of_day();
 
@@ -3491,7 +3484,7 @@ function _generate_earthquake_commentary(quakes) {
     }
 
     var sMag = strongest.properties.mag;
-    var sPlace = strongest.properties.place || 'an unknown location';
+    var sPlace = _format_quake_place_miles(strongest.properties.place || 'an unknown location');
 
     if (sMag >= 4.5) {
         lines.push(_pick_random([
@@ -3583,13 +3576,28 @@ function _build_spc_legend_html(geojson, hazard) {
         var fill = p.fill || '#8dc6ff';
         var stroke = p.stroke || '#59a9ff';
         var cigLevel = isCig ? _get_cig_level(p) : 0;
-        var displayLabel = isCig ? _format_cig_label(p, hazard) : (p.label2 || p.label || 'Risk');
+        var rawLabel = isCig ? _format_cig_label(p, hazard) : (p.label2 || p.label || 'Risk');
+        var displayLabel = _simplify_spc_legend_label(rawLabel, hazard, isCig);
         var key = fill + '|' + stroke + '|' + (isHatched ? 1 : 0) + '|' + (isCig ? 1 : 0) + '|' + cigLevel;
         if (seen[key]) continue;
         seen[key] = true;
-        items.push({ label: displayLabel, fill: fill, stroke: stroke, isHatched: isHatched, isCig: isCig, cigLevel: cigLevel });
+        items.push({
+            label: displayLabel,
+            rawLabel: rawLabel,
+            fill: fill,
+            stroke: stroke,
+            isHatched: isHatched,
+            isCig: isCig,
+            cigLevel: cigLevel
+        });
     }
     if (!items.length) return '';
+    items.sort(function (a, b) {
+        var rankDiff = _spc_legend_rank(b) - _spc_legend_rank(a);
+        if (rankDiff !== 0) return rankDiff;
+        if (a.isHatched !== b.isHatched) return a.isHatched ? 1 : -1;
+        return String(a.label).localeCompare(String(b.label));
+    });
     var html = '';
     for (var j = 0; j < items.length; j++) {
         var item = items[j];
@@ -4210,6 +4218,7 @@ function enable() {
     document.addEventListener('keydown', _escapeListener);
 
     window.stormTrackData.liveModeActive = true;
+    _bind_sweep_sync_listeners();
 
     var updater = window.stormTrackData?.current_RadarUpdater;
     if (updater) updater.disable();
@@ -4224,6 +4233,7 @@ function disable() {
     if (!_active) return;
     _active = false;
     window.stormTrackData.liveModeActive = false;
+    _unbind_sweep_sync_listeners();
 
     stopMusic();
     _abort_current_segment();
@@ -4277,177 +4287,31 @@ var _MUSIC_TRACKS = [
     'music/Streamline.mp3'
 ];
 
-var MUSIC_BASE_ATTENUATION = 0.5;
-var _musicAudio = null;
-var _musicPlaying = false;
-var _musicVolume = 0.15;
-var _musicShuffled = [];
-var _musicIndex = 0;
-var _songPopupEl = null;
-var _songPopupTimeout = null;
-
-function _extract_song_title(path) {
-    var name = path.replace(/^.*\//, '').replace(/\.\w+$/, '');
-    return name;
-}
-
-function _show_song_popup(title) {
-    if (typeof document === 'undefined') return;
-    if (!_songPopupEl) {
-        _songPopupEl = document.createElement('div');
-        _songPopupEl.className = 'lmSongPopup';
-        document.body.appendChild(_songPopupEl);
-    }
-    if (_songPopupTimeout) clearTimeout(_songPopupTimeout);
-    _songPopupEl.textContent = title;
-    _songPopupEl.classList.remove('lmSongPopup-visible', 'lmSongPopup-fading');
-
-    var badge = document.querySelector('.liveModeBadge');
-    if (badge) {
-        var badgeW = badge.offsetWidth;
-        _songPopupEl.style.right = (14 + badgeW + 8) + 'px';
-    }
-
-    void _songPopupEl.offsetWidth;
-    _songPopupEl.classList.add('lmSongPopup-visible');
-    _songPopupTimeout = setTimeout(function () {
-        _songPopupEl.classList.add('lmSongPopup-fading');
-        _songPopupTimeout = setTimeout(function () {
-            _songPopupEl.classList.remove('lmSongPopup-visible', 'lmSongPopup-fading');
-        }, 500);
-    }, 4000);
-}
-
-function _shuffle_tracks() {
-    _musicShuffled = _MUSIC_TRACKS.slice().sort(function () { return Math.random() - 0.5; });
-    _musicIndex = 0;
-}
-
-function _play_next_track() {
-    if (!_musicPlaying) return;
-    if (_musicIndex >= _musicShuffled.length) {
-        _shuffle_tracks();
-    }
-    var src = _musicShuffled[_musicIndex++];
-    if (_musicAudio) {
-        try { _musicAudio.pause(); } catch (_) {}
-        _musicAudio = null;
-    }
-    _musicAudio = new Audio(src);
-    _musicAudio.volume = _musicVolume;
-    _show_song_popup(_extract_song_title(src));
-    _musicAudio.addEventListener('ended', function () {
-        _play_next_track();
-    });
-    _musicAudio.addEventListener('error', function () {
-        console.warn('[LiveMode Music] Failed to load:', src);
-        setTimeout(function () { _play_next_track(); }, 1000);
-    });
-    var p = _musicAudio.play();
-    if (p && p.catch) p.catch(function (e) {
-        console.warn('[LiveMode Music] Play blocked:', e.message);
-    });
-}
+const _musicController = new LiveModeMusicController({
+    settingsStore: settings_store,
+    tracks: _MUSIC_TRACKS
+});
 
 function startMusic() {
-    if (_musicPlaying) return;
-    _musicPlaying = true;
-    var saved = settings_store.load();
-    _musicVolume = (saved.liveModeVolume || 15) / 100 * MUSIC_BASE_ATTENUATION;
-    _shuffle_tracks();
-
-    function _attempt() {
-        if (!_musicPlaying) return;
-        _play_next_track();
-    }
-
-    if (_musicAudio === null && typeof document !== 'undefined') {
-        var resumeOnGesture = function () {
-            document.removeEventListener('click', resumeOnGesture);
-            document.removeEventListener('keydown', resumeOnGesture);
-            if (_musicPlaying && (!_musicAudio || _musicAudio.paused)) {
-                _play_next_track();
-            }
-        };
-        _attempt();
-        if (_musicAudio && _musicAudio.paused) {
-            document.addEventListener('click', resumeOnGesture);
-            document.addEventListener('keydown', resumeOnGesture);
-        }
-    } else {
-        _attempt();
-    }
+    _musicController.start();
 }
 
 function stopMusic() {
-    _musicPlaying = false;
-    if (_musicAudio) {
-        try { _musicAudio.pause(); } catch (_) {}
-        _musicAudio = null;
-    }
-    if (_songPopupEl) {
-        _songPopupEl.classList.remove('lmSongPopup-visible', 'lmSongPopup-fading');
-    }
-    if (_songPopupTimeout) { clearTimeout(_songPopupTimeout); _songPopupTimeout = null; }
+    _musicController.stop();
 }
 
 function setMusicVolume(pct) {
-    _musicVolume = Math.max(0, Math.min(1, pct / 100)) * MUSIC_BASE_ATTENUATION;
-    if (_musicAudio && !_musicDucked) _musicAudio.volume = _musicVolume;
+    _musicController.setVolume(pct);
 }
 
 // ── Music Ducking (lower volume during warning sounds) ──────────────────────
 
-var _musicDucked = false;
-var _duckFadeInterval = null;
-var DUCK_VOLUME_RATIO = 0.15;
-var DUCK_FADE_STEP_MS = 30;
-
-function _clearDuckInterval() {
-    if (_duckFadeInterval) { clearInterval(_duckFadeInterval); _duckFadeInterval = null; }
-}
-
 function duckMusic(fadeDurationMs) {
-    if (!_musicAudio || !_musicPlaying) return;
-    _clearDuckInterval();
-    _musicDucked = true;
-    var startVol = _musicAudio.volume;
-    var targetVol = _musicVolume * DUCK_VOLUME_RATIO;
-    var duration = fadeDurationMs || 400;
-    var steps = Math.max(1, Math.round(duration / DUCK_FADE_STEP_MS));
-    var delta = (startVol - targetVol) / steps;
-    var step = 0;
-    _duckFadeInterval = setInterval(function () {
-        step++;
-        if (!_musicAudio || step >= steps) {
-            _clearDuckInterval();
-            if (_musicAudio) _musicAudio.volume = targetVol;
-            return;
-        }
-        _musicAudio.volume = Math.max(targetVol, startVol - delta * step);
-    }, DUCK_FADE_STEP_MS);
+    _musicController.duck(fadeDurationMs);
 }
 
 function unduckMusic(fadeDurationMs) {
-    if (!_musicDucked) return;
-    _clearDuckInterval();
-    _musicDucked = false;
-    if (!_musicAudio || !_musicPlaying) return;
-    var startVol = _musicAudio.volume;
-    var targetVol = _musicVolume;
-    var duration = fadeDurationMs || 600;
-    var steps = Math.max(1, Math.round(duration / DUCK_FADE_STEP_MS));
-    var delta = (targetVol - startVol) / steps;
-    var step = 0;
-    _duckFadeInterval = setInterval(function () {
-        step++;
-        if (!_musicAudio || step >= steps) {
-            _clearDuckInterval();
-            if (_musicAudio) _musicAudio.volume = targetVol;
-            return;
-        }
-        _musicAudio.volume = Math.min(targetVol, startVol + delta * step);
-    }, DUCK_FADE_STEP_MS);
+    _musicController.unduck(fadeDurationMs);
 }
 
 function forceSegment(type) {

@@ -84,6 +84,7 @@ let _spotlightForecastCache = {};
 
 let _preSaveState = null;
 let _recentSegments = [];
+let _alertVisitHistory = Object.create(null);
 let _loopCount = 0;
 let _loopListener = null;
 let _lastFrameIndex = -1;
@@ -1305,6 +1306,203 @@ function _fn_arr(val) {
     return null;
 }
 
+function _parse_alert_params(feature) {
+    var raw = feature?.properties?.parameters;
+    if (!raw) return {};
+    if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (_) { return {}; }
+    }
+    return raw;
+}
+
+function _get_alert_visit_key(feature) {
+    return feature?.id || feature?.properties?.id || null;
+}
+
+function _get_alert_update_ms(feature) {
+    var p = feature?.properties || {};
+    var candidates = [p.sent, p.effective, p.onset, p.expires, p.ends];
+    for (var i = 0; i < candidates.length; i++) {
+        if (!candidates[i]) continue;
+        var ts = new Date(candidates[i]).getTime();
+        if (Number.isFinite(ts)) return ts;
+    }
+    return null;
+}
+
+function _build_alert_fingerprint(feature) {
+    var p = feature?.properties || {};
+    var params = _parse_alert_params(feature);
+    var torDet = _fn_arr(params.tornadoDetection) || '';
+    var wind = _fn_arr(params.maxWindGust) || '';
+    var hail = _fn_arr(params.maxHailSize) || '';
+    var floodThreat = _fn_arr(params.flashFloodDamageThreat) || '';
+    var desc = (p.description || '').slice(0, 900);
+    return [
+        p.event || '',
+        p.sent || '',
+        p.effective || '',
+        p.expires || '',
+        p.messageType || '',
+        torDet,
+        wind,
+        hail,
+        floodThreat,
+        desc
+    ].join('|');
+}
+
+function _is_observed_tornado_warning(feature, params, descUpper) {
+    var event = feature?.properties?.event || '';
+    if (event !== 'Tornado Warning') return false;
+    var torSrc = _fn_arr(params.tornadoDetection) || '';
+    return torSrc.toLowerCase().includes('observed') || descUpper.includes('CONFIRMED');
+}
+
+function _is_radar_indicated_tornado_warning(feature, params, descUpper) {
+    var event = feature?.properties?.event || '';
+    if (event !== 'Tornado Warning') return false;
+    var torSrc = _fn_arr(params.tornadoDetection) || '';
+    return torSrc.toLowerCase().includes('radar indicated') || descUpper.includes('RADAR INDICATED');
+}
+
+function _get_alert_focus_context(feature) {
+    var key = _get_alert_visit_key(feature);
+    var p = feature?.properties || {};
+    var params = _parse_alert_params(feature);
+    var descUpper = (p.description || '').toUpperCase();
+    var event = p.event || '';
+    var isTornadoEvent = TORNADO_EVENTS.includes(event) || event === 'Tornado Warning';
+    var isObservedTornado = _is_observed_tornado_warning(feature, params, descUpper);
+    var isRadarIndicatedTornado = _is_radar_indicated_tornado_warning(feature, params, descUpper);
+    var history = key ? _alertVisitHistory[key] : null;
+    var fingerprint = _build_alert_fingerprint(feature);
+    var hasChangedSinceLastVisit = !!(history && history.fingerprint && history.fingerprint !== fingerprint);
+    return {
+        key: key,
+        event: event,
+        params: params,
+        descUpper: descUpper,
+        history: history || null,
+        visitCount: history ? (history.count || 0) : 0,
+        isRevisit: !!history,
+        isTornadoEvent: isTornadoEvent,
+        isObservedTornado: isObservedTornado,
+        isRadarIndicatedTornado: isRadarIndicatedTornado,
+        hasChangedSinceLastVisit: hasChangedSinceLastVisit,
+        lastUpdateMs: _get_alert_update_ms(feature),
+        fingerprint: fingerprint
+    };
+}
+
+function _score_alert_for_focus(feature, context, nowMs) {
+    var event = context.event;
+    var score = 20;
+
+    if (event === 'Tornado Emergency' || event === 'PDS Tornado Warning') score += 140;
+    else if (context.isObservedTornado) score += 115;
+    else if (event === 'Tornado Warning') score += 90;
+    else if (event === 'Severe Thunderstorm Warning') score += (_is_tornado_eligible(feature) ? 55 : 38);
+    else if (event === 'Flash Flood Warning') score += 35;
+    else score += 22;
+
+    if (context.lastUpdateMs) {
+        var ageMin = Math.max(0, (nowMs - context.lastUpdateMs) / 60000);
+        score += Math.max(0, 28 - ageMin * 0.45);
+    }
+
+    if (!context.history) {
+        score += 24;
+    } else {
+        var minsSinceVisit = Math.max(0, (nowMs - context.history.lastSeenMs) / 60000);
+        if (minsSinceVisit < 1.5) score -= 85;
+        else if (minsSinceVisit < 3) score -= 35;
+
+        if (context.isTornadoEvent && minsSinceVisit >= 3) {
+            score += Math.min(34, minsSinceVisit * 3.6);
+        }
+        if (context.isObservedTornado && minsSinceVisit >= 2) {
+            score += Math.min(26, minsSinceVisit * 3.2);
+        }
+    }
+
+    if (context.hasChangedSinceLastVisit) {
+        score += context.isTornadoEvent ? 34 : 16;
+    }
+
+    if (context.visitCount >= 4 && !context.isTornadoEvent) score -= 14 * (context.visitCount - 3);
+    if (context.visitCount >= 5 && context.isTornadoEvent) score -= 7 * (context.visitCount - 4);
+
+    return Math.max(1, score);
+}
+
+function _pick_alert_focus_feature(alerts) {
+    if (!alerts || !alerts.length) return { feature: null, context: null };
+    var nowMs = Date.now();
+    var scored = alerts.map(function (feature) {
+        var context = _get_alert_focus_context(feature);
+        var score = _score_alert_for_focus(feature, context, nowMs);
+        return { feature: feature, context: context, score: score };
+    });
+
+    scored.sort(function (a, b) { return b.score - a.score; });
+    var pool = scored.slice(0, Math.min(4, scored.length));
+    var total = 0;
+    for (var i = 0; i < pool.length; i++) total += pool[i].score;
+    var r = Math.random() * total;
+    var chosen = pool[0];
+    for (var p = 0; p < pool.length; p++) {
+        r -= pool[p].score;
+        if (r <= 0) {
+            chosen = pool[p];
+            break;
+        }
+    }
+    return chosen;
+}
+
+function _mark_alert_focus_visit(feature, context) {
+    var key = context?.key || _get_alert_visit_key(feature);
+    if (!key) return;
+    var prev = _alertVisitHistory[key] || {};
+    _alertVisitHistory[key] = {
+        count: (prev.count || 0) + 1,
+        lastSeenMs: Date.now(),
+        fingerprint: context?.fingerprint || _build_alert_fingerprint(feature)
+    };
+}
+
+function _build_tornado_revisit_update(feature, context) {
+    var p = feature?.properties || {};
+    var infoBits = [];
+
+    if (context?.hasChangedSinceLastVisit) {
+        infoBits.push('The warning text has been updated since our last check.');
+    }
+
+    if (context?.isObservedTornado) infoBits.push('It remains an observed tornado warning.');
+    else if (context?.isRadarIndicatedTornado) infoBits.push('It remains radar indicated at this time.');
+    else infoBits.push('It remains an active tornado warning.');
+
+    var updateMs = _get_alert_update_ms(feature);
+    if (updateMs) {
+        var updateAgeMin = Math.max(0, Math.round((Date.now() - updateMs) / 60000));
+        if (updateAgeMin <= 1) infoBits.push('Latest update came in moments ago.');
+        else infoBits.push('Latest update came in about ' + updateAgeMin + ' minutes ago.');
+    }
+
+    var expiresMs = new Date(p.expires || p.ends || '').getTime();
+    if (Number.isFinite(expiresMs)) {
+        var minsLeft = Math.round((expiresMs - Date.now()) / 60000);
+        if (minsLeft > 0) {
+            if (minsLeft <= 1) infoBits.push('The warning is close to expiration.');
+            else infoBits.push('It is currently set to expire in about ' + minsLeft + ' minutes.');
+        }
+    }
+
+    return infoBits.join(' ');
+}
+
 // ── Typewriter + Commentary ─────────────────────────────────────────────────
 
 const _commentator = new LiveModeCommentator({
@@ -1342,10 +1540,10 @@ function _time_of_day() {
     return 'tonight';
 }
 
-function _generate_alert_commentary(feature, motion, city) {
+function _generate_alert_commentary(feature, motion, city, context) {
     var p = feature.properties || {};
     var event = p.event || 'Alert';
-    var params = p.parameters ? (typeof p.parameters === 'string' ? JSON.parse(p.parameters) : p.parameters) : {};
+    var params = _parse_alert_params(feature);
     var desc = (p.description || '').toUpperCase();
     var area = p.areaDesc || 'the warned area';
     var wind = _fn_arr(params.maxWindGust);
@@ -1394,6 +1592,10 @@ function _generate_alert_commentary(feature, motion, city) {
             }
         }
     } else if (event === 'Tornado Warning') {
+        if (context?.isRevisit) {
+            var torWarnType = context.isObservedTornado ? 'observed' : (context.isRadarIndicatedTornado ? 'radar-indicated' : 'active');
+            lines.push('Checking back in on our ' + torWarnType + ' tornado warning, let\'s see what changed. ' + _build_tornado_revisit_update(feature, context));
+        }
         var torSrc = _fn_arr(params.tornadoDetection) || '';
         if (torSrc.toLowerCase().includes('observed') || desc.includes('CONFIRMED')) {
             lines.push(_pick_random([
@@ -2339,20 +2541,18 @@ function _run_alert_segment(resolve, forceFeature) {
     if (!alerts.length && !forceFeature) return resolve();
 
     var feature = forceFeature || null;
+    var alertContext = null;
     if (!feature) {
-        var sorted = alerts.slice().sort(function (a, b) {
-            var tA = new Date(a?.properties?.sent || a?.properties?.effective || 0).getTime();
-            var tB = new Date(b?.properties?.sent || b?.properties?.effective || 0).getTime();
-            return tB - tA;
-        });
-        var unseen = sorted.filter(function (a) {
-            return !_was_recent('alert', a.id || a?.properties?.id);
-        });
-        feature = unseen.length ? unseen[0] : sorted[0];
+        var picked = _pick_alert_focus_feature(alerts);
+        feature = picked.feature;
+        alertContext = picked.context;
+    } else {
+        alertContext = _get_alert_focus_context(feature);
     }
     if (!feature) return resolve();
 
     _record_segment('alert', feature.id || feature?.properties?.id);
+    if (alertContext) _mark_alert_focus_visit(feature, alertContext);
 
     _set_clock_mode('site-only');
     _ensure_single_site_mode();
@@ -2390,10 +2590,10 @@ function _run_alert_segment(resolve, forceFeature) {
     if (isTornado && motion) {
         _find_major_city_in_polygon(feature, function (city) {
             if (isStale()) return;
-            _typewrite(_generate_alert_commentary(feature, motion, city), 1200);
+            _typewrite(_generate_alert_commentary(feature, motion, city, alertContext), 1200);
         });
     } else {
-        _typewrite(_generate_alert_commentary(feature, null, null), 1200);
+        _typewrite(_generate_alert_commentary(feature, null, null, alertContext), 1200);
     }
 
     function _begin_playback() {
@@ -4991,6 +5191,7 @@ function enable() {
     if (_active) return;
     _active = true;
     _recentSegments = [];
+    _alertVisitHistory = Object.create(null);
 
     _save_state();
     _show_overlay();

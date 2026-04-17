@@ -66,8 +66,24 @@ function _is_watch_event(event) {
 }
 
 function _filter_panel_features(features) {
+    const seenKeys = new Set();
     return (features || []).filter((f) => {
         const event = f?.properties?.event || '';
+        const props = f?.properties || {};
+        const alertId = f?.id || props.id || '';
+        const dedupeKey = alertId || [
+            event,
+            props.sent || '',
+            props.onset || '',
+            props.effective || '',
+            props.expires || props.ends || '',
+            props.areaDesc || '',
+            props.sender || props.senderName || ''
+        ].join('|');
+
+        if (seenKeys.has(dedupeKey)) return false;
+        seenKeys.add(dedupeKey);
+
         if (_is_watch_event(event)) return false;
         if (event === 'Special Weather Statement') {
             const toggleKey = f?.geometry

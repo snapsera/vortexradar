@@ -115,10 +115,45 @@ const CONVECTIVE_EVENTS = [
     'Severe Thunderstorm Warning', 'Severe Thunderstorm Watch', 'Tornado Watch'
 ];
 
+function _get_first_param_value(params, key) {
+    if (!params || !Object.prototype.hasOwnProperty.call(params, key)) return '';
+    const val = params[key];
+    if (Array.isArray(val)) return String(val[0] || '');
+    return String(val || '');
+}
+
+function _get_nws_severe_threat_level(params) {
+    const threat = (
+        _get_first_param_value(params, 'thunderstormDamageThreat')
+        || _get_first_param_value(params, 'damageThreat')
+    ).trim().toUpperCase();
+    if (threat === 'CONSIDERABLE' || threat === 'DESTRUCTIVE') return threat;
+    return '';
+}
+
+function _get_nws_tornado_status(params) {
+    const tornadoDamageThreat = _get_first_param_value(params, 'tornadoDamageThreat').trim().toUpperCase();
+    const tornadoDetection = _get_first_param_value(params, 'tornadoDetection').trim().toUpperCase();
+    const nwsHeadline = _get_first_param_value(params, 'NWSheadline').trim().toUpperCase();
+
+    if (nwsHeadline.includes('TORNADO EMERGENCY') || tornadoDamageThreat === 'CATASTROPHIC') {
+        return 'TORNADO EMERGENCY';
+    }
+    if (tornadoDamageThreat === 'CONSIDERABLE') {
+        return 'PDS';
+    }
+    if (tornadoDetection.includes('OBSERVED')) {
+        return 'OBSERVED';
+    }
+    if (tornadoDetection.includes('RADAR INDICATED')) {
+        return 'RADAR INDICATED';
+    }
+    return '';
+}
+
 function _extract_storm_pills(p) {
     const event = p.event || '';
     const params = p.parameters || {};
-    const desc = (p.description || '').toUpperCase();
     const pills = [];
 
     if (event === 'Flash Flood Warning') {
@@ -135,14 +170,13 @@ function _extract_storm_pills(p) {
     const isTornadoWarning = ['Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning'].includes(event);
 
     if (isTornadoWarning) {
-        const tornadoDet = params.tornadoDetection;
-        if (tornadoDet && Array.isArray(tornadoDet) && tornadoDet[0]) {
-            pills.push(tornadoDet[0].toUpperCase());
-        } else if (desc.includes('RADAR INDICATED') || desc.includes('RADAR-INDICATED')) {
-            pills.push('RADAR INDICATED');
-        } else if (desc.includes('POSSIBLE TORNADO') || desc.includes('TORNADO POSSIBLE')) {
-            pills.push('POSSIBLE');
-        }
+        const tornadoStatus = _get_nws_tornado_status(params);
+        if (tornadoStatus) pills.push(tornadoStatus);
+    }
+
+    if (event === 'Severe Thunderstorm Warning') {
+        const severeThreat = _get_nws_severe_threat_level(params);
+        if (severeThreat) pills.push(severeThreat);
     }
 
     const hail = params.maxHailSize;
@@ -162,7 +196,7 @@ function _extract_storm_pills(p) {
 
 function _get_storm_pill_class(pill) {
     const lowered = String(pill || '').toLowerCase();
-    if (lowered.includes('observed') || lowered.includes('considerable') || lowered.includes('pds')) {
+    if (lowered.includes('observed') || lowered.includes('considerable') || lowered.includes('destructive') || lowered.includes('pds') || lowered.includes('emergency')) {
         return ' alertsDetailStormPill-critical';
     }
     if (lowered.includes('radar indicated')) {

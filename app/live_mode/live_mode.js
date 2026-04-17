@@ -1600,6 +1600,23 @@ function _is_radar_indicated_tornado_warning(feature, params, descUpper) {
     return torSrc.toLowerCase().includes('radar indicated') || descUpper.includes('RADAR INDICATED');
 }
 
+function _is_expiring_or_weakening_tornado_warning(event, descUpper) {
+    if (event !== 'Tornado Warning') return false;
+    if (!descUpper) return false;
+    var phrases = [
+        'WILL BE ALLOWED TO EXPIRE',
+        'WARNING WILL BE ALLOWED TO EXPIRE',
+        'HAS WEAKENED BELOW SEVERE LIMITS',
+        'NO LONGER APPEARS CAPABLE OF PRODUCING A TORNADO',
+        'THE TORNADO WARNING FOR',
+        'THIS TORNADO WARNING FOR'
+    ];
+    for (var i = 0; i < phrases.length; i++) {
+        if (descUpper.includes(phrases[i])) return true;
+    }
+    return false;
+}
+
 function _get_alert_focus_context(feature) {
     var key = _get_alert_visit_key(feature);
     var p = feature?.properties || {};
@@ -1609,6 +1626,7 @@ function _get_alert_focus_context(feature) {
     var isTornadoEvent = TORNADO_EVENTS.includes(event) || event === 'Tornado Warning';
     var isObservedTornado = _is_observed_tornado_warning(feature, params, descUpper);
     var isRadarIndicatedTornado = _is_radar_indicated_tornado_warning(feature, params, descUpper);
+    var isExpiringOrWeakeningTornado = _is_expiring_or_weakening_tornado_warning(event, descUpper);
     var history = key ? _alertVisitHistory[key] : null;
     var fingerprint = _build_alert_fingerprint(feature);
     var hasChangedSinceLastVisit = !!(history && history.fingerprint && history.fingerprint !== fingerprint);
@@ -1623,6 +1641,7 @@ function _get_alert_focus_context(feature) {
         isTornadoEvent: isTornadoEvent,
         isObservedTornado: isObservedTornado,
         isRadarIndicatedTornado: isRadarIndicatedTornado,
+        isExpiringOrWeakeningTornado: isExpiringOrWeakeningTornado,
         hasChangedSinceLastVisit: hasChangedSinceLastVisit,
         lastUpdateMs: _get_alert_update_ms(feature),
         fingerprint: fingerprint
@@ -1663,6 +1682,11 @@ function _score_alert_for_focus(feature, context, nowMs) {
 
     if (context.hasChangedSinceLastVisit) {
         score += context.isTornadoEvent ? 34 : 16;
+    }
+
+    if (context.isExpiringOrWeakeningTornado) {
+        // De-prioritize warnings that are being allowed to expire/are weakening.
+        score -= 80;
     }
 
     if (context.visitCount >= 4 && !context.isTornadoEvent) score -= 14 * (context.visitCount - 3);
@@ -2557,6 +2581,9 @@ function _build_live_alert_html(feature, radarStation) {
     try { hexColor = chroma(get_polygon_colors(event).color).hex(); } catch (_) {}
     var params = _parse_alert_params(feature);
     var desc = (p.description || '').toUpperCase();
+    var nwsHeadlineUpper = String(_fn_arr(params.NWSheadline) || '').toUpperCase();
+    var tornadoDamageThreatUpper = String(_fn_arr(params.tornadoDamageThreat) || '').toUpperCase();
+    var severeDamageThreatUpper = String(_fn_arr(params.thunderstormDamageThreat) || _fn_arr(params.damageThreat) || '').toUpperCase();
     var isTor = TORNADO_EVENTS.includes(event);
     var isConvective = ['Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning',
         'Severe Thunderstorm Warning', 'Severe Thunderstorm Watch', 'Tornado Watch',
@@ -2566,7 +2593,10 @@ function _build_live_alert_html(feature, radarStation) {
     function _get_tone_from_text(text) {
         var t = String(text || '').toUpperCase();
         if (!t) return '';
+        if (t.includes('TORNADO EMERGENCY') || t === 'PDS') return 'magenta';
+        if (t.includes('DESTRUCTIVE')) return 'danger';
         if (t.includes('OBSERVED')) return 'danger';
+        if (t.includes('CONSIDERABLE')) return 'warning';
         if (t.includes('RADAR INDICATED')) return 'warning';
         if (t.includes('TORNADO POSSIBLE') || t.includes('POSSIBLE TORNADO') || t === 'POSSIBLE') return 'warning';
         return '';
@@ -2578,13 +2608,34 @@ function _build_live_alert_html(feature, radarStation) {
             tone: tone || _get_tone_from_text(text)
         });
     }
+    function _extract_nws_source_text(description) {
+        if (!description) return '';
+        var match = description.match(/SOURCE\.\.\.([\s\S]+?)(?=\n\n|HAZARD\.\.\.|IMPACT\.\.\.|$)/i);
+        if (!match || !match[1]) return '';
+        return String(match[1]).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function _get_tornado_panel_status() {
+        var torDetection = String(_fn_arr(params.tornadoDetection) || '').toUpperCase();
+        // Use only NWS-provided headline/parameter fields for status.
+        if (nwsHeadlineUpper.includes('TORNADO EMERGENCY') || tornadoDamageThreatUpper === 'CATASTROPHIC') {
+            return 'TORNADO EMERGENCY';
+        }
+        if (tornadoDamageThreatUpper === 'CONSIDERABLE') {
+            return 'PDS';
+        }
+        if (torDetection.includes('OBSERVED')) {
+            return 'OBSERVED';
+        }
+        if (torDetection.includes('RADAR INDICATED')) {
+            return 'RADAR INDICATED';
+        }
+        return '';
+    }
 
     if (isTor) {
-        var torVal = _fn_arr(params.tornadoDetection);
-        var torDisplay = torVal
-            || (desc.includes('RADAR INDICATED') ? 'RADAR INDICATED' : null)
-            || 'POSSIBLE';
-        _push_pill(torDisplay);
+        var tornadoPanelStatus = _get_tornado_panel_status();
+        if (tornadoPanelStatus) _push_pill(tornadoPanelStatus);
     }
 
     if (event === 'Severe Thunderstorm Warning') {
@@ -2605,23 +2656,25 @@ function _build_live_alert_html(feature, radarStation) {
     }
 
     var damageThreat = _fn_arr(params.flashFloodDamageThreat) || _fn_arr(params.damageThreat);
-    if (damageThreat) _push_pill(damageThreat.toUpperCase());
+    if (damageThreat && event !== 'Severe Thunderstorm Warning') _push_pill(damageThreat.toUpperCase());
 
     var areaDesc = p.areaDesc || '';
 
     var sourceStr = '';
     if (isTor) {
-        sourceStr = _fn_arr(params.tornadoDetection)
-            || (desc.includes('RADAR INDICATED') ? 'Radar.' : '')
-            || 'Possible.';
+        // Prefer official NWS SOURCE... text for the source row.
+        sourceStr = _extract_nws_source_text(p.description || '');
+        if (!sourceStr) {
+            var torDetectionRaw = String(_fn_arr(params.tornadoDetection) || '').toUpperCase();
+            if (torDetectionRaw.includes('RADAR INDICATED')) sourceStr = 'Radar indicated.';
+            else if (torDetectionRaw.includes('OBSERVED')) sourceStr = 'Observed.';
+        }
     } else {
         sourceStr = _fn_arr(params.flashFloodDetection) || '';
         if (!sourceStr && (desc.includes('RADAR INDICATED') || desc.includes('RADAR-INDICATED'))) {
             sourceStr = 'Radar.';
         }
     }
-    var sourceTone = _get_tone_from_text(sourceStr);
-
     var html = '<div class="fnAlert" style="--fn-accent:' + hexColor + '">';
     html += '<div class="fnAlertShine"></div>';
     html += '<div class="fnAlertBody">';
@@ -2647,11 +2700,21 @@ function _build_live_alert_html(feature, radarStation) {
         html += '</div>';
     }
 
+    if (event === 'Severe Thunderstorm Warning'
+        && (severeDamageThreatUpper === 'CONSIDERABLE' || severeDamageThreatUpper === 'DESTRUCTIVE')) {
+        html += '<div class="fnAlertRow">';
+        html += '<span class="fnAlertRowLabel">Storm</span>';
+        var stormToneClass = severeDamageThreatUpper === 'DESTRUCTIVE'
+            ? ' fnAlertRowValue-danger'
+            : ' fnAlertRowValue-warning';
+        html += '<span class="fnAlertRowValue' + stormToneClass + '">' + severeDamageThreatUpper + '</span>';
+        html += '</div>';
+    }
+
     if (sourceStr) {
         html += '<div class="fnAlertRow">';
         html += '<span class="fnAlertRowLabel">Source</span>';
-        var sourceToneClass = sourceTone ? ' fnAlertRowValue-' + sourceTone : '';
-        html += '<span class="fnAlertRowValue' + sourceToneClass + '">' + sourceStr + '</span>';
+        html += '<span class="fnAlertRowValue">' + sourceStr + '</span>';
         html += '</div>';
     }
 

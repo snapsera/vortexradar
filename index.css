@@ -2812,6 +2812,11 @@ a:hover { color: var(--color-accent-hover); }
   border-color: rgba(248, 113, 113, 0.45);
   background: rgba(248, 113, 113, 0.14);
 }
+.fnAlertPill-magenta {
+  color: #e879f9;
+  border-color: rgba(232, 121, 249, 0.45);
+  background: rgba(232, 121, 249, 0.14);
+}
 .fnAlertDivider {
   height: 2px;
   background: rgba(255, 255, 255, 0.06);

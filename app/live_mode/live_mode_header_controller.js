@@ -37,7 +37,8 @@ class LiveModeHeaderController {
         }
     }
 
-    hideRadarInfo(riskLabel) {
+    hideRadarInfo(riskLabel, options) {
+        var allowSocialFallback = !(options && options.allowSocialFallback === false);
         var $info = $('#radarInfoSpan');
         var wasVisible = $info.is(':visible');
         $info.data('lm-was-visible', wasVisible);
@@ -51,7 +52,7 @@ class LiveModeHeaderController {
         if (riskLabel) {
             this.stopHeaderSocialCycle();
             $lmHeader.html(riskLabel).show();
-        } else if (this.shouldShowSocialFallback()) {
+        } else if (allowSocialFallback && this.shouldShowSocialFallback()) {
             this.startHeaderSocialCycle($lmHeader);
         } else {
             this.stopHeaderSocialCycle();

@@ -272,6 +272,9 @@ function update(stationId) {
     _radarLat = loc.lat;
     _radarLng = loc.lon;
 
+    // Keep sweep speed constant regardless of radar file cadence.
+    SWEEP_PERIOD_MS = DEFAULT_SWEEP_PERIOD_MS;
+
     if (_currentStation === stationId && _sweepEnabled) {
         _update_position();
         if (!_animationId) {
@@ -295,6 +298,7 @@ function update(stationId) {
 function remove() {
     _sweepEnabled = false;
     _mapMoving = false;
+    SWEEP_PERIOD_MS = DEFAULT_SWEEP_PERIOD_MS;
 
     if (_animationId) {
         cancelAnimationFrame(_animationId);

@@ -98,6 +98,7 @@ let _scanLoadListener = null;
 let _spcLegendHideTimer = null;
 let _sweepBaseSelectionListener = null;
 let _sweepBaseLoadedListener = null;
+let _nonSiteGuardTimer = null;
 
 const LM_FOCUS_SOURCE = 'lmFocusGlowSource';
 const LM_FOCUS_GLOW_OUTER = 'lmFocusGlowOuter';
@@ -203,11 +204,16 @@ function _set_clock_suppressed(suppressed) {
 
 // ── Header Radar Info Control ────────────────────────────────────────────────
 
-function _hide_header_radar_info(riskLabel) {
-    _headerController.hideRadarInfo(riskLabel);
+function _hide_header_radar_info(riskLabel, options) {
+    _headerController.hideRadarInfo(riskLabel, options);
 }
 
-function _show_header_radar_info() {
+function _show_header_radar_info(options) {
+    var force = !!(options && options.force);
+    if (!force && _active && !_segment_allows_site_radar()) {
+        _hide_header_radar_info(null, { allowSocialFallback: true });
+        return;
+    }
     _headerController.showRadarInfo();
 }
 
@@ -840,6 +846,50 @@ var radar_scan_animation = require('../radar/station_markers/radar_scan_animatio
 var ALERT_LAYER_IDS = ['alertsLayer', 'alertsLayerFill', 'alertsBlinkLayer', 'alertsDashedLayer'];
 var STORM_REPORT_LAYER_IDS = ['stormReportsLayer', 'stormReportsHaloLayer'];
 
+function _segment_allows_site_radar() {
+    return !_active || _currentSegmentType === 'alert' || _currentSegmentType === 'spotlight';
+}
+
+function _clear_active_station_selection() {
+    try {
+        if (window.stormTrackData) {
+            window.stormTrackData.currentStation = null;
+            window.stormTrackData.L2_file_id = '';
+        }
+    } catch (_) {}
+    try { $('#radarStation').html(''); } catch (_) {}
+    try { $('#radarLocation').html(''); } catch (_) {}
+    try { $('#radarVCP').html(''); } catch (_) {}
+    try { $('#radarInfoSpan').hide(); } catch (_) {}
+}
+
+function _enforce_non_site_station_state() {
+    if (!_active || _segment_allows_site_radar()) return;
+    _clear_active_station_selection();
+    _hide_radar_render();
+    _hide_station_markers();
+    _hide_radar_sweep();
+    _hide_lightning_overlay();
+}
+
+function _start_non_site_guard() {
+    if (_nonSiteGuardTimer != null) return;
+    _nonSiteGuardTimer = setInterval(function () {
+        if (!_active) {
+            _stop_non_site_guard();
+            return;
+        }
+        _enforce_non_site_station_state();
+    }, 250);
+}
+
+function _stop_non_site_guard() {
+    if (_nonSiteGuardTimer != null) {
+        clearInterval(_nonSiteGuardTimer);
+        _nonSiteGuardTimer = null;
+    }
+}
+
 function _hide_radar_render() {
     try {
         if (map.getLayer('baseReflectivity')) map.setLayoutProperty('baseReflectivity', 'visibility', 'none');
@@ -848,6 +898,10 @@ function _hide_radar_render() {
 }
 
 function _show_radar_render() {
+    if (!_segment_allows_site_radar()) {
+        _hide_radar_render();
+        return;
+    }
     try {
         if (map.getLayer('baseReflectivity')) map.setLayoutProperty('baseReflectivity', 'visibility', 'visible');
         var radiusEnabled = $('#armrRadarRadiusBtnSwitchElem').is(':checked');
@@ -864,6 +918,10 @@ function _hide_station_markers() {
 }
 
 function _show_station_markers() {
+    if (!_segment_allows_site_radar()) {
+        _hide_station_markers();
+        return;
+    }
     try {
         if (map.getLayer('stationSymbolLayer')) map.setLayoutProperty('stationSymbolLayer', 'visibility', 'visible');
     } catch (_) {}
@@ -903,6 +961,10 @@ function _is_scan_rendered_for_station(station) {
 }
 
 function _show_radar_sweep() {
+    if (!_segment_allows_site_radar()) {
+        _hide_radar_sweep();
+        return;
+    }
     try {
         var s = settings_store.load();
         var station = window.stormTrackData?.currentStation;
@@ -924,6 +986,10 @@ function _bind_sweep_sync_listeners() {
 
     _sweepBaseSelectionListener = function (e) {
         if (!_active) return;
+        if (!_segment_allows_site_radar()) {
+            _enforce_non_site_station_state();
+            return;
+        }
         var detail = e?.detail || {};
         var station = window.stormTrackData?.currentStation;
         if (!station) {
@@ -938,6 +1004,10 @@ function _bind_sweep_sync_listeners() {
 
     _sweepBaseLoadedListener = function (e) {
         if (!_active) return;
+        if (!_segment_allows_site_radar()) {
+            _enforce_non_site_station_state();
+            return;
+        }
         var detail = e?.detail || {};
         var station = window.stormTrackData?.currentStation;
         if (!station) {
@@ -988,6 +1058,10 @@ function _hide_lightning_overlay() {
 }
 
 function _show_lightning_overlay() {
+    if (!_segment_allows_site_radar()) {
+        _hide_lightning_overlay();
+        return;
+    }
     try {
         var station = window.stormTrackData?.currentStation;
         if (!station) return;
@@ -1022,11 +1096,15 @@ function _run_spc_segment(resolve) {
     _currentSegmentType = 'spc';
 
     _set_clock_mode('hidden');
-    _hide_radar_render();
-    _hide_station_markers();
-    _hide_radar_sweep();
-    _hide_lightning_overlay();
-    _hide_header_radar_info(null);
+    _hide_all_map_overlays();
+    _remove_focus_glow();
+    _remove_storm_track();
+    _remove_static_mrms_layer();
+    _remove_conditions_layer();
+    _remove_earthquake_layer();
+    _hide_storm_reports();
+    _clear_active_station_selection();
+    _hide_header_radar_info(null, { allowSocialFallback: false });
     _show_info_panel(_build_spc_panel_html(_spc_label(hazard)));
 
     var catPromise = (hazard !== 'categorical')
@@ -1061,7 +1139,7 @@ function _run_spc_segment(resolve) {
         var validity = _get_spc_validity(geojson);
         _show_info_panel(_build_spc_panel_html(_spc_label(hazard), validity));
         var riskHtml = _build_risk_label(geojson) || _build_risk_label(catGeojson);
-        _hide_header_radar_info(riskHtml);
+        _hide_header_radar_info(riskHtml, { allowSocialFallback: false });
         if (Math.random() > 0.35) {
             _typewrite(_generate_spc_commentary(hazard, geojson), 1200);
         }
@@ -2288,11 +2366,12 @@ function _run_alert_segment(resolve, forceFeature) {
             controller.state.frameCount = PLAYBACK_FRAME_COUNT;
             controller.state.speedMultiplier = PLAYBACK_SPEED;
         }
-        station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D');
+        station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D', { persist: false });
         _show_radar_render();
         _show_station_markers();
         _show_radar_sweep();
         _show_lightning_overlay();
+        _show_header_radar_info({ force: true });
         if (isSameStation && controller && controller.state.active && controller.state.supported) {
             controller.refresh_frames();
         }
@@ -3143,11 +3222,12 @@ function _run_spotlight_segment(resolve) {
             controller.state.frameCount = PLAYBACK_FRAME_COUNT;
             controller.state.speedMultiplier = PLAYBACK_SPEED;
         }
-        station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D');
+        station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D', { persist: false });
         _show_radar_render();
         _show_station_markers();
         _show_radar_sweep();
         _show_lightning_overlay();
+        _show_header_radar_info({ force: true });
         if (isSameStation && controller && controller.state.active && controller.state.supported) {
             controller.refresh_frames();
         }
@@ -3281,6 +3361,7 @@ function _run_conus_segment(resolve) {
     _hide_alert_polygons();
     _hide_radar_sweep();
     _hide_lightning_overlay();
+    _clear_active_station_selection();
     _add_static_mrms_layer();
     map.flyTo({ center: CONUS_CENTER, zoom: CONUS_ZOOM, speed: 1.2, essential: true });
     if (Math.random() > 0.35) {
@@ -3859,6 +3940,7 @@ function _run_conditions_segment(resolve) {
     _record_segment('conditions', region.name);
 
     _hide_all_map_overlays();
+    _clear_active_station_selection();
     _remove_static_mrms_layer();
     _show_info_panel(_build_conditions_panel_html(region.name));
 
@@ -4331,6 +4413,7 @@ function _run_earthquake_segment(resolve) {
     _hide_header_radar_info(null);
 
     _hide_all_map_overlays();
+    _clear_active_station_selection();
     _remove_static_mrms_layer();
     _remove_conditions_layer();
 
@@ -4722,6 +4805,7 @@ function _pick_next_segment() {
 // ── Director Loop ────────────────────────────────────────────────────────────
 
 function _full_segment_cleanup() {
+    _currentSegmentType = null;
     _alertEpoch++;
     _cancelAllAlertTimers();
     _clear_segment_timer();
@@ -4738,8 +4822,9 @@ function _full_segment_cleanup() {
     _hide_station_markers();
     _hide_radar_sweep();
     _hide_lightning_overlay();
+    _clear_active_station_selection();
     _show_alert_polygons();
-    _show_header_radar_info();
+    _hide_header_radar_info(null, { allowSocialFallback: false });
     _hide_eq_legend();
     _hide_cond_legend();
     _hide_spc_legend();
@@ -4921,6 +5006,7 @@ function enable() {
 
     window.stormTrackData.liveModeActive = true;
     _bind_sweep_sync_listeners();
+    _start_non_site_guard();
 
     var updater = window.stormTrackData?.current_RadarUpdater;
     if (updater) updater.disable();
@@ -4935,6 +5021,7 @@ function disable() {
     if (!_active) return;
     _active = false;
     window.stormTrackData.liveModeActive = false;
+    _stop_non_site_guard();
     _unbind_sweep_sync_listeners();
 
     stopMusic();

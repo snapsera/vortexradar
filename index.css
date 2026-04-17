@@ -6408,10 +6408,9 @@ body.liveMode-active #map::after {
   right: 14px;
   z-index: calc(var(--z-panel) + 10);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 14px 7px 10px;
+  gap: 7px;
+  padding: 6px 14px 6px 10px;
   background: rgba(220, 38, 38, 0.88);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -6427,14 +6426,6 @@ body.liveMode-active #map::after {
   pointer-events: auto;
   cursor: default;
   user-select: none;
-  text-align: center;
-}
-.liveModeBadgeMain {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  width: 100%;
 }
 .liveModeBadgeDot {
   width: 8px;
@@ -6443,23 +6434,14 @@ body.liveMode-active #map::after {
   background: #fff;
   animation: lmDotBlink 1.4s ease-in-out infinite;
 }
-.liveModeViewerCount {
-  margin-left: 0;
-  width: 100%;
-  text-align: center;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: none;
-  color: rgba(255, 255, 255, 0.92);
-  line-height: 1.1;
-}
 
 /* ── Header centered BETA tag (Live Mode only) ── */
 .liveModeHeaderBetaTag {
   position: relative;
   z-index: 3;
   display: none;
+  align-items: center;
+  gap: 8px;
   padding: 3px 11px;
   border-radius: var(--radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.5);
@@ -6479,6 +6461,20 @@ body.liveMode-active .liveModeHeaderBetaTag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+.liveModeHeaderSegmentDebug {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(7, 21, 34, 0.42);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.1;
 }
 @keyframes lmBadgePulse {
   0%, 100% { box-shadow: 0 2px 12px rgba(220, 38, 38, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1); }

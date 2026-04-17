@@ -34,6 +34,7 @@ const DEFAULTS = {
     lightning: false,
     stormReports: false,
     testAlerts: false,
+    liveModeSegmentDebug: false,
     liveMode: false,
     liveModeMusic: false,
     liveModeVolume: 15,
@@ -132,6 +133,7 @@ function get_settings_from_dom() {
     s.lightning = $('#armrLightningBtnSwitchElem').length ? $('#armrLightningBtnSwitchElem').is(':checked') : DEFAULTS.lightning;
     s.stormReports = $('#armrStormReportsBtnSwitchElem').length ? $('#armrStormReportsBtnSwitchElem').is(':checked') : DEFAULTS.stormReports;
     s.testAlerts = $('#devTestAlertsSwitchElem').length ? $('#devTestAlertsSwitchElem').is(':checked') : DEFAULTS.testAlerts;
+    s.liveModeSegmentDebug = $('#devLiveModeSegmentDebugSwitchElem').length ? $('#devLiveModeSegmentDebugSwitchElem').is(':checked') : DEFAULTS.liveModeSegmentDebug;
     s.liveMode = $('#armrLiveModeBtnSwitchElem').length ? $('#armrLiveModeBtnSwitchElem').is(':checked') : DEFAULTS.liveMode;
     s.liveModeMusic = $('#lmMusicToggle').length ? $('#lmMusicToggle').is(':checked') : DEFAULTS.liveModeMusic;
     s.liveModeVolume = $('#lmMusicVolumeSlider').length ? parseInt($('#lmMusicVolumeSlider').val(), 10) : DEFAULTS.liveModeVolume;

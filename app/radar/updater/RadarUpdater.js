@@ -70,6 +70,10 @@ class RadarUpdater {
         this.nexrad_factory.display_file_info();
         const product = this._product_from_abbv(this.nexrad_factory.product_abbv);
         this.get_latest_url_func(this.nexrad_factory.station, product, 0, (url, fetched_date) => {
+            if (!url || !this._is_valid_date(fetched_date)) {
+                console.log(`There is no new radar scan as of ${formatted_now}.`);
+                return;
+            }
             this._process_update_check(url, fetched_date, formatted_now);
         })
     }
@@ -79,7 +83,14 @@ class RadarUpdater {
         }
         return product;
     }
+    _is_valid_date(value) {
+        return !!(value && typeof value.getTime === 'function' && Number.isFinite(value.getTime()));
+    }
     _process_update_check(url, fetched_date, formatted_now) {
+        if (!url || !this._is_valid_date(fetched_date)) {
+            console.log(`There is no new radar scan as of ${formatted_now}.`);
+            return;
+        }
         if (this.latest_date == undefined) {
             this.latest_date = fetched_date;
         }

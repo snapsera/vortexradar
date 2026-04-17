@@ -194,7 +194,11 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
         .then(response => {
             if (signal?.aborted) return;
             if (!response.ok) {
-                console.warn('[tgftp] HTTP ' + response.status + ' for ' + product + '/' + station);
+                if (response.status === 403) {
+                    console.info('[tgftp] Access denied for ' + product + '/' + station + '; falling back on next poll');
+                } else {
+                    console.warn('[tgftp] HTTP ' + response.status + ' for ' + product + '/' + station);
+                }
                 callback(null);
                 return;
             }
@@ -233,8 +237,10 @@ function get_latest_level_3_url(station, product, index, callback, date, signal 
 }
 
 function _is_special_level_3_product(product) {
+    const normalized = String(product || '').trim().toLowerCase();
+    if (!normalized) return false;
     return (
-        product == '134il' || product.slice(0, 3) == 'p94' || product.slice(0, 3) == 'p99'
+        normalized == '134il' || normalized.slice(0, 3) == 'p94' || normalized.slice(0, 3) == 'p99'
     );
 }
 
@@ -377,7 +383,10 @@ function get_latest_level_3_frames(station, product, count, callback, date, sign
  */
 function return_level_3_factory_from_info(station, product, callback, signal = null) {
     get_latest_level_3_url(station, product, 0, (url) => {
-        if (!url || signal?.aborted) return;
+        if (!url || signal?.aborted) {
+            callback(null);
+            return;
+        }
         return_level_3_factory_from_url(url, (L3Factory) => {
             callback(L3Factory);
         }, signal)
@@ -390,10 +399,19 @@ function return_level_3_factory_from_info(station, product, callback, signal = n
  * @param {Function} callback - A callback function. Passes a single variable, which is an instance of a L3Factory class.
  */
 function return_level_3_factory_from_url(url, callback, signal = null) {
-    if (!url) return;
+    if (!url) {
+        callback(null);
+        return;
+    }
     file_to_buffer(url, (buffer) => {
-        if (!buffer) return;
-        if (signal?.aborted) return;
+        if (!buffer) {
+            callback(null);
+            return;
+        }
+        if (signal?.aborted) {
+            callback(null);
+            return;
+        }
         try {
             new NEXRADLevel3File(buffer, function(file) {
                 const L3Factory = new Level3Factory(file);
@@ -401,6 +419,7 @@ function return_level_3_factory_from_url(url, callback, signal = null) {
             });
         } catch (e) {
             console.warn('[L3 parse]', e.message || e);
+            callback(null);
         }
     }, signal)
 }

@@ -60,6 +60,7 @@ const CONUS_SEVERE_FOCUS_REGIONS = [
 ];
 const SPOTLIGHT_DURATION_MS = 20000;
 const VELOCITY_HOLD_MS = 8000;
+const VELOCITY_LOAD_TIMEOUT_MS = 2200;
 const PLAYBACK_LOOP_TARGET = 8;
 const PLAYBACK_SPEED = 10;
 const PLAYBACK_FRAME_COUNT = 14;
@@ -110,9 +111,6 @@ let _spcLegendHideTimer = null;
 let _sweepBaseSelectionListener = null;
 let _sweepBaseLoadedListener = null;
 let _nonSiteGuardTimer = null;
-let _viewerCountEventSource = null;
-let _viewerCountPollTimer = null;
-let _viewerCountReconnectTimer = null;
 
 const LM_FOCUS_SOURCE = 'lmFocusGlowSource';
 const LM_FOCUS_GLOW_OUTER = 'lmFocusGlowOuter';
@@ -124,10 +122,6 @@ const LM_TRACK_ARROW_LAYER = 'lmStormTrackArrow';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
 const NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
-const LM_VIEWER_STREAM_URL = '/api/live-mode/viewers/stream';
-const LM_VIEWER_COUNT_URL = '/api/live-mode/viewers';
-const LM_VIEWER_POLL_MS = 10000;
-const LM_VIEWER_RETRY_MS = 4000;
 
 const DIR_MAP = {
     'north': 0, 'n': 0, 'nne': 22.5, 'ne': 45, 'north-northeast': 22.5, 'northeast': 45,
@@ -159,7 +153,7 @@ function _is_tornado_eligible(feature) {
     const ev = p.event || '';
     if (TORNADO_EVENTS.includes(ev)) return true;
     if (ev !== 'Severe Thunderstorm Warning') return false;
-    const params = typeof p.parameters === 'string' ? JSON.parse(p.parameters) : (p.parameters || {});
+    const params = _parse_alert_params(feature);
     const det = Array.isArray(params.tornadoDetection) ? params.tornadoDetection[0] : params.tornadoDetection;
     if (det && String(det).toLowerCase().includes('possible')) return true;
     const desc = (p.description || '').toUpperCase();
@@ -1328,6 +1322,7 @@ function _run_spc_segment(resolve) {
     if (!hazard) hazard = _pick_random(SPC_HAZARDS);
     _record_segment('spc', hazard);
     _currentSegmentType = 'spc';
+    _set_segment_stage('enter');
 
     _set_clock_mode('hidden');
     _hide_all_map_overlays();
@@ -1345,6 +1340,7 @@ function _run_spc_segment(resolve) {
         ? _fetch_spc_geojson('categorical')
         : Promise.resolve(null);
 
+    _set_segment_stage('fetch');
     Promise.all([_fetch_spc_geojson(hazard), catPromise]).then(function (results) {
         var geojson = results[0];
         var catGeojson = results[1];
@@ -1369,6 +1365,7 @@ function _run_spc_segment(resolve) {
         }
 
         _add_spc_layers(geojson);
+        _set_segment_stage('render');
         _show_spc_legend(geojson, hazard);
         var validity = _get_spc_validity(geojson);
         _show_info_panel(_build_spc_panel_html(_spc_label(hazard), validity));
@@ -1379,6 +1376,7 @@ function _run_spc_segment(resolve) {
         }
 
         function _spc_cleanup() {
+            _set_segment_stage('finish');
             _stop_typewriter();
             _remove_spc_layers();
             _hide_spc_legend();
@@ -1425,6 +1423,7 @@ function _run_spc_segment(resolve) {
 
         if (panTargets.length === 0) {
             _segmentTimer = setTimeout(function () {
+                _set_segment_stage('wait-text');
                 _wait_for_typewriter_then(function () { _spc_cleanup(); });
             }, SPC_SEGMENT_DURATION_MS);
         } else {
@@ -1434,10 +1433,12 @@ function _run_spc_segment(resolve) {
             function _pan_next_spc() {
                 if (!_active || panIdx >= panTargets.length) {
                     _segmentTimer = setTimeout(function () {
+                        _set_segment_stage('wait-text');
                         _wait_for_typewriter_then(function () { _spc_cleanup(); });
                     }, Math.min(DWELL_PER, 4000));
                     return;
                 }
+                _set_segment_stage('pan');
                 var t = panTargets[panIdx];
                 map.fitBounds([[t.bbox[0], t.bbox[1]], [t.bbox[2], t.bbox[3]]], {
                     padding: 80, maxZoom: 9, speed: 0.8, essential: true
@@ -2554,9 +2555,7 @@ function _build_live_alert_html(feature, radarStation) {
     var event = p.event || 'Alert';
     var hexColor = '#ff4444';
     try { hexColor = chroma(get_polygon_colors(event).color).hex(); } catch (_) {}
-    var params = p.parameters
-        ? (typeof p.parameters === 'string' ? JSON.parse(p.parameters) : p.parameters)
-        : {};
+    var params = _parse_alert_params(feature);
     var desc = (p.description || '').toUpperCase();
     var isTor = TORNADO_EVENTS.includes(event);
     var isConvective = ['Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning',
@@ -2771,6 +2770,7 @@ function _cancelAllAlertTimers() {
 
 function _run_alert_segment(resolve, forceFeature) {
     _currentSegmentType = 'alert';
+    _set_segment_stage('enter');
 
     var epoch = ++_alertEpoch;
     _cancelAllAlertTimers();
@@ -2789,6 +2789,7 @@ function _run_alert_segment(resolve, forceFeature) {
     function finish() {
         if (_resolved) return;
         _resolved = true;
+        _set_segment_stage('finish');
         _cancelAllAlertTimers();
         _clear_segment_timer();
         _cleanup_loop_listener();
@@ -2817,6 +2818,7 @@ function _run_alert_segment(resolve, forceFeature) {
         alertContext = _get_alert_focus_context(feature);
     }
     if (!feature) return resolve();
+    _set_segment_stage('focus');
 
     _record_segment('alert', feature.id || feature?.properties?.id);
     if (alertContext) _mark_alert_focus_visit(feature, alertContext);
@@ -2855,27 +2857,43 @@ function _run_alert_segment(resolve, forceFeature) {
     // Keep motion/path logic for commentary targeting, but do not render the track overlay.
 
     if (isTornado && motion) {
+        _set_segment_stage('commentary');
         _find_city_in_storm_path(feature, motion, function (city) {
             if (isStale()) return;
-            _typewrite(_generate_alert_commentary(feature, motion, city, alertContext), 1200);
+            try {
+                _typewrite(_generate_alert_commentary(feature, motion, city, alertContext), 1200);
+            } catch (err) {
+                console.warn('[LiveMode] Alert commentary rendering failed', err);
+                _stop_typewriter();
+            }
         });
     } else {
-        _typewrite(_generate_alert_commentary(feature, null, null, alertContext), 1200);
+        _set_segment_stage('commentary');
+        try {
+            _typewrite(_generate_alert_commentary(feature, null, null, alertContext), 1200);
+        } catch (err) {
+            console.warn('[LiveMode] Alert commentary rendering failed', err);
+            _stop_typewriter();
+        }
     }
 
     function _begin_playback() {
         if (isStale()) return finish();
+        _set_segment_stage('playback');
         _run_playback(epoch, function () {
             if (isStale()) return finish();
             if (torEligible) {
+                _set_segment_stage('velocity');
                 _switch_to_velocity(epoch, feature, function () {
                     if (isStale()) return finish();
+                    _set_segment_stage('wait-text');
                     _wait_for_typewriter_then(function () {
                         if (isStale()) return finish();
                         finish();
                     });
                 });
             } else {
+                _set_segment_stage('wait-text');
                 _wait_for_typewriter_then(function () {
                     if (isStale()) return finish();
                     finish();
@@ -2891,6 +2909,7 @@ function _run_alert_segment(resolve, forceFeature) {
             _begin_playback();
         }, 500);
     } else {
+        _set_segment_stage('wait-scan');
         var _scanWaitDone = false;
         _scanLoadListener = function (e) {
             if (_scanWaitDone || isStale()) return;
@@ -2914,6 +2933,7 @@ function _run_alert_segment(resolve, forceFeature) {
     _segmentTimer = setTimeout(function () {
         if (isStale()) return;
         console.warn('[LiveMode] Alert segment safety timeout reached');
+        _set_segment_stage('timeout');
         finish();
     }, 90000);
 }
@@ -2927,6 +2947,7 @@ function _run_playback(epoch, done) {
     function isStale() { return epoch !== _alertEpoch || !_active; }
 
     var _playbackDone = false;
+    _set_segment_stage('playback-init');
     function finish() {
         if (_playbackDone) return;
         _playbackDone = true;
@@ -2978,20 +2999,24 @@ function _run_playback(epoch, done) {
         if (isStale() || _playbackDone) return;
         var loopState = window.stormTrackData?.loopPlayback;
         if (!loopState || !loopState.active || !loopState.supported) {
+            _set_segment_stage('playback-wait');
             if (_waitAttempts < 60) { _waitAttempts++; _trackAlertTimer(_try_play, 400); }
             else finish();
             return;
         }
         if (loopState.preloading) {
+            _set_segment_stage('playback-preload');
             if (_waitAttempts < 60) { _waitAttempts++; _trackAlertTimer(_try_play, 400); }
             else finish();
             return;
         }
         if (!loopState.frames || loopState.frames.length === 0) {
+            _set_segment_stage('playback-frames');
             if (_waitAttempts < 60) { _waitAttempts++; _trackAlertTimer(_try_play, 400); }
             else finish();
             return;
         }
+        _set_segment_stage('playback-loop');
         controller.state.speedMultiplier = PLAYBACK_SPEED;
         if (loopState.playing) {
             try { controller.pause(); } catch (_) {}
@@ -3022,11 +3047,26 @@ function _cleanup_scan_load_listener() {
 
 function _switch_to_velocity(epoch, feature, done) {
     function isStale() { return epoch !== _alertEpoch || !_active; }
+    var finished = false;
+    function finish_once() {
+        if (finished) return;
+        finished = true;
+        _cleanup_scan_load_listener();
+        _set_segment_stage('velocity-done');
+        done();
+    }
+    function _is_velocity_product(product) {
+        var p = String(product || '').toUpperCase();
+        return p === 'VEL' || p === 'N0G' || p === 'N1G' || p === 'N2G' || p === 'N3G' ||
+            p === 'N0U' || p === 'N1U' || p === 'N2U' || p === 'N3U' ||
+            p === 'N0S' || p === 'TV0' || p === 'TV1' || p === 'TV2' ||
+            p.indexOf('P99V') === 0;
+    }
 
     var $velRow = $('.psmRow[value="vel"]').first();
-    if ($velRow.length) {
-        $velRow.trigger('click');
-    }
+    if (!$velRow.length) return done();
+    _set_segment_stage('velocity-enter');
+    $velRow.trigger('click');
 
     if (feature && feature.geometry) {
         try {
@@ -3042,12 +3082,34 @@ function _switch_to_velocity(epoch, feature, done) {
         } catch (_) {}
     }
 
+    var sawVelocityLoad = false;
+    _cleanup_scan_load_listener();
+    _scanLoadListener = function (e) {
+        if (isStale() || finished) return;
+        var detail = e?.detail || {};
+        if (_is_velocity_product(detail.product)) {
+            sawVelocityLoad = true;
+        }
+    };
+    window.addEventListener('radarBaseFactoryLoaded', _scanLoadListener);
+
     _trackAlertTimer(function () {
-        if (isStale()) return done();
+        if (isStale() || finished || sawVelocityLoad) return;
+        _set_segment_stage('velocity-fallback');
+        var $refFallback = $('.psmRow[value="ref"]').first();
+        if ($refFallback.length) $refFallback.trigger('click');
+        _trackAlertTimer(function () {
+            finish_once();
+        }, 250);
+    }, VELOCITY_LOAD_TIMEOUT_MS);
+
+    _set_segment_stage('velocity-hold');
+    _trackAlertTimer(function () {
+        if (isStale() || finished) return finish_once();
         var $refRow = $('.psmRow[value="ref"]').first();
         if ($refRow.length) $refRow.trigger('click');
         _trackAlertTimer(function () {
-            done();
+            finish_once();
         }, 300);
     }, VELOCITY_HOLD_MS);
 }
@@ -3148,6 +3210,10 @@ function _pick_spotlight_station(callback) {
     var stationScores = [];
     var best = null;
     var bestDate = 0;
+    var finalized = false;
+    var finalizeTimer = setTimeout(function () {
+        _finalize();
+    }, 7000);
 
     for (var i = 0; i < unique.length; i++) {
         (function (station) {
@@ -3174,14 +3240,22 @@ function _pick_spotlight_station(callback) {
     }
 
     function _finalize() {
+        if (finalized) return;
+        finalized = true;
+        if (finalizeTimer) {
+            clearTimeout(finalizeTimer);
+            finalizeTimer = null;
+        }
         stationScores.sort(function (a, b) { return b.score - a.score; });
         var MIN_PRECIP_SCORE = 50;
         if (stationScores.length && stationScores[0].score >= MIN_PRECIP_SCORE) {
             callback(stationScores[0].station);
         } else {
-            callback(best || _pick_random(unique));
+            callback(best || _pick_random(unique) || null);
         }
     }
+
+    if (unique.length === 0) _finalize();
 }
 
 function _generate_spotlight_commentary(station) {
@@ -3641,6 +3715,7 @@ function _load_spotlight_forecast_panel(station, segmentEpoch, onReady) {
 
 function _run_spotlight_segment(resolve) {
     _currentSegmentType = 'spotlight';
+    _set_segment_stage('enter');
 
     var epoch = ++_alertEpoch;
     _cancelAllAlertTimers();
@@ -3659,6 +3734,7 @@ function _run_spotlight_segment(resolve) {
     function finish() {
         if (_resolved) return;
         _resolved = true;
+        _set_segment_stage('finish');
         _cancelAllAlertTimers();
         _clear_segment_timer();
         _cleanup_loop_listener();
@@ -3677,6 +3753,7 @@ function _run_spotlight_segment(resolve) {
     _pick_spotlight_station(function (station) {
         if (isStale()) return finish();
         if (!station || !nexrad_locations[station]) return finish();
+        _set_segment_stage('station');
 
         _record_segment('spotlight', station);
 
@@ -3721,6 +3798,7 @@ function _run_spotlight_segment(resolve) {
         }
         _load_spotlight_forecast_panel(station, epoch, function (html) {
             if (isStale()) return;
+            _set_segment_stage('forecast-ready');
             forecastPanelReady = true;
             forecastPanelHtml = html;
             if (loadingRevealTimer) {
@@ -3750,8 +3828,10 @@ function _run_spotlight_segment(resolve) {
 
         _trackAlertTimer(function () {
             if (isStale()) return finish();
+            _set_segment_stage('playback');
             _run_playback(epoch, function () {
                 if (isStale()) return finish();
+                _set_segment_stage('wait-text');
                 _wait_for_typewriter_then(function () {
                     if (isStale()) return finish();
                     finish();
@@ -3817,6 +3897,7 @@ function _ensure_single_site_mode() {
 
 function _run_conus_segment(resolve) {
     _currentSegmentType = 'conus';
+    _set_segment_stage('enter');
     _record_segment('conus', 'conus');
     _set_clock_mode('hidden');
     _hide_header_radar_info(null);
@@ -3855,7 +3936,9 @@ function _run_conus_segment(resolve) {
     function finish() {
         if (didResolve) return;
         didResolve = true;
+        _set_segment_stage('wait-text');
         _wait_for_typewriter_then(function () {
+            _set_segment_stage('finish');
             _stop_typewriter();
             _hide_info_panel();
             _remove_static_mrms_layer();
@@ -3868,6 +3951,7 @@ function _run_conus_segment(resolve) {
     function run_next_focus() {
         if (!_active || _currentSegmentType !== 'conus') return;
         if (focusIdx >= focusRegions.length) return finish();
+        _set_segment_stage('focus');
 
         var region = focusRegions[focusIdx++];
         _show_info_panel(_build_conus_panel_html(region.name));
@@ -4436,6 +4520,7 @@ var _lastConditionsRegionIdx = -1;
 
 function _run_conditions_segment(resolve) {
     _currentSegmentType = 'conditions';
+    _set_segment_stage('enter');
     _set_clock_mode('hidden');
     _hide_header_radar_info(null);
 
@@ -4482,6 +4567,7 @@ function _run_conditions_segment(resolve) {
 
     _fetch_observations(_get_region_stations(region), function (observations) {
         if (!_active) { _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
+        _set_segment_stage('obs-ready');
 
         var obsKeys = Object.keys(observations);
         if (obsKeys.length === 0) {
@@ -4494,6 +4580,7 @@ function _run_conditions_segment(resolve) {
 
         _trackAlertTimer(function () {
             if (!_active) { _show_header_radar_info(); _hide_cond_legend(); return resolve(); }
+            _set_segment_stage('plot');
             var features = _build_conditions_features(region, observations);
             conditionsLayerController = _add_conditions_layer(features);
             _show_cond_legend();
@@ -4501,6 +4588,7 @@ function _run_conditions_segment(resolve) {
             _start_conditions_reveal_when_ready();
 
             _segmentTimer = setTimeout(function () {
+                _set_segment_stage('finish');
                 _remove_conditions_layer();
                 _hide_cond_legend();
                 _show_header_radar_info();
@@ -4917,6 +5005,7 @@ function _eq_zone_bbox(zone) {
 
 function _run_earthquake_segment(resolve) {
     _currentSegmentType = 'earthquake';
+    _set_segment_stage('enter');
     _record_segment('earthquake', 'earthquake');
     _set_clock_mode('hidden');
     _hide_header_radar_info(null);
@@ -4927,6 +5016,7 @@ function _run_earthquake_segment(resolve) {
     _remove_conditions_layer();
 
     function _cleanup() {
+        _set_segment_stage('finish');
         _stop_typewriter();
         _remove_earthquake_layer();
         _show_header_radar_info();
@@ -4937,6 +5027,7 @@ function _run_earthquake_segment(resolve) {
 
     _fetch_earthquakes(function (quakes) {
         if (!_active) { _show_header_radar_info(); return resolve(); }
+        _set_segment_stage('fetch-ready');
 
         if (quakes.length > 0) {
             var rc = quakes[0].geometry.coordinates;
@@ -4958,6 +5049,7 @@ function _run_earthquake_segment(resolve) {
 
         _trackAlertTimer(function () {
             if (!_active) return _cleanup();
+            _set_segment_stage('plot');
             _add_earthquake_layer(quakes);
             _typewrite(_generate_earthquake_commentary(quakes), 1200);
 
@@ -5019,111 +5111,6 @@ function _hide_overlay() {
     map.resize();
 }
 
-function _set_live_viewer_count_text(text) {
-    var el = document.getElementById('liveModeViewerCount');
-    if (!el) return;
-    el.textContent = text;
-}
-
-function _format_live_viewer_count(count) {
-    if (!Number.isFinite(count) || count < 0) return '-- viewers';
-    var rounded = Math.round(count);
-    var noun = rounded === 1 ? 'visitor' : 'visitors';
-    return new Intl.NumberFormat('en-US').format(rounded) + ' ' + noun;
-}
-
-function _render_live_viewer_count(count) {
-    _set_live_viewer_count_text(_format_live_viewer_count(count));
-}
-
-function _clear_live_viewer_timers() {
-    if (_viewerCountPollTimer) {
-        clearInterval(_viewerCountPollTimer);
-        _viewerCountPollTimer = null;
-    }
-    if (_viewerCountReconnectTimer) {
-        clearTimeout(_viewerCountReconnectTimer);
-        _viewerCountReconnectTimer = null;
-    }
-}
-
-function _fetch_live_viewer_count_once() {
-    return fetch(LM_VIEWER_COUNT_URL, { cache: 'no-store' })
-        .then(function (r) { return r && r.ok ? r.json() : null; })
-        .then(function (payload) {
-            if (!payload || !Number.isFinite(payload.count)) return;
-            _render_live_viewer_count(payload.count);
-        })
-        .catch(function () {});
-}
-
-function _start_live_viewer_polling() {
-    if (_viewerCountPollTimer) return;
-    _fetch_live_viewer_count_once();
-    _viewerCountPollTimer = setInterval(_fetch_live_viewer_count_once, LM_VIEWER_POLL_MS);
-}
-
-function _close_live_viewer_stream() {
-    if (_viewerCountEventSource) {
-        try { _viewerCountEventSource.close(); } catch (_) {}
-        _viewerCountEventSource = null;
-    }
-}
-
-function _schedule_live_viewer_reconnect() {
-    if (_viewerCountReconnectTimer || !_active) return;
-    _viewerCountReconnectTimer = setTimeout(function () {
-        _viewerCountReconnectTimer = null;
-        if (!_active) return;
-        _connect_live_viewer_count_stream();
-    }, LM_VIEWER_RETRY_MS);
-}
-
-function _connect_live_viewer_count_stream() {
-    _close_live_viewer_stream();
-    if (_viewerCountPollTimer) {
-        clearInterval(_viewerCountPollTimer);
-        _viewerCountPollTimer = null;
-    }
-    if (typeof window.EventSource !== 'function') {
-        _start_live_viewer_polling();
-        return;
-    }
-
-    try {
-        _viewerCountEventSource = new EventSource(LM_VIEWER_STREAM_URL);
-    } catch (_) {
-        _start_live_viewer_polling();
-        _schedule_live_viewer_reconnect();
-        return;
-    }
-
-    _viewerCountEventSource.addEventListener('viewers', function (evt) {
-        try {
-            var payload = JSON.parse(evt.data || '{}');
-            if (Number.isFinite(payload.count)) _render_live_viewer_count(payload.count);
-        } catch (_) {}
-    });
-
-    _viewerCountEventSource.onerror = function () {
-        _close_live_viewer_stream();
-        _start_live_viewer_polling();
-        _schedule_live_viewer_reconnect();
-    };
-}
-
-function _start_live_viewer_count() {
-    _set_live_viewer_count_text('-- viewers');
-    _clear_live_viewer_timers();
-    _connect_live_viewer_count_stream();
-}
-
-function _stop_live_viewer_count() {
-    _clear_live_viewer_timers();
-    _close_live_viewer_stream();
-    _set_live_viewer_count_text('-- viewers');
-}
-
 function _flash_transition() {
     var $flash = $('#lmTransitionFlash');
     $flash.removeClass('lmTransitionFlash-active');
@@ -5133,6 +5120,49 @@ function _flash_transition() {
 
 function _show_segment_label() {}
 function _hide_segment_label() {}
+
+var _SEGMENT_DEBUG_LABELS = {
+    spc: 'SPC',
+    alert: 'ALERT',
+    conus: 'CONUS',
+    spotlight: 'SPOTLIGHT',
+    conditions: 'CONDITIONS',
+    earthquake: 'EARTHQUAKE'
+};
+var _segmentDebugEnabled = false;
+
+function _set_segment_debug(type, suffix) {
+    var el = document.getElementById('liveModeSegmentDebug');
+    if (!el) return;
+
+    if (!_segmentDebugEnabled) {
+        el.style.display = 'none';
+        return;
+    }
+    el.style.display = 'inline-flex';
+
+    if (!_active) {
+        el.textContent = 'SEG: OFF';
+        return;
+    }
+
+    var key = String(type || _currentSegmentType || '').toLowerCase();
+    var base = _SEGMENT_DEBUG_LABELS[key] || (key ? key.toUpperCase() : 'IDLE');
+    if (suffix) {
+        el.textContent = 'SEG: ' + base + ' (' + String(suffix).toUpperCase() + ')';
+    } else {
+        el.textContent = 'SEG: ' + base;
+    }
+}
+
+function _set_segment_stage(stage) {
+    _set_segment_debug(_currentSegmentType, stage);
+}
+
+function setSegmentDebugEnabled(enabled) {
+    _segmentDebugEnabled = !!enabled;
+    _set_segment_debug(_currentSegmentType);
+}
 
 // ── New-Alert Banner ─────────────────────────────────────────────────────────
 
@@ -5430,6 +5460,7 @@ function _pick_next_segment() {
 // ── Director Loop ────────────────────────────────────────────────────────────
 
 function _full_segment_cleanup() {
+    _set_segment_stage('cleanup');
     _currentSegmentType = null;
     _alertEpoch++;
     _cancelAllAlertTimers();
@@ -5471,6 +5502,7 @@ function _run_next() {
     var type = _pick_next_segment();
     _flash_transition();
     _show_segment_label(type);
+    _set_segment_debug(type, 'queued');
 
     function advance() {
         if (!_active) return;
@@ -5523,6 +5555,7 @@ function _on_tornado_interrupt(e) {
     if (!torFeature) return;
 
     _abort_current_segment();
+    _set_segment_debug('alert', 'interrupt');
     _run_alert_segment(function () {
         if (_active) _trackAlertTimer(_run_next, 600);
     }, torFeature);
@@ -5617,10 +5650,10 @@ function enable() {
     _active = true;
     _recentSegments = [];
     _alertVisitHistory = Object.create(null);
+    _set_segment_debug('idle', 'starting');
 
     _save_state();
     _show_overlay();
-    _start_live_viewer_count();
     _lock_map();
 
     _tornadoInterruptListener = _on_tornado_interrupt;
@@ -5647,6 +5680,7 @@ function enable() {
 function disable() {
     if (!_active) return;
     _active = false;
+    _set_segment_debug(null);
     window.stormTrackData.liveModeActive = false;
     _stop_non_site_guard();
     _unbind_sweep_sync_listeners();
@@ -5656,7 +5690,6 @@ function disable() {
     _disable_alert_banner();
     _show_header_radar_info();
     _set_clock_mode('both');
-    _stop_live_viewer_count();
     _hide_overlay();
     _unlock_map();
     _restore_state();
@@ -5751,6 +5784,7 @@ function forceSegment(type, options) {
     _abort_current_segment();
     _flash_transition();
     _show_segment_label(type);
+    _set_segment_debug(type, 'forced');
 
     function advance() {
         if (!_active) return;
@@ -5772,4 +5806,4 @@ function forceSegment(type, options) {
     return true;
 }
 
-module.exports = { enable, disable, isActive, startMusic, stopMusic, setMusicVolume, duckMusic, unduckMusic, forceSegment };
+module.exports = { enable, disable, isActive, startMusic, stopMusic, setMusicVolume, duckMusic, unduckMusic, forceSegment, setSegmentDebugEnabled };

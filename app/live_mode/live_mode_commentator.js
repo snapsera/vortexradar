@@ -82,7 +82,10 @@ class LiveModeCommentator {
         this.typewriterFinished = false;
         var $el = $('#lmCommentary');
         var $status = $('#lmCommentaryStatus');
-        if (!$el.length || !text) {
+        var normalizedText = '';
+        if (typeof text === 'string') normalizedText = text;
+        else if (text != null) normalizedText = String(text);
+        if (!$el.length || !normalizedText) {
             this.typewriterFinished = true;
             return;
         }
@@ -96,7 +99,7 @@ class LiveModeCommentator {
         var self = this;
         var idx = 0;
         var baseDelay = 22;
-        var queue = text.split('');
+        var queue = normalizedText.split('');
 
         function tick() {
             if (!self.isActive() || idx >= queue.length) {

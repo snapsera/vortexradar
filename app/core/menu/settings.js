@@ -464,6 +464,12 @@ armFunctions.toggleswitchFunctions($('#armrLiveModeBtnSwitchElem'), function() {
     $('#lmMusicSubMenu').slideUp(200);
 }, saveSettings);
 
+armFunctions.toggleswitchFunctions($('#devLiveModeSegmentDebugSwitchElem'), function() {
+    live_mode.setSegmentDebugEnabled(true);
+}, function() {
+    live_mode.setSegmentDebugEnabled(false);
+}, saveSettings);
+
 $('#lmMusicToggle').on('change', function() {
     if ($(this).is(':checked')) {
         live_mode.startMusic();
@@ -605,6 +611,8 @@ function applySavedSettings() {
         require('../../alerts/focus_new_alerts').hide_focus_panel();
     }
     $('#armrLiveModeBtnSwitchElem').prop('checked', !!s.liveMode);
+    $('#devLiveModeSegmentDebugSwitchElem').prop('checked', !!s.liveModeSegmentDebug);
+    live_mode.setSegmentDebugEnabled(!!s.liveModeSegmentDebug);
     $('#lmMusicToggle').prop('checked', !!s.liveModeMusic);
     $('#lmMusicVolumeSlider').val(s.liveModeVolume || 15);
     $('#lmMusicVolumeValue').text((s.liveModeVolume || 15) + '%');

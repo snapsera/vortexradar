@@ -726,11 +726,8 @@
     <!-- 24/7 Live Mode overlays -->
     <div id="liveModeOverlay" class="liveModeOverlay" style="display:none;">
         <div id="liveModeBadge" class="liveModeBadge">
-            <div class="liveModeBadgeMain">
-                <span class="liveModeBadgeDot"></span>
-                <span>LIVE</span>
-            </div>
-            <div id="liveModeViewerCount" class="liveModeViewerCount">-- viewers</div>
+            <span class="liveModeBadgeDot"></span>
+            LIVE
         </div>
         <div class="lmScanlines"></div>
         <div id="liveModeInfoPanel" class="liveModeInfoPanel"></div>
@@ -917,7 +914,10 @@
                 <div style="font-size: 13px; color: rgb(161, 161, 161)"><span id="radarVCP"></span></div>
             </span>
         </div>
-        <div id="liveModeHeaderBetaTag" class="liveModeHeaderBetaTag" aria-label="Live Mode is in beta">Live Mode - BETA</div>
+        <div id="liveModeHeaderBetaTag" class="liveModeHeaderBetaTag" aria-label="Live Mode is in beta">
+            <span>Live Mode - BETA</span>
+            <span id="liveModeSegmentDebug" class="liveModeHeaderSegmentDebug">SEG: OFF</span>
+        </div>
         <div id="top-right" style="font-weight: bold">
             <div id="headerClock" class="headerClock">
                 <div class="headerClockLine"><span class="headerClockLabel">Local Clock:</span> <span id="headerClockLocal">--:--:--</span></div>
@@ -1277,6 +1277,13 @@
                                 <i class="armrIcon armrIcon-Blue fa-solid fa-code"></i>
                                 Developer Tools
                                 <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div class="menu-row armrMiddle" id="armrLiveModeSegmentDebugBtn">
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-bug"></i>
+                                Live Mode Segment Debug
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="devLiveModeSegmentDebugSwitchElem">
+                                </div>
                             </div>
                             <div class="menu-row armrBottom devtools-action-row" id="devConsoleOpenBtn">
                                 <i class="armrIcon armrIcon-Blue fa-solid fa-terminal"></i>

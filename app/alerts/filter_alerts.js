@@ -86,3 +86,6 @@ module.exports._is_statement = _is_statement;
 module.exports.should_show_alert_feature = function (feature) {
     return _should_show_feature(feature);
 };
+module.exports.is_severe_sws_feature = function (feature) {
+    return _is_severe_sws(feature);
+};

@@ -666,12 +666,13 @@ function _show_header_alert_banner(eventName, states) {
     _headerAlertBannerEl.style.background = bgColor;
     _headerAlertBannerEl.style.color = '#000';
 
+    // Hide the clock first so top-right layout settles before positioning.
+    _set_header_clock_suppressed(true);
     _position_header_alert_banner();
     _headerAlertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
     void _headerAlertBannerEl.offsetWidth;
     _headerAlertBannerEl.classList.add('lmAlertBanner-visible');
     _headerAlertBannerShowing = true;
-    _set_header_clock_suppressed(true);
 
     if (_headerAlertBannerTimeout) clearTimeout(_headerAlertBannerTimeout);
     if (_headerAlertBannerFadeTimeout) clearTimeout(_headerAlertBannerFadeTimeout);

@@ -133,6 +133,44 @@ function _expand_null_geometry_watches(alerts_data) {
     return alerts_data;
 }
 
+function _is_finite_num(n) {
+    return typeof n === 'number' && Number.isFinite(n);
+}
+
+function _is_renderable_alert_geometry(feature) {
+    const geom = feature?.geometry;
+    if (!geom) return true;
+
+    try {
+        const bbox = turf.bbox(geom);
+        if (!Array.isArray(bbox) || bbox.length !== 4) return false;
+        const minLng = bbox[0];
+        const minLat = bbox[1];
+        const maxLng = bbox[2];
+        const maxLat = bbox[3];
+        if (!_is_finite_num(minLng) || !_is_finite_num(minLat) || !_is_finite_num(maxLng) || !_is_finite_num(maxLat)) {
+            return false;
+        }
+
+        // Reject impossible coordinate ranges outright.
+        if (minLat < -90 || maxLat > 90) return false;
+        if (minLng < -180 || maxLng > 180) return false;
+
+        const lonSpan = Math.abs(maxLng - minLng);
+        const latSpan = Math.abs(maxLat - minLat);
+
+        // World-spanning, shallow lat-band polygons are usually dateline-wrap artifacts.
+        if (lonSpan > 340 && latSpan < 20) return false;
+
+        // Extra safety for malformed geometries.
+        if (lonSpan > 360 || latSpan > 180) return false;
+
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
 function _get_normal_line_color_expr() {
     return [
         'case',
@@ -424,9 +462,14 @@ function plot_alerts(alerts_data, options) {
     alerts_data.features = (alerts_data.features || []).filter((f) => {
         const event = f?.properties?.event || '';
         if (f?.properties?._isTestAlert) return true;
-        if (event === 'Special Weather Statement' && f?.geometry) return true;
+        // Keep severe/storm-based SWS polygons on-map, but suppress county-style SWS polygons;
+        // county highlights are rendered by watch_overlay instead.
+        if (event === 'Special Weather Statement' && f?.geometry) {
+            return !!(filter_alerts.is_severe_sws_feature && filter_alerts.is_severe_sws_feature(f));
+        }
         return !(watch_overlay.is_overlay_event && watch_overlay.is_overlay_event(event));
     });
+    alerts_data.features = (alerts_data.features || []).filter(_is_renderable_alert_geometry);
     const watch_after_filter = (alerts_data.features || []).filter((f) => _is_watch_event(f?.properties?.event || '') && !!f?.geometry).length;
     const total_after_filter = (alerts_data.features || []).length;
     _lastWatchDebugStats = {

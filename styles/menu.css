@@ -484,8 +484,8 @@
 
 .desktopUpdateToast {
   position: fixed;
-  right: 14px;
-  bottom: 14px;
+  right: 66px;
+  bottom: 56px;
   z-index: calc(var(--z-dialog) + 8);
   max-width: min(360px, calc(100vw - 28px));
   padding: 10px 12px;

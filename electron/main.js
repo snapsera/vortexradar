@@ -8,6 +8,9 @@ const HOST = '127.0.0.1';
 const SERVER_READY_TIMEOUT_MS = 15000;
 const SERVER_RETRY_DELAY_MS = 250;
 const UPDATE_CHECK_DELAY_MS = 10000;
+const INSTALL_PREP_MAX_PERCENT = 95;
+const INSTALL_PREP_STEP_PERCENT = 5;
+const INSTALL_PREP_STEP_MS = 220;
 const iconPath = path.join(__dirname, '..', 'images', 'vortexicon.ico');
 const windowTitleBase = 'Vortex Radar | Advanced Weather';
 
@@ -15,12 +18,32 @@ let serverInstance = null;
 let serverPort = null;
 let mainWindow = null;
 let isQuitting = false;
+let installPrepInProgress = false;
 
 function _send_update_status(payload) {
     if (!mainWindow || mainWindow.isDestroyed()) {
         return;
     }
     mainWindow.webContents.send('desktop-updater-status', payload || {});
+}
+
+function _start_install_handoff_progress() {
+    if (installPrepInProgress) return;
+    installPrepInProgress = true;
+    let percent = 0;
+    _send_update_status({ state: 'installing', percent });
+
+    const timer = setInterval(() => {
+        percent = Math.min(INSTALL_PREP_MAX_PERCENT, percent + INSTALL_PREP_STEP_PERCENT);
+        _send_update_status({ state: 'installing', percent });
+        if (percent >= INSTALL_PREP_MAX_PERCENT) {
+            clearInterval(timer);
+            _send_update_status({ state: 'installing-handoff', percent });
+            // Silent in-place install so users do not see the NSIS wizard.
+            // Force-run after install to reopen the updated app automatically.
+            autoUpdater.quitAndInstall(true, true);
+        }
+    }, INSTALL_PREP_STEP_MS);
 }
 
 // Desktop app should allow weather alert/audio playback without requiring
@@ -75,7 +98,7 @@ function setupAutoUpdates() {
         });
 
         if (response.response === 0) {
-            autoUpdater.quitAndInstall();
+            _start_install_handoff_progress();
         }
     });
 

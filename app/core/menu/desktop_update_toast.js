@@ -64,6 +64,19 @@ function _handle_status(payload) {
         });
         return;
     }
+    if (state === 'installing') {
+        var installPercent = Number(payload.percent || 0);
+        _show('Installing update... ' + Math.max(0, Math.min(95, Math.round(installPercent))) + '%', {
+            typeClass: 'desktopUpdateToast--warn',
+        });
+        return;
+    }
+    if (state === 'installing-handoff') {
+        _show('Finalizing update and restarting...', {
+            typeClass: 'desktopUpdateToast--warn',
+        });
+        return;
+    }
     if (state === 'up-to-date') {
         _show('App is up to date.', {
             typeClass: 'desktopUpdateToast--ok',

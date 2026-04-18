@@ -1095,6 +1095,8 @@ var radar_scan_animation = require('../radar/station_markers/radar_scan_animatio
 
 var ALERT_LAYER_IDS = ['alertsLayer', 'alertsLayerFill', 'alertsBlinkLayer', 'alertsDashedLayer'];
 var STORM_REPORT_LAYER_IDS = ['stormReportsLayer', 'stormReportsHaloLayer'];
+var LIGHTNING_GLOW_LAYER_ID = 'lightningGlow';
+var LIGHTNING_CORE_LAYER_ID = 'lightningCore';
 
 function _segment_allows_site_radar() {
     return !_active || _currentSegmentType === 'alert' || _currentSegmentType === 'spotlight';
@@ -1319,6 +1321,38 @@ function _show_lightning_overlay() {
         if (!s.lightning) return;
         for (var i = 0; i < lightning.LAYERS.length; i++) {
             if (map.getLayer(lightning.LAYERS[i])) map.setLayoutProperty(lightning.LAYERS[i], 'visibility', 'visible');
+        }
+        _apply_live_mode_lightning_style();
+    } catch (_) {}
+}
+
+function _apply_live_mode_lightning_style() {
+    if (!_active) return;
+    try {
+        if (map.getLayer(LIGHTNING_GLOW_LAYER_ID)) {
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-opacity', ['min', 1, ['*', ['get', 'go'], 1.65]]);
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-radius', ['*', ['get', 'gr'], 1.2]);
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-color', '#e8eeff');
+        }
+        if (map.getLayer(LIGHTNING_CORE_LAYER_ID)) {
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-opacity', ['min', 1, ['*', ['get', 'co'], 1.6]]);
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-radius', ['*', ['get', 'cr'], 1.15]);
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-color', '#ffffff');
+        }
+    } catch (_) {}
+}
+
+function _restore_live_mode_lightning_style() {
+    try {
+        if (map.getLayer(LIGHTNING_GLOW_LAYER_ID)) {
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-radius', ['get', 'gr']);
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-color', '#dde4ff');
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-opacity', ['get', 'go']);
+        }
+        if (map.getLayer(LIGHTNING_CORE_LAYER_ID)) {
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-radius', ['get', 'cr']);
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-color', '#ffffff');
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-opacity', ['get', 'co']);
         }
     } catch (_) {}
 }
@@ -3002,6 +3036,7 @@ function _run_alert_segment(resolve, forceFeature) {
         station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D', { persist: false });
         _show_radar_render();
         _show_station_markers();
+        _show_alert_polygons();
         _show_radar_sweep();
         _show_lightning_overlay();
         _show_header_radar_info({ force: true });
@@ -5546,6 +5581,7 @@ function _run_earthquake_segment(resolve) {
     _clear_active_station_selection();
     _remove_static_mrms_layer();
     _remove_conditions_layer();
+    _remove_earthquake_layer();
 
     function _cleanup() {
         _set_segment_stage('finish');
@@ -6026,7 +6062,7 @@ function _full_segment_cleanup(options) {
     _hide_radar_sweep();
     _hide_lightning_overlay();
     _clear_active_station_selection();
-    _show_alert_polygons();
+    _hide_alert_polygons();
     _hide_header_radar_info(null, { allowSocialFallback: false });
     _hide_eq_legend();
     _hide_cond_legend();
@@ -6252,6 +6288,7 @@ function enable() {
     window.stormTrackData.liveModeActive = true;
     _bind_sweep_sync_listeners();
     _start_non_site_guard();
+    _apply_live_mode_lightning_style();
 
     var updater = window.stormTrackData?.current_RadarUpdater;
     if (updater) updater.disable();
@@ -6282,6 +6319,7 @@ function disable() {
     _set_clock_mode('both');
     _hide_overlay();
     _unlock_map();
+    _restore_live_mode_lightning_style();
     _restore_state();
     _show_storm_reports();
 

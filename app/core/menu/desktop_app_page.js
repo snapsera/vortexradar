@@ -1,11 +1,13 @@
-var DOWNLOAD_FALLBACK_URL = 'https://github.com/snapsera/vortexradar/releases/latest/download/Vortex%20Radar%20Setup.exe';
+var DOWNLOAD_FALLBACK_URL = 'https://github.com/snapsera/vortexradar/releases/latest/download/Vortex-Radar-Setup.exe';
 var RELEASES_URL = 'https://github.com/snapsera/vortexradar/releases/latest';
 
 var _overlay = null;
 var _prompt = null;
+var _toast = null;
 var _pauseLocks = 0;
 var _resumeLoopPlaybackOnClose = false;
 var _hiddenGlobalButtons = {};
+var _toastTimer = null;
 
 function _is_desktop_app() {
     try {
@@ -86,6 +88,7 @@ function _open_download_page() {
     if (!_overlay) return;
     if (_overlay.hasClass('desktopAppOverlay-visible')) return;
     _overlay.addClass('desktopAppOverlay-visible');
+    _hide_download_toast();
     _acquire_pause_lock();
 }
 
@@ -93,6 +96,7 @@ function _close_download_page() {
     if (!_overlay) return;
     if (!_overlay.hasClass('desktopAppOverlay-visible')) return;
     _overlay.removeClass('desktopAppOverlay-visible');
+    _hide_download_toast();
     _release_pause_lock();
 }
 
@@ -121,6 +125,32 @@ function _open_download_link() {
     setTimeout(function() {
         iframe.remove();
     }, 45000);
+    _show_download_toast('started');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function() {
+        _show_download_toast('fallback');
+    }, 2600);
+}
+
+function _show_download_toast(mode) {
+    if (!_toast || !_toast.length) return;
+    var html = '';
+    if (mode === 'started') {
+        html = '<i class="fa-solid fa-circle-check"></i><span>Download started. If your browser blocks it, use the fallback link.</span>' +
+            '<button type="button" class="desktopAppToastLinkBtn" id="desktopAppToastFallbackBtn">If download didn\'t start, click here</button>';
+    } else {
+        html = '<i class="fa-solid fa-circle-info"></i><span>If the installer did not start downloading, use this direct link.</span>' +
+            '<button type="button" class="desktopAppToastLinkBtn" id="desktopAppToastFallbackBtn">If download didn\'t start, click here</button>';
+    }
+    _toast.html(html).addClass('desktopAppToast-visible');
+}
+
+function _hide_download_toast() {
+    if (_toastTimer) {
+        clearTimeout(_toastTimer);
+        _toastTimer = null;
+    }
+    if (_toast && _toast.length) _toast.removeClass('desktopAppToast-visible').empty();
 }
 
 function _open_releases_link() {
@@ -172,6 +202,7 @@ function _build_overlay_html() {
                         '</div>' +
                     '</div>' +
                 '</div>' +
+                '<div class="desktopAppToast" id="desktopAppToast" aria-live="polite"></div>' +
             '</div>' +
         '</div>' +
         '<div class="desktopAppPromptOverlay" id="desktopAppPromptOverlay">' +
@@ -196,6 +227,9 @@ function _bind_events() {
 
     $('#desktopAppDownloadBtn').on('click', _open_download_link);
     $('#desktopAppReleasesBtn').on('click', _open_releases_link);
+    $(document).on('click', '#desktopAppToastFallbackBtn', function() {
+        _open_releases_link();
+    });
 
     $('#desktopAppPromptYesBtn').on('click', function() {
         _hide_prompt();
@@ -225,6 +259,7 @@ function init() {
     $('body').append(_build_overlay_html());
     _overlay = $('#desktopAppOverlay');
     _prompt = $('#desktopAppPromptOverlay');
+    _toast = $('#desktopAppToast');
     _bind_events();
     _show_web_prompt_after_loading();
 }

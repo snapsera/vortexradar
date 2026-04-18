@@ -6085,8 +6085,55 @@ a:hover { color: var(--color-accent-hover); }
     border-color: rgba(148, 163, 184, 0.4);
 }
 
-.desktopAppReleasesLink {
+.desktopAppToast {
+    position: fixed;
+    right: 24px;
+    bottom: 20px;
+    z-index: 500131;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: min(540px, calc(100vw - 48px));
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    background: rgba(2, 6, 23, 0.95);
+    color: #dbeafe;
+    border-radius: 2px;
+    padding: 10px 12px;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.desktopAppToast i {
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.desktopAppToast-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.desktopAppToastLinkBtn {
+    margin-left: auto;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 2px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #e2e8f0;
+    padding: 6px 9px;
+    font-size: 12px;
+    font-weight: 700;
     cursor: pointer;
+}
+
+.desktopAppToastLinkBtn:hover {
+    border-color: rgba(56, 189, 248, 0.9);
+    background: rgba(30, 41, 59, 0.96);
 }
 
 @keyframes desktopAppBgFloat {
@@ -6127,6 +6174,17 @@ a:hover { color: var(--color-accent-hover); }
 
     .desktopAppHeroLead {
         font-size: 15px;
+    }
+
+    .desktopAppToast {
+        right: 14px;
+        bottom: 14px;
+        max-width: calc(100vw - 28px);
+        flex-wrap: wrap;
+    }
+
+    .desktopAppToastLinkBtn {
+        margin-left: 0;
     }
 }
 

@@ -18,7 +18,7 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 
 ![Vortex Radar - Location Lookup (MyCast)](images/readme-screenshot-4.gif)
 
-![Vortex Radar - Live Mode Severe Line](images/readme-screenshot-5-live-mode.png)
+![Vortex Radar - Live Mode Severe Line](images/readme-screenshot-5-live-mode.gif)
 
 ## Features
 

@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const net = require('net');
 const { app, BrowserWindow, dialog, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
@@ -19,6 +20,41 @@ let serverPort = null;
 let mainWindow = null;
 let isQuitting = false;
 let installPrepInProgress = false;
+let persistedWindowState = null;
+
+function getWindowStatePath() {
+    return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function loadWindowState() {
+    try {
+        const raw = fs.readFileSync(getWindowStatePath(), 'utf8');
+        const parsed = JSON.parse(raw);
+        const b = parsed?.bounds || {};
+        if (![b.x, b.y, b.width, b.height].every(Number.isFinite)) {
+            return null;
+        }
+        return {
+            bounds: {
+                x: Math.round(b.x),
+                y: Math.round(b.y),
+                width: Math.round(b.width),
+                height: Math.round(b.height),
+            },
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+function saveWindowState(state) {
+    try {
+        const target = getWindowStatePath();
+        fs.writeFileSync(target, JSON.stringify(state, null, 2), 'utf8');
+    } catch (error) {
+        console.warn('[Electron] Failed to persist window state:', error?.message || error);
+    }
+}
 
 function _send_update_status(payload) {
     if (!mainWindow || mainWindow.isDestroyed()) {
@@ -169,9 +205,15 @@ async function startEmbeddedServer() {
 
 function createMainWindow() {
     const appVersion = app.getVersion();
+    const initialState = persistedWindowState || loadWindowState();
+    const hasSavedBounds = !!(initialState && initialState.bounds);
+    let boundsPersistTimer = null;
+
     mainWindow = new BrowserWindow({
-        width: 1366,
-        height: 900,
+        width: hasSavedBounds ? initialState.bounds.width : 1366,
+        height: hasSavedBounds ? initialState.bounds.height : 900,
+        x: hasSavedBounds ? initialState.bounds.x : undefined,
+        y: hasSavedBounds ? initialState.bounds.y : undefined,
         minWidth: 1120,
         minHeight: 700,
         show: false,
@@ -194,9 +236,39 @@ function createMainWindow() {
     mainWindow.setMenuBarVisibility(false);
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+        if (!hasSavedBounds) {
+            mainWindow.maximize();
+        }
     });
 
+    function persistCurrentBoundsIfResizable() {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        if (mainWindow.isMaximized() || mainWindow.isMinimized() || mainWindow.isFullScreen()) return;
+        const b = mainWindow.getBounds();
+        const state = { bounds: { x: b.x, y: b.y, width: b.width, height: b.height } };
+        persistedWindowState = state;
+        saveWindowState(state);
+    }
+
+    function queuePersistBounds() {
+        if (boundsPersistTimer) {
+            clearTimeout(boundsPersistTimer);
+        }
+        boundsPersistTimer = setTimeout(() => {
+            boundsPersistTimer = null;
+            persistCurrentBoundsIfResizable();
+        }, 250);
+    }
+
+    mainWindow.on('resize', queuePersistBounds);
+    mainWindow.on('move', queuePersistBounds);
+
     mainWindow.on('closed', () => {
+        if (boundsPersistTimer) {
+            clearTimeout(boundsPersistTimer);
+            boundsPersistTimer = null;
+        }
+        persistCurrentBoundsIfResizable();
         mainWindow = null;
     });
 }

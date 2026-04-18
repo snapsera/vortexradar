@@ -1,6 +1,6 @@
 {
   "name": "vortex-radar",
-  "version": "1.0.13",
+  "version": "1.0.15",
   "productName": "Vortex Radar",
   "main": "server.js",
   "scripts": {

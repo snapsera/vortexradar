@@ -12,7 +12,7 @@ function build_about_html() {
     const year = new Date().getFullYear();
 
     return `
-<div class="about aboutShowcasePanel">
+<div class="about">
     <div class="about_shell">
         <div class="about_hero">
             <img class="about_logo" src="images/vortexicon_rotate.svg" draggable="false" oncontextmenu="return false;">
@@ -24,9 +24,9 @@ function build_about_html() {
 
         <p class="about_desc">
             Direct access to the full NEXRAD radar network, severe weather alerts,
-            storm tracking, and a whole lot more. Whether you're chasing storms or
+            storm tracking, and more. Whether you're chasing storms or
             just keeping an eye on the weather, it's built to give you the data you
-            need, fast.
+            need, fast. <span class="about_descAccent">COMPLETELY FREE!</span>
         </p>
 
         <div class="about_section">
@@ -63,10 +63,17 @@ function build_about_html() {
                 <div class="about_feat">
                     <div class="about_featIcon about_featIcon--pink"><i class="fa-solid fa-palette"></i></div>
                     <div>
-                        <div class="about_featTitle">Custom Colortables</div>
-                        <div class="about_featSub">Upload your own palettes</div>
+                        <div class="about_featTitle">SPC Outlooks</div>
+                        <div class="about_featSub">Convective outlook overlays and risk zones</div>
                     </div>
                 </div>
+                <div class="about_feat">
+                <div class="about_featIcon about_featIcon--red"><i class="fa-solid fa-bolt"></i></div>
+                <div>
+                    <div class="about_featTitle">Live Mode</div>
+                    <div class="about_featSub">Storm coverage as it happens in real time.</div>
+                </div>
+            </div>
             </div>
         </div>
 

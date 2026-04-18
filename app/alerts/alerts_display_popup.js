@@ -54,6 +54,7 @@ const ALERT_HINTS = {
     'Flood Warning':              'Flooding is occurring or imminent. Move away from flood-prone areas. Do not walk or drive through floodwaters.',
     'Flood Advisory':             'Minor flooding expected. It may cause inconvenience but is not life-threatening if caution is exercised.',
     'Coastal Flood Warning':      'Significant flooding expected along the coast from tidal surge. Coastal roads and low areas may be impassable.',
+    'Coastal Flood Advisory':     'Minor to moderate coastal flooding is expected. Low-lying roads and shoreline areas may briefly flood around high tide.',
     'Lakeshore Flood Warning':    'Significant flooding expected along lakeshores from high water and waves.',
     'Coastal Flood Statement':    'Follow-up information on an ongoing or recent coastal flooding event.',
     'Lakeshore Flood Statement':  'Follow-up information on an ongoing or recent lakeshore flooding event.',

@@ -253,7 +253,23 @@ function _show_web_prompt_after_loading() {
 
 function init() {
     if (_is_desktop_app()) {
-        $('#armrDesktopAppBtn').remove();
+        var $desktopBtn = $('#armrDesktopAppBtn');
+        if ($desktopBtn.length) {
+            $desktopBtn.addClass('menu-row--desktop-installed');
+            $desktopBtn.attr('aria-disabled', 'true');
+            $desktopBtn.find('.desktopNewTag')
+                .removeClass('desktopNewTag')
+                .addClass('desktopInstalledTag')
+                .text('Installed');
+            $desktopBtn.find('.armrIcon.fa-download')
+                .removeClass('fa-download')
+                .addClass('fa-circle-check');
+            $desktopBtn.find('.armrIconArrowRight').hide();
+            $desktopBtn.off('click').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        }
         return;
     }
     $('body').append(_build_overlay_html());

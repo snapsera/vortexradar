@@ -1,6 +1,6 @@
 const path = require('path');
 const net = require('net');
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { startServer } = require('../server');
 
@@ -9,6 +9,7 @@ const SERVER_READY_TIMEOUT_MS = 15000;
 const SERVER_RETRY_DELAY_MS = 250;
 const UPDATE_CHECK_DELAY_MS = 10000;
 const iconPath = path.join(__dirname, '..', 'images', 'vortexicon.ico');
+const windowTitleBase = 'Vortex Radar | Advanced Weather';
 
 let serverInstance = null;
 let serverPort = null;
@@ -130,6 +131,7 @@ async function startEmbeddedServer() {
 }
 
 function createMainWindow() {
+    const appVersion = app.getVersion();
     mainWindow = new BrowserWindow({
         width: 1366,
         height: 900,
@@ -137,6 +139,8 @@ function createMainWindow() {
         minHeight: 700,
         show: false,
         icon: iconPath,
+        title: `${windowTitleBase} (v${appVersion})`,
+        autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -148,7 +152,9 @@ function createMainWindow() {
 
     const serverUrl = new URL(`http://${HOST}:${serverPort}`);
     serverUrl.searchParams.set('desktopApp', '1');
+    serverUrl.searchParams.set('desktopVersion', appVersion);
     mainWindow.loadURL(serverUrl.toString());
+    mainWindow.setMenuBarVisibility(false);
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
     });
@@ -192,6 +198,7 @@ app.on('before-quit', async (event) => {
 
 app.whenReady().then(async () => {
     try {
+        Menu.setApplicationMenu(null);
         await startEmbeddedServer();
         createMainWindow();
         setupAutoUpdates();

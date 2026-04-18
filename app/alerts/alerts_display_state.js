@@ -35,7 +35,7 @@ const ALERT_TYPES_BY_CATEGORY = {
     ],
     'Flood': [
         'Flash Flood Warning', 'Flood Warning', 'Flood Advisory',
-        'Coastal Flood Warning', 'Lakeshore Flood Warning',
+        'Coastal Flood Warning', 'Coastal Flood Advisory', 'Lakeshore Flood Warning',
         'Coastal Flood Statement', 'Lakeshore Flood Statement'
     ],
     'Tropical': [

@@ -8,7 +8,8 @@ const KEYBIND_DEFAULTS = {
     productReflectivity: 'Shift+R',
     productBaseVelocity: 'Shift+V',
     productStormRelativeVelocity: 'Shift+S',
-    productCorrelationCoefficient: 'Shift+C'
+    productCorrelationCoefficient: 'Shift+C',
+    drawToggle: 'D'
 };
 
 const KEYBIND_ACTIONS = [
@@ -18,7 +19,8 @@ const KEYBIND_ACTIONS = [
     { id: 'productReflectivity', buttonId: '#keybindProductReflectivityBtn' },
     { id: 'productBaseVelocity', buttonId: '#keybindProductBaseVelocityBtn' },
     { id: 'productStormRelativeVelocity', buttonId: '#keybindProductStormRelativeVelocityBtn' },
-    { id: 'productCorrelationCoefficient', buttonId: '#keybindProductCorrelationCoefficientBtn' }
+    { id: 'productCorrelationCoefficient', buttonId: '#keybindProductCorrelationCoefficientBtn' },
+    { id: 'drawToggle', buttonId: '#keybindDrawToggleBtn' }
 ];
 
 let _currentKeybinds = Object.assign({}, KEYBIND_DEFAULTS);
@@ -179,6 +181,12 @@ function _execute_playback_step(stepDelta) {
     controller.set_frame_index(nextIndex);
 }
 
+function _execute_draw_toggle() {
+    const $drawIcon = $('#drawMenuItemIcon');
+    if (!$drawIcon.length) return;
+    $drawIcon.trigger('click');
+}
+
 function _handle_action(actionId) {
     switch (actionId) {
     case 'playbackToggle':
@@ -204,6 +212,9 @@ function _handle_action(actionId) {
         return true;
     case 'productCorrelationCoefficient':
         _trigger_product('rho');
+        return true;
+    case 'drawToggle':
+        _execute_draw_toggle();
         return true;
     default:
         return false;
@@ -295,6 +306,12 @@ function _render_keybinds_dialog_body() {
             <div class="menu-row armrBottom keybindRow" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
                 CC Drops
                 <button type="button" id="keybindProductCorrelationCoefficientBtn" class="keybindCaptureBtn" style="background:rgba(255,255,255,.05);border:1px solid rgba(143,208,255,.35);color:#d8ecff;border-radius:8px;font-size:12px;font-weight:700;min-width:120px;padding:6px 10px;text-align:center;">${_currentKeybinds.productCorrelationCoefficient}</button>
+            </div>
+
+            <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:#95adbf;margin-top:6px;">TOOL SHORTCUTS (ALWAYS ON)</div>
+            <div class="menu-row armrTop keybindRow" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                Toggle Draw Tool
+                <button type="button" id="keybindDrawToggleBtn" class="keybindCaptureBtn" style="background:rgba(255,255,255,.05);border:1px solid rgba(143,208,255,.35);color:#d8ecff;border-radius:8px;font-size:12px;font-weight:700;min-width:120px;padding:6px 10px;text-align:center;">${_currentKeybinds.drawToggle}</button>
             </div>
 
             <div id="keybindCaptureHint" class="keybindCaptureHint" style="margin:10px 6px 8px;color:#9ec0dd;font-size:12px;line-height:1.35;">Click a shortcut to rebind it.</div>

@@ -1,14 +1,16 @@
+# Vortex Radar 🌪️
+
 ![Vortex Radar](images/readmelogo.png)
 
-Browser based weather radar and alerts. Pulls live data from the NWS and other public sources. Radar, warnings, surface obs, lightning, and more.
+Browser-based weather radar and alerts. Pulls live data from the NWS and other public sources: radar, warnings, surface obs, lightning, and more.
 
 > **Project rename:** This project was renamed from **StormTrack Pro** to **Vortex Radar**.
 
-## Website
+## 🌐 Website
 
 You can view the live version here: [vortexradar.snapsera.com](https://vortexradar.snapsera.com/)
 
-## Showcase
+## 🖼️ Showcase
 
 ![Vortex Radar - National Map](images/readme-screenshot-1.png)
 
@@ -20,7 +22,7 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 
 ![Vortex Radar - Live Mode Severe Line](images/readme-screenshot-5-live-mode.gif)
 
-## Features
+## ✨ Features
 
 - **NEXRAD radar** — Level 2 & Level 3 from any US NEXRAD site. Reflectivity, velocity (with dealiasing), and a bunch of other products. National composite, looping, and a data inspector.
 - **24/7 Live Mode** — Autonomous weather broadcast mode that rotates between SPC outlooks, active severe warnings, CONUS radar, local spotlight segments, storm reports, and recent earthquakes.
@@ -39,7 +41,7 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 - **7-Day Forecast** — City/state/zip, current conditions, hourly out to 72h, day-by-day text forecasts.
 - **Change Log panel** — In-app changelog modal with day tabs so you can quickly see what changed in recent builds.
 
-## Project layout
+## 🗂️ Project layout
 
 ```text
 app/                Source, organized by feature
@@ -68,7 +70,7 @@ styles/             CSS source (concatenated at build)
 tools/              Changelog, bundle-size utils
 ```
 
-## Tech
+## 🧰 Tech
 
 - **Mapbox GL JS** for the map
 - **Browserify + brfs** for bundling
@@ -76,7 +78,7 @@ tools/              Changelog, bundle-size utils
 - All radar decoding happens client-side — bzip2 decompression, NEXRAD message parsing, the whole thing
 - **Express** serves the app (`server.js`, port 3000)
 
-## Getting started
+## 🚀 Getting started
 
 ```bash
 npm install
@@ -92,11 +94,11 @@ npm run dev            # build + start
 
 Then open `http://localhost:3000`.
 
-## Desktop app (super simple)
+## 💻 Desktop app (super simple)
 
 This project can build and publish a Windows desktop app with auto-updates through GitHub Releases.
 
-### One-time setup
+### ✅ One-time setup
 
 1. Install dependencies:
 
@@ -112,7 +114,7 @@ setx GH_TOKEN "YOUR_GITHUB_TOKEN"
 
 1. Restart Cursor/terminal after running `setx`.
 
-### Build desktop app locally (no publish)
+### 🏗️ Build desktop app locally (no publish)
 
 ```bash
 npm run desktop:dist
@@ -123,7 +125,7 @@ Output goes to:
 - `release-build/win-unpacked/` (unpacked app)
 - `release-build/Vortex Radar Setup.exe` (installer)
 
-### Publish a release to GitHub (auto-update)
+### 📦 Publish a release to GitHub (auto-update)
 
 Run this when you want users to get an update:
 
@@ -133,12 +135,12 @@ npm run desktop:publish
 
 What it does automatically:
 
-- bumps patch version (`1.0.x -> 1.0.x+1`)
-- builds web assets
-- builds desktop installer
-- uploads release artifacts to GitHub (`snapsera/vortexradar`)
+- Bumps patch version (`1.0.x -> 1.0.x+1`)
+- Builds web assets
+- Builds desktop installer
+- Uploads release artifacts to GitHub (`snapsera/vortexradar`)
 
-### Optional check before publish
+### 🔎 Optional check before publish
 
 ```bash
 npm run desktop:preflight
@@ -146,14 +148,14 @@ npm run desktop:preflight
 
 This checks token + repo permissions and also bumps patch version.
 
-### Quick release checklist
+### 🧪 Quick release checklist
 
 1. Make your code changes
-1. Run `npm run desktop:publish`
-1. Verify new release appears on GitHub
-1. Open installed app and confirm update prompt appears
+2. Run `npm run desktop:publish`
+3. Verify new release appears on GitHub
+4. Open installed app and confirm update prompt appears
 
-### Common issues
+### 🛠️ Common issues
 
 - **"GitHub Personal Access Token is not set"**
   - Reopen terminal/Cursor after `setx`
@@ -164,14 +166,14 @@ This checks token + repo permissions and also bumps patch version.
   - Delete stale temp files:
     - `Remove-Item .\dist\bundle.js.tmp-browserify-* -Force -ErrorAction SilentlyContinue`
   - Re-run publish
-- **Security reminder**
+- **Security reminder 🔐**
   - Never paste your token in chat/screenshots/terminal logs
   - If exposed, revoke and create a new token immediately
 
-## Credits
+## 🙌 Credits
 
 Built on top of [AtticRadar](https://github.com/SteepAtticStairs/AtticRadar) by [SteepAtticStairs](https://github.com/SteepAtticStairs). A lot of the core architecture, NEXRAD decoding, and WebGL rendering here started from or was heavily inspired by that project. Go check it out.
 
-## License
+## 📄 License
 
 Not currently published under an open-source license. All rights reserved.

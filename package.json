@@ -71,8 +71,11 @@
       "index.css",
       "index.html",
       "lib/**/*",
+      "music/**/*",
       "server.js",
       "site_defaults.json",
+      "sounds/**/*",
+      "styles/**/*",
       "favicon.ico",
       "package.json"
     ],

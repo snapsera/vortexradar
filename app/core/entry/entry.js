@@ -19,6 +19,10 @@ function _setLocalStorageSnapshotValue(key, value) {
 
 function _is_local_dev_mode() {
     if (typeof window === 'undefined' || !window.location) return false;
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        if (params.get('desktopApp') === '1') return false;
+    } catch (_) {}
     const host = window.location.hostname;
     return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }

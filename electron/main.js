@@ -15,6 +15,10 @@ let serverPort = null;
 let mainWindow = null;
 let isQuitting = false;
 
+// Desktop app should allow weather alert/audio playback without requiring
+// a prior click gesture like standard browsers do.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 function setupAutoUpdates() {
     if (!app.isPackaged) {
         console.log('[Updater] Skipping update checks in development.');
@@ -138,11 +142,13 @@ function createMainWindow() {
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: false,
+            devTools: false,
         },
     });
 
-    const serverUrl = `http://${HOST}:${serverPort}`;
-    mainWindow.loadURL(serverUrl);
+    const serverUrl = new URL(`http://${HOST}:${serverPort}`);
+    serverUrl.searchParams.set('desktopApp', '1');
+    mainWindow.loadURL(serverUrl.toString());
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
     });

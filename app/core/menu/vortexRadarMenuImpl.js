@@ -28,7 +28,11 @@ $(function() {
     $('#appMenuMainScreen').addClass('armScreen--active');
 
     var host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1') {
+    var isDesktopApp = false;
+    try {
+        isDesktopApp = new URLSearchParams(window.location.search || '').get('desktopApp') === '1';
+    } catch (_) {}
+    if (isDesktopApp || (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1')) {
         $('#menuCategoryDeveloper').remove();
         $('#appMenuDevToolsScreen').remove();
         $('#devConsolePanel').remove();

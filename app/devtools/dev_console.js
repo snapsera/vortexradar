@@ -652,8 +652,12 @@ function init() {
     });
 
     var host = window.location.hostname;
+    var isDesktopApp = false;
+    try {
+        isDesktopApp = new URLSearchParams(window.location.search || '').get('desktopApp') === '1';
+    } catch (_) {}
     var quickBtn = document.getElementById('devConsoleQuickBtn');
-    if (quickBtn && (host === 'localhost' || host === '127.0.0.1')) {
+    if (quickBtn && !isDesktopApp && (host === 'localhost' || host === '127.0.0.1' || host === '::1')) {
         quickBtn.style.display = '';
         quickBtn.addEventListener('click', function() { toggle(); });
     }

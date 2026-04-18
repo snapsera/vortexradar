@@ -47,11 +47,16 @@ const SEVERE_ALERT_EVENTS = [
 
 const SPC_SEGMENT_DURATION_MS = 18000;
 const ALERT_SEGMENT_DURATION_MS = 25000;
+const MAX_TORNADO_FOCUS_STREAK = 2;
+const ALERT_CLASS_FAIRNESS_RAMP_MIN = 6;
+const ALERT_CLASS_FAIRNESS_BONUS_MAX = 28;
+const ALERT_TORNADO_EXPIRE_SOON_MIN = 5;
 const CONUS_SEGMENT_DURATION_MS = 28000;
 const CONUS_OVERVIEW_SHARE = 10 / 28;
 const CONUS_REGION_FOCUS_COUNT = 3;
 const CONUS_REGION_MIN_DWELL_MS = 2400;
 const CONUS_REGION_EXTRA_ZOOM = 0.3;
+const CONUS_MRMS_REVEAL_TIMEOUT_MS = 1400;
 const CONUS_SEVERE_FOCUS_REGIONS = [
     { name: 'Southern Plains', center: [-98.4, 34.1], zoom: 5.85 },
     { name: 'Mid-South', center: [-90.4, 35.2], zoom: 5.8 },
@@ -97,6 +102,8 @@ let _spotlightForecastCache = {};
 let _preSaveState = null;
 let _recentSegments = [];
 let _alertVisitHistory = Object.create(null);
+let _alertFocusClassHistory = Object.create(null);
+let _consecutiveTornadoFocusCount = 0;
 let _loopCount = 0;
 let _loopListener = null;
 let _lastFrameIndex = -1;
@@ -112,6 +119,8 @@ let _spcLegendHideTimer = null;
 let _sweepBaseSelectionListener = null;
 let _sweepBaseLoadedListener = null;
 let _nonSiteGuardTimer = null;
+let _preLiveModeAlertBlinkEnabled;
+let _preLiveModeAlertBlinkCaptured = false;
 
 const LM_FOCUS_SOURCE = 'lmFocusGlowSource';
 const LM_FOCUS_GLOW_OUTER = 'lmFocusGlowOuter';
@@ -1565,6 +1574,12 @@ function _get_alert_update_ms(feature) {
     return null;
 }
 
+function _get_alert_expires_ms(feature) {
+    var p = feature?.properties || {};
+    var expiresMs = new Date(p.expires || p.ends || '').getTime();
+    return Number.isFinite(expiresMs) ? expiresMs : null;
+}
+
 function _build_alert_fingerprint(feature) {
     var p = feature?.properties || {};
     var params = _parse_alert_params(feature);
@@ -1618,6 +1633,18 @@ function _is_expiring_or_weakening_tornado_warning(event, descUpper) {
     return false;
 }
 
+function _get_alert_focus_class(feature, context) {
+    var event = context?.event || feature?.properties?.event || '';
+    if ((context && context.isTornadoEvent) || TORNADO_EVENTS.includes(event) || event === 'Tornado Warning') {
+        return 'tornado';
+    }
+    if (event === 'Severe Thunderstorm Warning') return 'severe-thunderstorm';
+    if (event === 'Flash Flood Warning') return 'flash-flood';
+    if (event === 'Evacuation - Immediate') return 'evacuation';
+    if (event === 'Special Weather Statement') return 'special-weather';
+    return 'other-severe';
+}
+
 function _get_alert_focus_context(feature) {
     var key = _get_alert_visit_key(feature);
     var p = feature?.properties || {};
@@ -1643,10 +1670,24 @@ function _get_alert_focus_context(feature) {
         isObservedTornado: isObservedTornado,
         isRadarIndicatedTornado: isRadarIndicatedTornado,
         isExpiringOrWeakeningTornado: isExpiringOrWeakeningTornado,
+        alertClass: _get_alert_focus_class(feature, { event: event, isTornadoEvent: isTornadoEvent }),
         hasChangedSinceLastVisit: hasChangedSinceLastVisit,
         lastUpdateMs: _get_alert_update_ms(feature),
+        expiresMs: _get_alert_expires_ms(feature),
         fingerprint: fingerprint
     };
+}
+
+function _is_tornado_focus_blocked(context, nowMs) {
+    if (!context?.isTornadoEvent) return false;
+    if (context.isExpiringOrWeakeningTornado) return true;
+
+    var expiresMs = context.expiresMs;
+    if (!Number.isFinite(expiresMs)) return false;
+    if (expiresMs <= nowMs) return true;
+
+    var expireSoonThresholdMs = nowMs + (ALERT_TORNADO_EXPIRE_SOON_MIN * 60000);
+    return expiresMs <= expireSoonThresholdMs;
 }
 
 function _score_alert_for_focus(feature, context, nowMs) {
@@ -1693,6 +1734,21 @@ function _score_alert_for_focus(feature, context, nowMs) {
     if (context.visitCount >= 4 && !context.isTornadoEvent) score -= 14 * (context.visitCount - 3);
     if (context.visitCount >= 5 && context.isTornadoEvent) score -= 7 * (context.visitCount - 4);
 
+    if (!context.isTornadoEvent) {
+        var classHistory = _alertFocusClassHistory[context.alertClass];
+        var classBonus = 0;
+        if (!classHistory || !classHistory.lastSeenMs) {
+            classBonus = Math.round(ALERT_CLASS_FAIRNESS_BONUS_MAX * 0.75);
+        } else {
+            var minsSinceClassFocus = Math.max(0, (nowMs - classHistory.lastSeenMs) / 60000);
+            classBonus = Math.min(
+                ALERT_CLASS_FAIRNESS_BONUS_MAX,
+                (minsSinceClassFocus / ALERT_CLASS_FAIRNESS_RAMP_MIN) * ALERT_CLASS_FAIRNESS_BONUS_MAX
+            );
+        }
+        score += classBonus;
+    }
+
     return Math.max(1, score);
 }
 
@@ -1703,31 +1759,63 @@ function _pick_alert_focus_feature(alerts) {
         var context = _get_alert_focus_context(feature);
         var score = _score_alert_for_focus(feature, context, nowMs);
         return { feature: feature, context: context, score: score };
+    }).filter(function (item) {
+        return !_is_tornado_focus_blocked(item.context, nowMs);
     });
+
+    if (!scored.length) return { feature: null, context: null };
+
+    function _weighted_pick_scored(items) {
+        if (!items.length) return null;
+        var total = 0;
+        for (var i = 0; i < items.length; i++) total += items[i].score;
+        var r = Math.random() * total;
+        var chosen = items[0];
+        for (var p = 0; p < items.length; p++) {
+            r -= items[p].score;
+            if (r <= 0) {
+                chosen = items[p];
+                break;
+            }
+        }
+        return chosen;
+    }
 
     scored.sort(function (a, b) { return b.score - a.score; });
     var pool = scored.slice(0, Math.min(4, scored.length));
-    var total = 0;
-    for (var i = 0; i < pool.length; i++) total += pool[i].score;
-    var r = Math.random() * total;
-    var chosen = pool[0];
-    for (var p = 0; p < pool.length; p++) {
-        r -= pool[p].score;
-        if (r <= 0) {
-            chosen = pool[p];
-            break;
-        }
+    var enforceNonTornadoPick = _consecutiveTornadoFocusCount >= MAX_TORNADO_FOCUS_STREAK
+        && scored.some(function (item) { return !item.context?.isTornadoEvent; });
+
+    var selectionPool = pool;
+    if (enforceNonTornadoPick) {
+        selectionPool = scored
+            .filter(function (item) { return !item.context?.isTornadoEvent; })
+            .slice(0, Math.min(4, scored.length));
     }
-    return chosen;
+
+    return _weighted_pick_scored(selectionPool) || _weighted_pick_scored(pool) || { feature: null, context: null, score: 0 };
 }
 
 function _mark_alert_focus_visit(feature, context) {
+    var nowMs = Date.now();
+    var alertClass = context?.alertClass || _get_alert_focus_class(feature, context);
+    if (alertClass) {
+        var prevClass = _alertFocusClassHistory[alertClass] || {};
+        _alertFocusClassHistory[alertClass] = {
+            count: (prevClass.count || 0) + 1,
+            lastSeenMs: nowMs
+        };
+    }
+
+    if (context?.isTornadoEvent) _consecutiveTornadoFocusCount++;
+    else _consecutiveTornadoFocusCount = 0;
+
     var key = context?.key || _get_alert_visit_key(feature);
     if (!key) return;
     var prev = _alertVisitHistory[key] || {};
     _alertVisitHistory[key] = {
         count: (prev.count || 0) + 1,
-        lastSeenMs: Date.now(),
+        lastSeenMs: nowMs,
         fingerprint: context?.fingerprint || _build_alert_fingerprint(feature)
     };
 }
@@ -3920,8 +4008,10 @@ const MRMS_WMS_URL = 'https://nowcoast.noaa.gov/geoserver/weather_radar/wms?serv
 function _add_static_mrms_layer() {
     _remove_static_mrms_layer();
 
+    var requestedOpacity = arguments.length > 0 ? arguments[0] : null;
     var opacity = 0.85;
     if (window.stormTrackData?.radarOpacity != null) opacity = window.stormTrackData.radarOpacity;
+    if (typeof requestedOpacity === 'number') opacity = Math.max(0, Math.min(1, requestedOpacity));
 
     map.addSource(CONUS_MRMS_SOURCE, {
         type: 'raster',
@@ -3942,9 +4032,21 @@ function _add_static_mrms_layer() {
         source: CONUS_MRMS_SOURCE,
         paint: {
             'raster-opacity': opacity,
-            'raster-fade-duration': 0
+            'raster-fade-duration': 250
         }
     }, beforeLayer);
+}
+
+function _set_static_mrms_opacity(opacity) {
+    if (!map || !map.getLayer(CONUS_MRMS_LAYER)) return;
+    var clampedOpacity = Math.max(0, Math.min(1, opacity));
+    map.setPaintProperty(CONUS_MRMS_LAYER, 'raster-opacity', clampedOpacity);
+}
+
+function _get_static_mrms_target_opacity() {
+    var opacity = 0.85;
+    if (window.stormTrackData?.radarOpacity != null) opacity = window.stormTrackData.radarOpacity;
+    return Math.max(0, Math.min(1, opacity));
 }
 
 function _remove_static_mrms_layer() {
@@ -3974,8 +4076,16 @@ function _run_conus_segment(resolve) {
     _hide_radar_sweep();
     _hide_lightning_overlay();
     _clear_active_station_selection();
-    _add_static_mrms_layer();
+    var conusTargetOpacity = _get_static_mrms_target_opacity();
+    _add_static_mrms_layer(0);
     map.flyTo({ center: CONUS_CENTER, zoom: CONUS_ZOOM, speed: 1.2, essential: true });
+    function reveal_mrms_layer() {
+        if (!_active || _currentSegmentType !== 'conus') return;
+        try { map.off('idle', reveal_mrms_layer); } catch (_) {}
+        _set_static_mrms_opacity(conusTargetOpacity);
+    }
+    map.once('idle', reveal_mrms_layer);
+    setTimeout(reveal_mrms_layer, CONUS_MRMS_REVEAL_TIMEOUT_MS);
     if (Math.random() > 0.35) {
         _typewrite(_generate_conus_commentary(), 1200);
     }
@@ -5604,22 +5714,37 @@ function _on_tornado_interrupt(e) {
     if (!detail) return;
 
     var eventName = detail.event || '';
-    if (!TORNADO_EVENTS.includes(eventName)) return;
-    if (detail.type !== 'new') return;
+    var isNewTornado = detail.type === 'new' && TORNADO_EVENTS.includes(eventName);
+    var isUpgradedTornado = detail.type === 'updated'
+        && String(eventName).trim().toLowerCase() === 'tornado warning'
+        && String(detail.tornadoStatus || '').toLowerCase() === 'upgraded';
+    if (!isNewTornado && !isUpgradedTornado) return;
 
     // Find the actual tornado warning feature from alert data
     var alerts = _get_active_severe_alerts();
     var torFeature = null;
+    var nowMs = Date.now();
+    var targetAlertId = detail.alertId || null;
+    var bestScore = -Infinity;
     for (var i = 0; i < alerts.length; i++) {
-        if (TORNADO_EVENTS.includes(alerts[i]?.properties?.event)) {
+        if (!TORNADO_EVENTS.includes(alerts[i]?.properties?.event)) continue;
+        var interruptContext = _get_alert_focus_context(alerts[i]);
+        if (_is_tornado_focus_blocked(interruptContext, nowMs)) continue;
+        var alertId = alerts[i]?.id || alerts[i]?.properties?.id || null;
+        if (targetAlertId && alertId === targetAlertId) {
             torFeature = alerts[i];
             break;
+        }
+        var score = _score_alert_for_focus(alerts[i], interruptContext, nowMs);
+        if (score > bestScore) {
+            bestScore = score;
+            torFeature = alerts[i];
         }
     }
     if (!torFeature) return;
 
     _abort_current_segment();
-    _set_segment_debug('alert', 'interrupt');
+    _set_segment_debug('alert', isUpgradedTornado ? 'interrupt-upgraded' : 'interrupt');
     _run_alert_segment(function () {
         if (_active) _trackAlertTimer(_run_next, 600);
     }, torFeature);
@@ -5714,6 +5839,8 @@ function enable() {
     _active = true;
     _recentSegments = [];
     _alertVisitHistory = Object.create(null);
+    _alertFocusClassHistory = Object.create(null);
+    _consecutiveTornadoFocusCount = 0;
     _set_segment_debug('idle', 'starting');
 
     _save_state();
@@ -5727,6 +5854,16 @@ function enable() {
         if (e.key === 'Escape') disable();
     };
     document.addEventListener('keydown', _escapeListener);
+
+    if (!_preLiveModeAlertBlinkCaptured) {
+        _preLiveModeAlertBlinkEnabled = window.stormTrackData ? window.stormTrackData.alertBlinkEnabled : undefined;
+        _preLiveModeAlertBlinkCaptured = true;
+    }
+    if (window.stormTrackData) window.stormTrackData.alertBlinkEnabled = false;
+    try {
+        var plotAlerts = require('../alerts/plot_alerts');
+        if (plotAlerts && plotAlerts.clear_blinking_focus) plotAlerts.clear_blinking_focus();
+    } catch (_) {}
 
     window.stormTrackData.liveModeActive = true;
     _bind_sweep_sync_listeners();
@@ -5746,6 +5883,11 @@ function disable() {
     _active = false;
     _set_segment_debug(null);
     window.stormTrackData.liveModeActive = false;
+    if (_preLiveModeAlertBlinkCaptured && window.stormTrackData) {
+        window.stormTrackData.alertBlinkEnabled = _preLiveModeAlertBlinkEnabled;
+        _preLiveModeAlertBlinkCaptured = false;
+        _preLiveModeAlertBlinkEnabled = undefined;
+    }
     _stop_non_site_guard();
     _unbind_sweep_sync_listeners();
 

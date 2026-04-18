@@ -170,6 +170,10 @@ function _get_blink_duration() {
     return ((window.stormTrackData && window.stormTrackData.alertBlinkDuration) || 30) * 1000;
 }
 
+function _is_live_mode_blink_suppressed() {
+    return !!(typeof window !== 'undefined' && window.stormTrackData && window.stormTrackData.liveModeActive);
+}
+
 function _stop_blink_interval() {
     if (_blinkIntervalId) {
         clearInterval(_blinkIntervalId);
@@ -194,6 +198,22 @@ function _purge_expired_blinks() {
 }
 
 function _refresh_blink_state() {
+    if (_is_live_mode_blink_suppressed()) {
+        _blinkingAlerts.clear();
+        _stop_blink_interval();
+        if (_blinkExpiryTimer) { clearTimeout(_blinkExpiryTimer); _blinkExpiryTimer = null; }
+        if (_lastAlertsGeojson && _lastAlertsGeojson.features) {
+            const source = map.getSource('alertsSource');
+            if (source) {
+                const data = _deep_clone(_lastAlertsGeojson);
+                data.features.forEach((f) => { f.properties.blinking = false; });
+                _lastAlertsGeojson = data;
+                source.setData(data);
+            }
+        }
+        return;
+    }
+
     _purge_expired_blinks();
 
     if (_blinkingAlerts.size === 0) {
@@ -244,6 +264,7 @@ function _schedule_next_expiry_check() {
 
 function _ensure_blink_interval() {
     if (_blinkIntervalId) return;
+    if (_is_live_mode_blink_suppressed()) return;
     if (!map.getLayer('alertsBlinkLayer')) return;
     _blinkPhase = false;
     map.setPaintProperty('alertsBlinkLayer', 'line-color', _get_blink_color());
@@ -257,6 +278,11 @@ function _ensure_blink_interval() {
 }
 
 function set_blinking_for_alert(alertId) {
+    if (_is_live_mode_blink_suppressed()) {
+        _blinkingAlerts.clear();
+        clear_blinking_focus();
+        return;
+    }
     if (!_lastAlertsGeojson || !_lastAlertsGeojson.features) return;
     const source = map.getSource('alertsSource');
     if (!source) return;
@@ -409,9 +435,13 @@ function plot_alerts(alerts_data, options) {
         total_after_filter
     };
 
-    const blinkEnabled = !window.stormTrackData || window.stormTrackData.alertBlinkEnabled !== false;
+    const blinkEnabled = !_is_live_mode_blink_suppressed() && (!window.stormTrackData || window.stormTrackData.alertBlinkEnabled !== false);
     const blinkDuration = _get_blink_duration();
     const now = Date.now();
+
+    if (!blinkEnabled) {
+        _blinkingAlerts.clear();
+    }
 
     // Register new blinkers into the per-alert tracking map
     if (blinkEnabled && !focusNewAlerts) {
@@ -423,8 +453,9 @@ function plot_alerts(alerts_data, options) {
     }
 
     // Register test alert blinkers
-    for (const feature of alerts_data.features) {
-        if (feature.properties?._isTestAlert && feature.properties?.blinking) {
+    if (blinkEnabled) {
+        for (const feature of alerts_data.features) {
+            if (!(feature.properties?._isTestAlert && feature.properties?.blinking)) continue;
             const tid = feature.id || feature.properties?.id;
             if (tid && !_blinkingAlerts.has(tid)) {
                 _blinkingAlerts.set(tid, now + blinkDuration);

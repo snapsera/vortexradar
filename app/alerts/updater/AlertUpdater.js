@@ -66,6 +66,44 @@ class AlertUpdater {
         return String(feature?.properties?.event || '').trim().toLowerCase() === 'tornado warning';
     }
 
+    _to_alert_params(properties) {
+        const raw = properties?.parameters;
+        if (!raw) return {};
+        if (typeof raw === 'string') {
+            try { return JSON.parse(raw); } catch (_) { return {}; }
+        }
+        return raw;
+    }
+
+    _first_param(params, key) {
+        const val = params ? params[key] : null;
+        if (Array.isArray(val) && val.length) return val[0];
+        return val == null ? '' : val;
+    }
+
+    _get_tornado_severity_rank(properties) {
+        const p = properties || {};
+        const params = this._to_alert_params(p);
+        const descUpper = String(p.description || '').toUpperCase();
+        const headlineUpper = String(this._first_param(params, 'NWSheadline') || '').toUpperCase();
+        const tornadoDetectionUpper = String(this._first_param(params, 'tornadoDetection') || '').toUpperCase();
+        const tornadoDamageThreatUpper = String(this._first_param(params, 'tornadoDamageThreat') || '').toUpperCase();
+
+        if (headlineUpper.includes('TORNADO EMERGENCY') || tornadoDamageThreatUpper === 'CATASTROPHIC' || descUpper.includes('TORNADO EMERGENCY')) {
+            return 4;
+        }
+        if (headlineUpper.includes('PDS') || tornadoDamageThreatUpper === 'CONSIDERABLE') {
+            return 3;
+        }
+        if (tornadoDetectionUpper.includes('OBSERVED') || descUpper.includes('CONFIRMED')) {
+            return 2;
+        }
+        if (tornadoDetectionUpper.includes('RADAR INDICATED') || descUpper.includes('RADAR INDICATED')) {
+            return 1;
+        }
+        return 0;
+    }
+
     _get_vtec_continuity_key(feature) {
         const vtecValues = feature?.properties?.parameters?.VTEC;
         if (!Array.isArray(vtecValues) || !vtecValues.length) return null;
@@ -259,7 +297,28 @@ class AlertUpdater {
             var prevDesc = (prev.description || '').toLowerCase();
             var currDesc = (f.properties?.description || '').toLowerCase();
             var eventName = f.properties?.event || 'Weather Alert';
-            if (String(eventName || '').trim().toLowerCase() === 'tornado warning') {
+            if (this._is_tornado_warning(f)) {
+                var prevRank = this._get_tornado_severity_rank(prev);
+                var currRank = this._get_tornado_severity_rank(f.properties || {});
+                if (currRank > prevRank) {
+                    window.dispatchEvent(new CustomEvent('alertNotification', {
+                        detail: {
+                            event: eventName,
+                            type: 'updated',
+                            tornadoStatus: 'upgraded',
+                            alertId: id
+                        }
+                    }));
+                } else if (prev.description !== f.properties?.description && prev.description && f.properties?.description) {
+                    window.dispatchEvent(new CustomEvent('alertNotification', {
+                        detail: {
+                            event: eventName,
+                            type: 'updated',
+                            tornadoStatus: 'updated',
+                            alertId: id
+                        }
+                    }));
+                }
                 continue;
             }
             if (prevDesc.indexOf('radar indicated') !== -1 && currDesc.indexOf('observed') !== -1) {

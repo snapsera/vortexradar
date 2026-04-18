@@ -90,6 +90,8 @@ function load() {
     }
     // Full US radar is intentionally disabled in the UI; keep this off in persisted state.
     merged.usRadar = false;
+    // Light map theme option has been removed; normalize old saves to dark.
+    if (merged.mapStyle === 'light') merged.mapStyle = 'dark';
     return merged;
 }
 
@@ -111,7 +113,6 @@ function get_settings_from_dom() {
     s.radarRadius = $('#armrRadarRadiusBtnSwitchElem').length && $('#armrRadarRadiusBtnSwitchElem').is(':checked');
     s.mapStyle = 'dark';
     if ($('#armrSatelliteMapBtnSwitchElem').length && $('#armrSatelliteMapBtnSwitchElem').is(':checked')) s.mapStyle = 'satellite';
-    else if ($('#armrLightMapBtnSwitchElem').length && $('#armrLightMapBtnSwitchElem').is(':checked')) s.mapStyle = 'light';
     s.focusNewAlerts = $('#armrFocusNewAlertsBtnSwitchElem').length && $('#armrFocusNewAlertsBtnSwitchElem').is(':checked');
     s.dealiasRegionBased = true;
     s.dealiasTornadic = false;

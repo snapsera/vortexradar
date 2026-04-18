@@ -447,14 +447,7 @@ $('.map_style_button').click(function() {
     saveSettings();
 })
 armFunctions.toggleswitchFunctions($('#armrSatelliteMapBtnSwitchElem'), function() { change_map_style('satellite'); }, function() {}, saveSettings)
-armFunctions.toggleswitchFunctions($('#armrLightMapBtnSwitchElem'), function() { change_map_style('light'); }, function() {}, saveSettings)
 armFunctions.toggleswitchFunctions($('#armrDarkMapBtnSwitchElem'), function() { change_map_style('dark'); }, function() {}, saveSettings)
-
-armFunctions.toggleswitchFunctions($('#armrFocusNewAlertsBtnSwitchElem'), function() {
-    // Focus New Alerts enabled - no immediate action
-}, function() {
-    require('../../alerts/focus_new_alerts').hide_focus_panel();
-}, saveSettings);
 
 armFunctions.toggleswitchFunctions($('#armrLiveModeBtnSwitchElem'), function() {
     live_mode.enable();
@@ -576,7 +569,6 @@ function applySavedSettings() {
     $('#armrRadarSiteLegacyStyleBtnSwitchElem').prop('checked', s.radarSiteLegacyStyle);
     $('#armrRadarSweepBtnSwitchElem').prop('checked', s.radarSweep);
     $('#armrRadarRadiusBtnSwitchElem').prop('checked', s.radarRadius);
-    $('#armrFocusNewAlertsBtnSwitchElem').prop('checked', s.focusNewAlerts);
     $('#armrAudibleAlertsBtnSwitchElem').prop('checked', s.audibleAlerts);
     $('#ttsVolumeSlider').val(s.ttsVolume);
     $('#ttsVolumeValue').text(s.ttsVolume + '%');
@@ -586,7 +578,6 @@ function applySavedSettings() {
     // Map style (mutually exclusive)
     $('.map_style_button').prop('checked', false);
     $('#armrDarkMapBtnSwitchElem').prop('checked', s.mapStyle === 'dark');
-    $('#armrLightMapBtnSwitchElem').prop('checked', s.mapStyle === 'light');
     $('#armrSatelliteMapBtnSwitchElem').prop('checked', s.mapStyle === 'satellite');
 
     // Apply map style

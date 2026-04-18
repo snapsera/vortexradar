@@ -38,15 +38,18 @@ function change_map_style(style) {
             'water': map.getPaintProperty('water', 'fill-color'),
         }
     }
+    if (map.getLayer('usa-land-fill')) {
+        map.removeLayer('usa-land-fill');
+    }
 
     function _safePaint(layer, prop, value) {
         if (map.getLayer(layer)) map.setPaintProperty(layer, prop, value);
     }
 
     function set_dark() {
-        map.setPaintProperty('land', 'background-color', '#1b1e2b');
-        map.setPaintProperty('national-park', 'fill-color', '#1f2233');
-        map.setPaintProperty('landuse', 'fill-color', '#1f2233');
+        map.setPaintProperty('land', 'background-color', '#2b3142');
+        map.setPaintProperty('national-park', 'fill-color', '#2e3447');
+        map.setPaintProperty('landuse', 'fill-color', '#2e3447');
         map.setPaintProperty('water', 'fill-color', '#141722');
 
         var darkHalo = 'rgba(27,30,43,0.8)';
@@ -65,10 +68,10 @@ function change_map_style(style) {
         _safePaint('water-line-label', 'text-color', '#4a5470');
         _safePaint('road-label-simple', 'text-color', '#5a6378');
 
-        _safePaint('admin-0-boundary', 'line-color', '#3a3f55');
-        _safePaint('admin-0-boundary-disputed', 'line-color', '#3a3f55');
-        _safePaint('admin-0-boundary-bg', 'line-color', '#2d3248');
-        _safePaint('admin-1-boundary', 'line-color', '#2d3248');
+        _safePaint('admin-0-boundary', 'line-color', '#5c637d');
+        _safePaint('admin-0-boundary-disputed', 'line-color', '#5c637d');
+        _safePaint('admin-0-boundary-bg', 'line-color', '#454c63');
+        _safePaint('admin-1-boundary', 'line-color', '#4b5269');
     }
     function set_light() {
         const white = 'rgb(246, 244, 237)';

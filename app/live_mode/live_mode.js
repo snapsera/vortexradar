@@ -1330,13 +1330,13 @@ function _apply_live_mode_lightning_style() {
     if (!_active) return;
     try {
         if (map.getLayer(LIGHTNING_GLOW_LAYER_ID)) {
-            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-opacity', ['min', 1, ['*', ['get', 'go'], 1.65]]);
-            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-radius', ['*', ['get', 'gr'], 1.2]);
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-opacity', ['min', 1, ['*', ['get', 'go'], 1.9]]);
+            map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-radius', ['*', ['get', 'gr'], 1.3]);
             map.setPaintProperty(LIGHTNING_GLOW_LAYER_ID, 'circle-color', '#e8eeff');
         }
         if (map.getLayer(LIGHTNING_CORE_LAYER_ID)) {
-            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-opacity', ['min', 1, ['*', ['get', 'co'], 1.6]]);
-            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-radius', ['*', ['get', 'cr'], 1.15]);
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-opacity', ['min', 1, ['*', ['get', 'co'], 1.85]]);
+            map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-radius', ['*', ['get', 'cr'], 1.22]);
             map.setPaintProperty(LIGHTNING_CORE_LAYER_ID, 'circle-color', '#ffffff');
         }
     } catch (_) {}

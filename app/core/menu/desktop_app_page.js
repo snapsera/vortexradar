@@ -1,4 +1,4 @@
-var DOWNLOAD_URL = '/download/desktop-app';
+var DOWNLOAD_FALLBACK_URL = 'https://github.com/snapsera/vortexradar/releases/latest/download/Vortex%20Radar%20Setup.exe';
 var RELEASES_URL = 'https://github.com/snapsera/vortexradar/releases/latest';
 
 var _overlay = null;
@@ -111,10 +111,12 @@ function _hide_prompt() {
 }
 
 function _open_download_link() {
+    var targetUrl = DOWNLOAD_FALLBACK_URL;
+
     var iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     iframe.setAttribute('aria-hidden', 'true');
-    iframe.src = DOWNLOAD_URL + '?_=' + Date.now();
+    iframe.src = targetUrl;
     document.body.appendChild(iframe);
     setTimeout(function() {
         iframe.remove();

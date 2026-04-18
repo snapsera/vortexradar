@@ -1733,6 +1733,43 @@ a:hover { color: var(--color-accent-hover); }
   }
 }
 
+.desktopUpdateToast {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: calc(var(--z-dialog) + 8);
+  max-width: min(360px, calc(100vw - 28px));
+  padding: 10px 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(59, 130, 246, 0.48);
+  background: rgba(10, 18, 32, 0.92);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 140ms ease, transform 140ms ease;
+  pointer-events: none;
+}
+.desktopUpdateToast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.desktopUpdateToast--warn {
+  border-color: rgba(245, 158, 11, 0.62);
+  background: rgba(28, 19, 7, 0.94);
+}
+.desktopUpdateToast--ok {
+  border-color: rgba(34, 197, 94, 0.62);
+  background: rgba(7, 24, 12, 0.94);
+}
+.desktopUpdateToast--error {
+  border-color: rgba(239, 68, 68, 0.62);
+  background: rgba(36, 11, 11, 0.94);
+}
+
 .defaultsConfirmOverlay {
   position: fixed;
   inset: 0;

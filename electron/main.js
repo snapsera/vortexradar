@@ -16,6 +16,13 @@ let serverPort = null;
 let mainWindow = null;
 let isQuitting = false;
 
+function _send_update_status(payload) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        return;
+    }
+    mainWindow.webContents.send('desktop-updater-status', payload || {});
+}
+
 // Desktop app should allow weather alert/audio playback without requiring
 // a prior click gesture like standard browsers do.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -31,25 +38,31 @@ function setupAutoUpdates() {
 
     autoUpdater.on('checking-for-update', () => {
         console.log('[Updater] Checking for updates...');
+        _send_update_status({ state: 'checking' });
     });
 
     autoUpdater.on('update-available', (info) => {
         console.log(`[Updater] Update available: ${info?.version || 'unknown version'}`);
+        _send_update_status({ state: 'available', version: info?.version || '' });
     });
 
     autoUpdater.on('update-not-available', () => {
         console.log('[Updater] No updates available.');
+        _send_update_status({ state: 'up-to-date' });
     });
 
     autoUpdater.on('download-progress', (progress) => {
         if (!progress?.percent) {
             return;
         }
-        console.log(`[Updater] Download progress: ${Math.round(progress.percent)}%`);
+        const percent = Math.round(progress.percent);
+        console.log(`[Updater] Download progress: ${percent}%`);
+        _send_update_status({ state: 'downloading', percent: percent });
     });
 
     autoUpdater.on('update-downloaded', async (info) => {
         console.log(`[Updater] Update downloaded: ${info?.version || 'unknown version'}`);
+        _send_update_status({ state: 'downloaded', version: info?.version || '' });
 
         const response = await dialog.showMessageBox({
             type: 'info',
@@ -68,6 +81,7 @@ function setupAutoUpdates() {
 
     autoUpdater.on('error', (error) => {
         console.error('[Updater] Failed to check/apply updates:', error);
+        _send_update_status({ state: 'error', message: error?.message || 'Update check failed.' });
     });
 
     setTimeout(() => {

@@ -8,6 +8,7 @@
 const map = require('../core/map/map');
 const turf = require('@turf/turf');
 const chroma = require('chroma-js');
+const ut = require('../core/utils');
 const settings_store = require('../core/menu/settings_store');
 const alert_helpers = require('../alerts/alert_helpers');
 const alerts_display_state = require('../alerts/alerts_display_state');
@@ -71,6 +72,14 @@ const PLAYBACK_LOOP_TARGET = 8;
 const PLAYBACK_SPEED = 10;
 const PLAYBACK_FRAME_COUNT = 14;
 const SPOTLIGHT_FORECAST_CACHE_TTL_MS = 8 * 60 * 1000;
+const STORM_REPORTS_SEGMENT_DURATION_MS = 17000;
+const SPC_TODAY_REPORTS_URL = 'https://www.spc.noaa.gov/climo/reports/today.html';
+const SPC_TODAY_REPORT_CSV_DEFAULT_URLS = {
+    tornado: 'https://www.spc.noaa.gov/climo/reports/today_torn.csv',
+    hail: 'https://www.spc.noaa.gov/climo/reports/today_hail.csv',
+    wind: 'https://www.spc.noaa.gov/climo/reports/today_wind.csv'
+};
+const SPC_REPORTS_PROXY_PREFIX = 'https://corsproxy.io/?url=';
 
 const EARTHQUAKE_DURATION_MS = 22000;
 const EARTHQUAKE_FEED_URL = '/api/earthquakes';
@@ -78,8 +87,11 @@ const LM_QUAKE_SOURCE = 'lmQuakeSource';
 const LM_QUAKE_CIRCLE = 'lmQuakeCircle';
 const LM_QUAKE_LABEL = 'lmQuakeLabel';
 const LM_QUAKE_PULSE = 'lmQuakePulse';
+const LM_STORM_REPORTS_SOURCE = 'lmStormReportsSource';
+const LM_STORM_REPORTS_LAYER = 'lmStormReportsLayer';
+const LM_STORM_REPORTS_SIG_LAYER = 'lmStormReportsSigLayer';
 
-const SEGMENT_WEIGHTS = { spc: 3, alert: 5, conus: 2, spotlight: 4, conditions: 3, earthquake: 2 };
+const SEGMENT_WEIGHTS = { spc: 3, alert: 5, conus: 2, spotlight: 4, conditions: 3, storm_reports: 3, earthquake: 2 };
 const ALERT_CATEGORY_ICON_META = {
     'Severe Weather': { icon: 'fa-bolt-lightning' },
     'Winter': { icon: 'fa-snowflake' },
@@ -3038,6 +3050,7 @@ function _run_alert_segment(resolve, forceFeature) {
                 _set_segment_stage('velocity');
                 _switch_to_velocity(epoch, feature, function () {
                     if (isStale()) return finish();
+                    _reset_to_reflectivity();
                     _set_segment_stage('wait-text');
                     _wait_for_typewriter_then(function () {
                         if (isStale()) return finish();
@@ -4695,6 +4708,346 @@ function _build_conditions_panel_html(regionName) {
     return html;
 }
 
+function _fetch_text_with_proxy_fallback(url) {
+    return _fetch_text_meta_with_proxy_fallback(url).then(function (meta) { return meta.text; });
+}
+
+function _fetch_text_meta_with_proxy_fallback(url) {
+    return fetch(url, { cache: 'no-store' })
+        .then(function (r) {
+            if (!r.ok) throw new Error('Fetch failed: ' + r.status);
+            return r.text().then(function (text) {
+                return { text: text, lastModified: r.headers.get('last-modified') || '' };
+            });
+        })
+        .catch(function () {
+            var proxyPrefix = (ut && ut.phpProxy) ? ut.phpProxy : SPC_REPORTS_PROXY_PREFIX;
+            return fetch(proxyPrefix + encodeURIComponent(url), { cache: 'no-store' })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('Proxy fetch failed: ' + r.status);
+                    return r.text().then(function (text) {
+                        return { text: text, lastModified: r.headers.get('last-modified') || '' };
+                    });
+                });
+        });
+}
+
+function _parse_csv_line(line) {
+    var out = [];
+    var cell = '';
+    var inQuotes = false;
+    for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                cell += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (ch === ',' && !inQuotes) {
+            out.push(cell);
+            cell = '';
+        } else {
+            cell += ch;
+        }
+    }
+    out.push(cell);
+    return out;
+}
+
+function _parse_csv_text(text) {
+    var lines = String(text || '')
+        .replace(/^\uFEFF/, '')
+        .split(/\r?\n/)
+        .filter(function (line) { return line && line.trim().length > 0; });
+    if (!lines.length) return { headers: [], rows: [] };
+    var headers = _parse_csv_line(lines[0]).map(function (h) { return String(h || '').trim(); });
+    var rows = [];
+    for (var i = 1; i < lines.length; i++) {
+        rows.push(_parse_csv_line(lines[i]));
+    }
+    return { headers: headers, rows: rows };
+}
+
+function _extract_spc_today_csv_urls(htmlText) {
+    var html = String(htmlText || '');
+    var keys = ['tornado', 'hail', 'wind'];
+    var fileNames = { tornado: 'today_torn.csv', hail: 'today_hail.csv', wind: 'today_wind.csv' };
+    var out = {
+        tornado: SPC_TODAY_REPORT_CSV_DEFAULT_URLS.tornado,
+        hail: SPC_TODAY_REPORT_CSV_DEFAULT_URLS.hail,
+        wind: SPC_TODAY_REPORT_CSV_DEFAULT_URLS.wind
+    };
+    for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var rx = new RegExp('(https?:\\/\\/www\\.spc\\.noaa\\.gov\\/climo\\/reports\\/' + fileNames[key] + '|\\/climo\\/reports\\/' + fileNames[key] + ')', 'i');
+        var match = html.match(rx);
+        if (!match || !match[1]) continue;
+        out[key] = match[1].indexOf('/climo/') === 0 ? ('https://www.spc.noaa.gov' + match[1]) : match[1];
+    }
+    return out;
+}
+
+function _extract_spc_last_update_text(htmlText) {
+    var html = String(htmlText || '');
+    var patterns = [
+        /Map\s+updated\s+at\s+[0-9]{3,4}\s*Z?\s+on\s+\d{1,2}\/\d{1,2}\/\d{2,4}/i,
+        /Map\s+updated\s+at\s+[^\r\n<]+/i,
+        /updated\s+at\s+[0-9]{3,4}\s*Z?\s+on\s+\d{1,2}\/\d{1,2}\/\d{2,4}/i
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+        var match = html.match(patterns[i]);
+        if (match && match[0]) return match[0].replace(/\s+/g, ' ').trim();
+    }
+    return '';
+}
+
+function _format_last_modified_header(lastModified) {
+    var raw = String(lastModified || '').trim();
+    if (!raw) return '';
+    var d = new Date(raw);
+    if (!Number.isFinite(d.getTime())) return raw;
+    var datePart = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'UTC',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    }).format(d);
+    var timePart = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'UTC',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    }).format(d);
+    return 'Map updated at ' + timePart + ' UTC on ' + datePart;
+}
+
+function _parse_spc_lat(raw) {
+    var num = Number(raw);
+    if (!Number.isFinite(num)) return null;
+    if (Math.abs(num) > 90) num = num / 100;
+    if (!Number.isFinite(num) || Math.abs(num) > 90) return null;
+    return num;
+}
+
+function _parse_spc_lon(raw) {
+    var num = Number(raw);
+    if (!Number.isFinite(num)) return null;
+    if (Math.abs(num) > 180) num = num / 100;
+    if (num > 0) num = -num;
+    if (!Number.isFinite(num) || Math.abs(num) > 180) return null;
+    return num;
+}
+
+function _spc_report_color(category) {
+    if (category === 'tornado') return '#ff3232';
+    if (category === 'hail') return '#00d14f';
+    return '#2f8cff';
+}
+
+function _parse_spc_report_csv(text, category) {
+    var parsed = _parse_csv_text(text);
+    var headers = parsed.headers;
+    var rows = parsed.rows;
+    if (!headers.length || !rows.length) return [];
+    var out = [];
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row || !row.length) continue;
+        var obj = {};
+        for (var c = 0; c < headers.length; c++) {
+            obj[headers[c]] = row[c] != null ? String(row[c]).trim() : '';
+        }
+        var lat = _parse_spc_lat(obj.Lat);
+        var lon = _parse_spc_lon(obj.Lon);
+        if (lat == null || lon == null) continue;
+        var speed = Number(obj.Speed);
+        var size = Number(obj.Size);
+        var sig = 0;
+        if (category === 'hail' && Number.isFinite(size)) sig = size >= 200 ? 1 : 0;
+        else if (category === 'wind' && Number.isFinite(speed)) sig = speed >= 65 ? 1 : 0;
+        out.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [lon, lat] },
+            properties: {
+                category: category,
+                color: _spc_report_color(category),
+                sig: sig,
+                state: String(obj.State || '').toUpperCase(),
+                location: obj.Location || '',
+                time: obj.Time || ''
+            }
+        });
+    }
+    return out;
+}
+
+function _fetch_spc_today_report_summary() {
+    return _fetch_text_meta_with_proxy_fallback(SPC_TODAY_REPORTS_URL).then(function (pageMeta) {
+        var html = pageMeta.text || '';
+        var urls = _extract_spc_today_csv_urls(html);
+        var lastUpdateText = _extract_spc_last_update_text(html) || _format_last_modified_header(pageMeta.lastModified);
+        function _fetchCat(name, url) {
+            return _fetch_text_with_proxy_fallback(url)
+                .then(function (csvText) { return _parse_spc_report_csv(csvText, name); })
+                .catch(function () { return []; });
+        }
+        return Promise.all([
+            _fetchCat('tornado', urls.tornado),
+            _fetchCat('hail', urls.hail),
+            _fetchCat('wind', urls.wind)
+        ]).then(function (parts) {
+            var tornado = parts[0] || [];
+            var hail = parts[1] || [];
+            var wind = parts[2] || [];
+            return {
+                sourceUrl: SPC_TODAY_REPORTS_URL,
+                lastUpdateText: lastUpdateText,
+                tornadoCount: tornado.length,
+                hailCount: hail.length,
+                windCount: wind.length,
+                features: tornado.concat(hail, wind)
+            };
+        });
+    });
+}
+
+function _add_live_storm_reports_layer(summary) {
+    _remove_live_storm_reports_layer();
+    var fc = {
+        type: 'FeatureCollection',
+        features: Array.isArray(summary?.features) ? summary.features : []
+    };
+    map.addSource(LM_STORM_REPORTS_SOURCE, { type: 'geojson', data: fc });
+
+    map.addLayer({
+        id: LM_STORM_REPORTS_LAYER,
+        type: 'circle',
+        source: LM_STORM_REPORTS_SOURCE,
+        paint: {
+            'circle-radius': 3.5,
+            'circle-color': ['get', 'color'],
+            'circle-opacity': 0.9,
+            'circle-stroke-width': 0
+        }
+    });
+
+    map.addLayer({
+        id: LM_STORM_REPORTS_SIG_LAYER,
+        type: 'circle',
+        source: LM_STORM_REPORTS_SOURCE,
+        filter: ['==', ['get', 'sig'], 1],
+        paint: {
+            'circle-radius': 5.5,
+            'circle-color': ['get', 'color'],
+            'circle-opacity': 0.95,
+            'circle-stroke-width': 0
+        }
+    });
+}
+
+function _remove_live_storm_reports_layer() {
+    try { if (map.getLayer(LM_STORM_REPORTS_SIG_LAYER)) map.removeLayer(LM_STORM_REPORTS_SIG_LAYER); } catch (_) {}
+    try { if (map.getLayer(LM_STORM_REPORTS_LAYER)) map.removeLayer(LM_STORM_REPORTS_LAYER); } catch (_) {}
+    try { if (map.getSource(LM_STORM_REPORTS_SOURCE)) map.removeSource(LM_STORM_REPORTS_SOURCE); } catch (_) {}
+}
+
+function _focus_storm_reports_map(summary) {
+    var features = Array.isArray(summary?.features) ? summary.features : [];
+    if (!features.length) {
+        try {
+            map.flyTo({ center: CONUS_CENTER, zoom: CONUS_ZOOM, speed: 1.05, essential: true });
+        } catch (_) {}
+        return;
+    }
+
+    var fc = {
+        type: 'FeatureCollection',
+        features: features
+    };
+    try {
+        var bbox = turf.bbox(fc);
+        if (!bbox || bbox.length !== 4) throw new Error('invalid bbox');
+        map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], {
+            padding: { top: 90, right: 60, bottom: 110, left: 300 },
+            maxZoom: 6.1,
+            speed: 0.95,
+            essential: true
+        });
+    } catch (_) {
+        try {
+            map.flyTo({ center: CONUS_CENTER, zoom: CONUS_ZOOM, speed: 1.05, essential: true });
+        } catch (_) {}
+    }
+}
+
+function _build_storm_reports_panel_html(summary) {
+    var tornadoCount = summary?.tornadoCount || 0;
+    var hailCount = summary?.hailCount || 0;
+    var windCount = summary?.windCount || 0;
+    var total = tornadoCount + hailCount + windCount;
+    var html = '<div class="fnAlert" style="--fn-accent:#fb7185">';
+    html += '<div class="fnAlertShine"></div>';
+    html += '<div class="fnAlertBody">';
+    html += '<div class="fnAlertEventName">SPC STORM REPORTS</div>';
+    html += '<div class="fnAlertSourceLine" style="margin-top:4px;opacity:0.8">' + total + ' report' + (total !== 1 ? 's' : '') + '</div>';
+    html += '<div class="fnAlertSourceLine" style="margin-top:2px;opacity:0.65">Source: <a href="' + _escape_html(SPC_TODAY_REPORTS_URL) + '" target="_blank" rel="noopener noreferrer" style="color:#ffd9e2;text-decoration:underline;">spc.noaa.gov/climo/reports/today.html</a></div>';
+    html += '</div></div>';
+    html += '<div style="margin-top:10px;padding:12px 14px;border-radius:12px;background:rgba(8,12,20,0.55);border:1px solid rgba(255,255,255,0.12);font-size:14px;line-height:1.42;">';
+    html += '<span style="color:#ff3232;font-weight:700;">TORNADO</span>: ' + tornadoCount + '&nbsp;&nbsp;·&nbsp;&nbsp;';
+    html += '<span style="color:#00d14f;font-weight:700;">HAIL</span>: ' + hailCount + '&nbsp;&nbsp;·&nbsp;&nbsp;';
+    html += '<span style="color:#2f8cff;font-weight:700;">WIND</span>: ' + windCount;
+    html += '<div style="margin-top:6px;opacity:0.75;">Larger dots indicate significant hail (2"+) or wind (65+ mph).</div>';
+    html += '</div>';
+    return html;
+}
+
+function _run_storm_reports_segment(resolve) {
+    _currentSegmentType = 'storm_reports';
+    _set_segment_stage('enter');
+    _record_segment('storm_reports', 'spc-reports-map');
+    _set_clock_mode('hidden');
+    _hide_header_radar_info(null);
+
+    _hide_all_map_overlays();
+    _clear_active_station_selection();
+    _remove_static_mrms_layer();
+    _remove_conditions_layer();
+    _remove_earthquake_layer();
+    _hide_storm_reports();
+
+    function _cleanup() {
+        _set_segment_stage('finish');
+        _stop_typewriter();
+        _remove_live_storm_reports_layer();
+        _show_header_radar_info();
+        _hide_info_panel();
+        resolve();
+    }
+
+    _set_segment_stage('fetch');
+    _fetch_spc_today_report_summary().then(function (summary) {
+        if (!_active) return _cleanup();
+        _set_segment_stage('render');
+        _add_live_storm_reports_layer(summary);
+        _focus_storm_reports_map(summary);
+        _show_info_panel(_build_storm_reports_panel_html(summary));
+        _segmentTimer = setTimeout(function () {
+            _cleanup();
+        }, STORM_REPORTS_SEGMENT_DURATION_MS);
+    }).catch(function () {
+        if (!_active) return _cleanup();
+        _set_segment_stage('render-fallback');
+        _remove_live_storm_reports_layer();
+        _focus_storm_reports_map({ features: [] });
+        _show_info_panel(_build_storm_reports_panel_html({ tornadoCount: 0, hailCount: 0, windCount: 0, features: [], lastUpdateText: '' }));
+        _segmentTimer = setTimeout(function () {
+            _cleanup();
+        }, STORM_REPORTS_SEGMENT_DURATION_MS);
+    });
+}
+
 var _lastConditionsRegionIdx = -1;
 
 function _run_conditions_segment(resolve) {
@@ -5561,6 +5914,7 @@ function _pick_next_segment() {
     options.push({ type: 'conus', weight: 2 });
     options.push({ type: 'spotlight', weight: 4 });
     options.push({ type: 'conditions', weight: 3 });
+    options.push({ type: 'storm_reports', weight: 3 });
     options.push({ type: 'earthquake', weight: 2 });
 
     if (hasAnySevere) {
@@ -5575,6 +5929,7 @@ function _pick_next_segment() {
             if (options[k].type === 'conditions') options[k].weight = 1;
             if (options[k].type === 'earthquake') options[k].weight = 1;
             if (options[k].type === 'spotlight') options[k].weight = 2;
+            if (options[k].type === 'storm_reports') options[k].weight = 2;
             if (options[k].type === 'conus') options[k].weight += 2;
         }
     }
@@ -5584,6 +5939,7 @@ function _pick_next_segment() {
         for (var i = 0; i < options.length; i++) {
             if (options[i].type === 'spotlight') options[i].weight += 2;
             if (options[i].type === 'conditions') options[i].weight += 2;
+            if (options[i].type === 'storm_reports') options[i].weight += 2;
             if (options[i].type === 'conus') options[i].weight += 1;
             if (options[i].type === 'earthquake') options[i].weight += 1;
         }
@@ -5602,6 +5958,7 @@ function _pick_next_segment() {
         for (var n = 0; n < options.length; n++) {
             if (options[n].type === 'conditions') options[n].weight = Math.max(1, options[n].weight - 1);
             if (options[n].type === 'conus') options[n].weight += 1;
+            if (options[n].type === 'storm_reports') options[n].weight += 1;
         }
     }
 
@@ -5629,7 +5986,14 @@ function _pick_next_segment() {
     }
 
     if (!options.length) {
-        options = [{ type: 'spc', weight: 1 }, { type: 'conus', weight: 1 }, { type: 'spotlight', weight: 2 }, { type: 'conditions', weight: 1 }, { type: 'earthquake', weight: 1 }];
+        options = [
+            { type: 'spc', weight: 1 },
+            { type: 'conus', weight: 1 },
+            { type: 'spotlight', weight: 2 },
+            { type: 'conditions', weight: 1 },
+            { type: 'storm_reports', weight: 1 },
+            { type: 'earthquake', weight: 1 }
+        ];
         if (hasAnySevere) options.push({ type: 'alert', weight: 3 });
     }
 
@@ -5656,6 +6020,7 @@ function _full_segment_cleanup(options) {
     _remove_static_mrms_layer();
     _remove_conditions_layer();
     _remove_earthquake_layer();
+    _remove_live_storm_reports_layer();
     _hide_radar_render();
     _hide_station_markers();
     _hide_radar_sweep();
@@ -5707,6 +6072,8 @@ function _run_next() {
         _run_spotlight_segment(advance);
     } else if (type === 'conditions') {
         _run_conditions_segment(advance);
+    } else if (type === 'storm_reports') {
+        _run_storm_reports_segment(advance);
     } else if (type === 'earthquake') {
         _run_earthquake_segment(advance);
     } else {
@@ -6023,6 +6390,7 @@ function forceSegment(type, options) {
     }
     else if (type === 'spotlight') _run_spotlight_segment(advance);
     else if (type === 'conditions') _run_conditions_segment(advance);
+    else if (type === 'storm_reports') _run_storm_reports_segment(advance);
     else if (type === 'earthquake') _run_earthquake_segment(advance);
     else if (type === 'conus') _run_conus_segment(advance);
     else return false;

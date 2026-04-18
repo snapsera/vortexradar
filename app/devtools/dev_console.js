@@ -93,7 +93,7 @@ function _log(html, cls) {
 
 function _cmd_lm_segment(args) {
     var live_mode = require('../live_mode/live_mode');
-    var valid = ['spc', 'alert', 'conus', 'spotlight', 'conditions', 'earthquake'];
+    var valid = ['spc', 'alert', 'conus', 'spotlight', 'conditions', 'storm_reports', 'earthquake'];
     var type = (args[0] || '').toLowerCase();
     var eventName = args.slice(1).join(' ').trim();
     var options = null;

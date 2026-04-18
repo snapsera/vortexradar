@@ -8,7 +8,7 @@ Browser based weather radar and alerts. Pulls live data from the NWS and other p
 
 You can view the live version here: [vortexradar.snapsera.com](https://vortexradar.snapsera.com/)
 
-## Screenshots
+## Showcase
 
 ![Vortex Radar - National Map](images/readme-screenshot-1.png)
 
@@ -18,9 +18,14 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 
 ![Vortex Radar - Location Lookup (MyCast)](images/readme-screenshot-4.gif)
 
+![Vortex Radar - Live Mode Severe Line](images/readme-screenshot-5-live-mode.png)
+
 ## Features
 
 - **NEXRAD radar** — Level 2 & Level 3 from any US NEXRAD site. Reflectivity, velocity (with dealiasing), and a bunch of other products. National composite, looping, and a data inspector.
+- **24/7 Live Mode** — Autonomous weather broadcast mode that rotates between SPC outlooks, active severe warnings, CONUS radar, local spotlight segments, storm reports, and recent earthquakes.
+- **Live commentary + soundtrack** — Typewriter-style commentary with alert-first callouts, plus built-in background music controls for stream-style viewing.
+- **National MRMS radar loop** — CONUS base reflectivity from NOAA nowCOAST with multi-frame playback and smooth endpoint dwell for cleaner animation.
 - **Alerts** — Warnings, watches, advisories drawn on the map with polygons and full text. SPC watches, MDs, outlooks. Ticker along the bottom, plus audible/voice notifications.
 - **Lightning** — Real-time strike plotting.
 - **METARs** — Station models from ASOS/AWOS sites.
@@ -32,6 +37,7 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 - **Drawing** — Freehand annotation on the map.
 - **Screenshots** — Save any region of the map.
 - **7-Day Forecast** — City/state/zip, current conditions, hourly out to 72h, day-by-day text forecasts.
+- **Change Log panel** — In-app changelog modal with day tabs so you can quickly see what changed in recent builds.
 
 ## Project layout
 

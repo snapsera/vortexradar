@@ -133,6 +133,7 @@ function load() {
         require('../../ui/fullscreen_toggle').init();
         require('../../forecast/forecast_modal').init();
         require('../../spc_outlooks/spc_outlooks_modal').init();
+        require('../menu/desktop_app_page').init();
         require('../../radar/preview_embed_mode').init();
         require('../../lightning/menu_item');
         require('../../storm_reports/menu_item');

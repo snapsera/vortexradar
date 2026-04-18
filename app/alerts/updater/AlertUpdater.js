@@ -188,6 +188,7 @@ class AlertUpdater {
     }
 
     _check_for_new_file() {
+        if (window?.stormTrackData?.appPausedForPromo) return;
         const { DateTime } = require('luxon');
         const formatted_now = DateTime.now().toFormat('h:mm.ss a ZZZZ');
         const combine_dictionary_data = require('../combine_dictionary_data');

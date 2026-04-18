@@ -142,6 +142,7 @@ function init() {
     });
 
     window.addEventListener('radarScanUpdated', () => {
+        if (window?.stormTrackData?.appPausedForPromo) return;
         if (window?.stormTrackData?.liveModeActive) return;
         if (!window?.stormTrackData?.loopPlayback?.active || !window?.stormTrackData?.loopPlayback?.supported) return;
         if (window?.stormTrackData?.loopPlayback?.playing) return;
@@ -149,6 +150,7 @@ function init() {
     });
 
     setInterval(() => {
+        if (window?.stormTrackData?.appPausedForPromo) return;
         if (window?.stormTrackData?.liveModeActive) return;
         if (!window?.stormTrackData?.loopPlayback?.active || !window?.stormTrackData?.loopPlayback?.supported) return;
         controller.refresh_frames();

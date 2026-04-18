@@ -61,6 +61,7 @@ class RadarUpdater {
     }
 
     _check_for_new_file() {
+        if (window?.stormTrackData?.appPausedForPromo) return;
         if (this._pending_plot) return;
 
         const { DateTime } = require('luxon');

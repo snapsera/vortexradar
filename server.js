@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { Readable } = require('stream');
 
 const app = express();
 const DEFAULT_PORT = Number(process.env.PORT) || 3000;
@@ -87,6 +88,36 @@ app.get('/api/earthquakes', async (req, res) => {
     } catch (e) {
         console.error('[Earthquake proxy]', e.message);
         res.status(502).json({ error: 'Fetch failed' });
+    }
+});
+
+app.get('/download/desktop-app', async (req, res) => {
+    const releaseUrl = 'https://github.com/snapsera/vortexradar/releases/latest/download/Vortex%20Radar%20Setup.exe';
+    try {
+        const upstream = await fetch(releaseUrl, { redirect: 'follow' });
+        if (!upstream.ok || !upstream.body) {
+            return res.status(502).send('Failed to fetch installer.');
+        }
+
+        const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+        const contentLength = upstream.headers.get('content-length');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', 'attachment; filename="Vortex Radar Setup.exe"');
+        if (contentLength) res.setHeader('Content-Length', contentLength);
+        res.setHeader('Cache-Control', 'no-store');
+
+        const installerStream = Readable.fromWeb(upstream.body);
+        installerStream.on('error', () => {
+            if (!res.headersSent) {
+                res.status(502).send('Installer stream failed.');
+            } else {
+                res.end();
+            }
+        });
+        installerStream.pipe(res);
+    } catch (error) {
+        console.error('[Desktop Download Proxy]', error.message);
+        res.status(502).send('Unable to download installer right now.');
     }
 });
 

@@ -1,11 +1,11 @@
 const path = require('path');
-const fs = require('fs');
 const net = require('net');
 const { app, BrowserWindow, dialog, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { startServer } = require('../server');
 
 const HOST = '127.0.0.1';
+const DESKTOP_PREFERRED_PORT = 45721;
 const SERVER_READY_TIMEOUT_MS = 15000;
 const SERVER_RETRY_DELAY_MS = 250;
 const UPDATE_CHECK_DELAY_MS = 10000;
@@ -20,41 +20,6 @@ let serverPort = null;
 let mainWindow = null;
 let isQuitting = false;
 let installPrepInProgress = false;
-let persistedWindowState = null;
-
-function getWindowStatePath() {
-    return path.join(app.getPath('userData'), 'window-state.json');
-}
-
-function loadWindowState() {
-    try {
-        const raw = fs.readFileSync(getWindowStatePath(), 'utf8');
-        const parsed = JSON.parse(raw);
-        const b = parsed?.bounds || {};
-        if (![b.x, b.y, b.width, b.height].every(Number.isFinite)) {
-            return null;
-        }
-        return {
-            bounds: {
-                x: Math.round(b.x),
-                y: Math.round(b.y),
-                width: Math.round(b.width),
-                height: Math.round(b.height),
-            },
-        };
-    } catch (_) {
-        return null;
-    }
-}
-
-function saveWindowState(state) {
-    try {
-        const target = getWindowStatePath();
-        fs.writeFileSync(target, JSON.stringify(state, null, 2), 'utf8');
-    } catch (error) {
-        console.warn('[Electron] Failed to persist window state:', error?.message || error);
-    }
-}
 
 function _send_update_status(payload) {
     if (!mainWindow || mainWindow.isDestroyed()) {
@@ -170,6 +135,32 @@ function getFreePort() {
     });
 }
 
+function canUsePort(port) {
+    return new Promise((resolve, reject) => {
+        const candidate = net.createServer();
+        candidate.unref();
+        candidate.on('error', reject);
+        candidate.listen(port, HOST, () => {
+            candidate.close((closeErr) => {
+                if (closeErr) {
+                    reject(closeErr);
+                    return;
+                }
+                resolve();
+            });
+        });
+    });
+}
+
+async function resolveDesktopPort() {
+    try {
+        await canUsePort(DESKTOP_PREFERRED_PORT);
+        return DESKTOP_PREFERRED_PORT;
+    } catch (_) {
+        return getFreePort();
+    }
+}
+
 async function waitForServerReady(url) {
     const startedAt = Date.now();
     while (Date.now() - startedAt < SERVER_READY_TIMEOUT_MS) {
@@ -194,7 +185,7 @@ async function startEmbeddedServer() {
     }
 
     const defaultsPath = path.join(app.getPath('userData'), 'site_defaults.json');
-    serverPort = await getFreePort();
+    serverPort = await resolveDesktopPort();
     process.env.PORT = String(serverPort);
     process.env.SITE_DEFAULTS_PATH = defaultsPath;
 
@@ -205,15 +196,10 @@ async function startEmbeddedServer() {
 
 function createMainWindow() {
     const appVersion = app.getVersion();
-    const initialState = persistedWindowState || loadWindowState();
-    const hasSavedBounds = !!(initialState && initialState.bounds);
-    let boundsPersistTimer = null;
 
     mainWindow = new BrowserWindow({
-        width: hasSavedBounds ? initialState.bounds.width : 1366,
-        height: hasSavedBounds ? initialState.bounds.height : 900,
-        x: hasSavedBounds ? initialState.bounds.x : undefined,
-        y: hasSavedBounds ? initialState.bounds.y : undefined,
+        width: 1366,
+        height: 900,
         minWidth: 1120,
         minHeight: 700,
         show: false,
@@ -235,40 +221,11 @@ function createMainWindow() {
     mainWindow.loadURL(serverUrl.toString());
     mainWindow.setMenuBarVisibility(false);
     mainWindow.once('ready-to-show', () => {
+        mainWindow.maximize();
         mainWindow.show();
-        if (!hasSavedBounds) {
-            mainWindow.maximize();
-        }
     });
 
-    function persistCurrentBoundsIfResizable() {
-        if (!mainWindow || mainWindow.isDestroyed()) return;
-        if (mainWindow.isMaximized() || mainWindow.isMinimized() || mainWindow.isFullScreen()) return;
-        const b = mainWindow.getBounds();
-        const state = { bounds: { x: b.x, y: b.y, width: b.width, height: b.height } };
-        persistedWindowState = state;
-        saveWindowState(state);
-    }
-
-    function queuePersistBounds() {
-        if (boundsPersistTimer) {
-            clearTimeout(boundsPersistTimer);
-        }
-        boundsPersistTimer = setTimeout(() => {
-            boundsPersistTimer = null;
-            persistCurrentBoundsIfResizable();
-        }, 250);
-    }
-
-    mainWindow.on('resize', queuePersistBounds);
-    mainWindow.on('move', queuePersistBounds);
-
     mainWindow.on('closed', () => {
-        if (boundsPersistTimer) {
-            clearTimeout(boundsPersistTimer);
-            boundsPersistTimer = null;
-        }
-        persistCurrentBoundsIfResizable();
         mainWindow = null;
     });
 }

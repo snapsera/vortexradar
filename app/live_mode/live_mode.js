@@ -29,6 +29,7 @@ const LiveModeCommentator = require('./live_mode_commentator');
 const SPC_BASE_URL = 'https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer';
 const DAY1_LAYERS = { categorical: 1, tornado: 3, hail: 5, wind: 7 };
 const SPC_HAZARDS = ['categorical', 'tornado', 'wind', 'hail'];
+const SPC_PROBABILITY_HAZARDS = ['tornado', 'wind', 'hail'];
 let _spcOverlayCanvas = null;
 let _spcOverlayCtx = null;
 let _spcRenderListener = null;
@@ -1376,7 +1377,16 @@ function _show_all_map_overlays() {
 function _run_spc_segment(resolve) {
     var hazard = _pick_random(SPC_HAZARDS.filter(function (h) { return !_was_recent('spc', h); }));
     if (!hazard) hazard = _pick_random(SPC_HAZARDS);
-    _record_segment('spc', hazard);
+    var hazardCandidates = [hazard];
+    if (SPC_PROBABILITY_HAZARDS.indexOf(hazard) !== -1) {
+        var nonRecentFallbacks = SPC_PROBABILITY_HAZARDS.filter(function (h) {
+            return h !== hazard && !_was_recent('spc', h);
+        });
+        var remainingFallbacks = SPC_PROBABILITY_HAZARDS.filter(function (h) {
+            return h !== hazard && nonRecentFallbacks.indexOf(h) === -1;
+        });
+        hazardCandidates = hazardCandidates.concat(nonRecentFallbacks, remainingFallbacks);
+    }
     _currentSegmentType = 'spc';
     _set_segment_stage('enter');
 
@@ -1392,17 +1402,60 @@ function _run_spc_segment(resolve) {
     _hide_header_radar_info(null, { allowSocialFallback: false });
     _show_info_panel(_build_spc_panel_html(_spc_label(hazard)));
 
-    var catPromise = (hazard !== 'categorical')
-        ? _fetch_spc_geojson('categorical')
-        : Promise.resolve(null);
-
     _set_segment_stage('fetch');
-    Promise.all([_fetch_spc_geojson(hazard), catPromise]).then(function (results) {
-        var geojson = results[0];
-        var catGeojson = results[1];
+    function _fetch_next_spc_candidate(candidateIndex) {
+        if (candidateIndex >= hazardCandidates.length) {
+            return Promise.resolve({
+                selectedHazard: hazard,
+                geojson: { type: 'FeatureCollection', features: [] },
+            });
+        }
+        var candidateHazard = hazardCandidates[candidateIndex];
+        return _fetch_spc_geojson(candidateHazard).then(function (candidateGeojson) {
+            var candidateFeatures = (candidateGeojson && candidateGeojson.features)
+                ? candidateGeojson.features.filter(function (f) { return f.geometry; })
+                : [];
+            if (SPC_PROBABILITY_HAZARDS.indexOf(candidateHazard) !== -1 && candidateFeatures.length === 0) {
+                return _fetch_next_spc_candidate(candidateIndex + 1);
+            }
+            return {
+                selectedHazard: candidateHazard,
+                geojson: candidateGeojson,
+            };
+        });
+    }
+
+    _fetch_next_spc_candidate(0).then(function (selection) {
+        var hazardToRender = selection.selectedHazard;
+        var geojson = selection.geojson;
+        var catPromise = (hazardToRender !== 'categorical')
+            ? _fetch_spc_geojson('categorical')
+            : Promise.resolve(null);
+        return catPromise.then(function (catGeojson) {
+            return {
+                hazard: hazardToRender,
+                geojson: geojson,
+                catGeojson: catGeojson,
+            };
+        });
+    }).then(function (selection) {
+        var hazard = selection.hazard;
+        var geojson = selection.geojson;
+        var catGeojson = selection.catGeojson;
         if (!_active) { _show_header_radar_info(); _hide_spc_legend(); return resolve(); }
 
         var features = (geojson && geojson.features) ? geojson.features.filter(function (f) { return f.geometry; }) : [];
+        if (SPC_PROBABILITY_HAZARDS.indexOf(hazard) !== -1 && features.length === 0) {
+            _set_segment_stage('skip-empty');
+            _stop_typewriter();
+            _remove_spc_layers();
+            _hide_spc_legend();
+            _show_header_radar_info();
+            _hide_info_panel();
+            return resolve();
+        }
+        _record_segment('spc', hazard);
+
         if (features.length) {
             try {
                 var bbox = turf.bbox(geojson);
@@ -5042,7 +5095,6 @@ function _build_storm_reports_panel_html(summary) {
 function _run_storm_reports_segment(resolve) {
     _currentSegmentType = 'storm_reports';
     _set_segment_stage('enter');
-    _record_segment('storm_reports', 'spc-reports-map');
     _set_clock_mode('hidden');
     _hide_header_radar_info(null);
 
@@ -5065,6 +5117,12 @@ function _run_storm_reports_segment(resolve) {
     _set_segment_stage('fetch');
     _fetch_spc_today_report_summary().then(function (summary) {
         if (!_active) return _cleanup();
+        var totalReports = (summary?.tornadoCount || 0) + (summary?.hailCount || 0) + (summary?.windCount || 0);
+        if (!totalReports) {
+            _set_segment_stage('skip-empty');
+            return _cleanup();
+        }
+        _record_segment('storm_reports', 'spc-reports-map');
         _set_segment_stage('render');
         _add_live_storm_reports_layer(summary);
         _focus_storm_reports_map(summary);
@@ -5074,13 +5132,8 @@ function _run_storm_reports_segment(resolve) {
         }, STORM_REPORTS_SEGMENT_DURATION_MS);
     }).catch(function () {
         if (!_active) return _cleanup();
-        _set_segment_stage('render-fallback');
-        _remove_live_storm_reports_layer();
-        _focus_storm_reports_map({ features: [] });
-        _show_info_panel(_build_storm_reports_panel_html({ tornadoCount: 0, hailCount: 0, windCount: 0, features: [], lastUpdateText: '' }));
-        _segmentTimer = setTimeout(function () {
-            _cleanup();
-        }, STORM_REPORTS_SEGMENT_DURATION_MS);
+        _set_segment_stage('skip-empty');
+        _cleanup();
     });
 }
 

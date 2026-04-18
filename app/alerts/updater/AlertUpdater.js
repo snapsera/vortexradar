@@ -63,7 +63,13 @@ class AlertUpdater {
     }
 
     _is_tornado_warning(feature) {
-        return String(feature?.properties?.event || '').trim().toLowerCase() === 'tornado warning';
+        const eventLower = String(feature?.properties?.event || '').trim().toLowerCase();
+        if (!eventLower) return false;
+        // NWS feeds can vary wording (e.g. Tornado Warning, PDS Tornado Warning, Tornado Emergency).
+        if (eventLower === 'tornado warning') return true;
+        if (eventLower.includes('tornado emergency')) return true;
+        if (eventLower.includes('tornado') && eventLower.includes('warning')) return true;
+        return false;
     }
 
     _to_alert_params(properties) {

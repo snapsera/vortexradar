@@ -3207,17 +3207,23 @@ function _switch_to_velocity(epoch, feature, done) {
         _set_segment_stage('velocity-done');
         done();
     }
-    function _is_velocity_product(product) {
+    function _is_base_velocity_product(product) {
         var p = String(product || '').toUpperCase();
         return p === 'VEL' || p === 'N0G' || p === 'N1G' || p === 'N2G' || p === 'N3G' ||
             p === 'N0U' || p === 'N1U' || p === 'N2U' || p === 'N3U' ||
-            p === 'N0S' || p === 'TV0' || p === 'TV1' || p === 'TV2' ||
+            p === 'TV0' || p === 'TV1' || p === 'TV2' ||
             p.indexOf('P99V') === 0;
+    }
+    function _is_storm_relative_product(product) {
+        var p = String(product || '').toUpperCase();
+        return p === 'N0S' || p === 'N1S' || p === 'N2S' || p === 'N3S';
     }
 
     var $velRow = $('.psmRow[value="vel"]').first();
     if (!$velRow.length) return done();
     _set_segment_stage('velocity-enter');
+    // Prevent any in-flight updater request from plotting a different velocity product mid-segment.
+    try { if (window?.stormTrackData?.current_RadarUpdater) window.stormTrackData.current_RadarUpdater.disable(); } catch (_) {}
     $velRow.trigger('click');
 
     if (feature && feature.geometry) {
@@ -3239,7 +3245,12 @@ function _switch_to_velocity(epoch, feature, done) {
     _scanLoadListener = function (e) {
         if (isStale() || finished) return;
         var detail = e?.detail || {};
-        if (_is_velocity_product(detail.product)) {
+        if (_is_storm_relative_product(detail.product)) {
+            // Live mode alert velocity segment should only show base velocity.
+            $velRow.trigger('click');
+            return;
+        }
+        if (_is_base_velocity_product(detail.product)) {
             sawVelocityLoad = true;
         }
     };
@@ -3248,8 +3259,6 @@ function _switch_to_velocity(epoch, feature, done) {
     _trackAlertTimer(function () {
         if (isStale() || finished || sawVelocityLoad) return;
         _set_segment_stage('velocity-fallback');
-        var $refFallback = $('.psmRow[value="ref"]').first();
-        if ($refFallback.length) $refFallback.trigger('click');
         _trackAlertTimer(function () {
             finish_once();
         }, 250);
@@ -3258,11 +3267,7 @@ function _switch_to_velocity(epoch, feature, done) {
     _set_segment_stage('velocity-hold');
     _trackAlertTimer(function () {
         if (isStale() || finished) return finish_once();
-        var $refRow = $('.psmRow[value="ref"]').first();
-        if ($refRow.length) $refRow.trigger('click');
-        _trackAlertTimer(function () {
-            finish_once();
-        }, 300);
+        finish_once();
     }, VELOCITY_HOLD_MS);
 }
 
@@ -5633,7 +5638,10 @@ function _pick_next_segment() {
 
 // ── Director Loop ────────────────────────────────────────────────────────────
 
-function _full_segment_cleanup() {
+function _full_segment_cleanup(options) {
+    options = options || {};
+    var zoomOutAfterAlert = !!options.zoomOutAfterAlert;
+    var previousSegmentType = _currentSegmentType;
     _set_segment_stage('cleanup');
     _currentSegmentType = null;
     _alertEpoch++;
@@ -5668,6 +5676,13 @@ function _full_segment_cleanup() {
         controller.state.frames = [];
         controller.state.currentFrameIndex = 0;
     }
+
+    if (zoomOutAfterAlert && previousSegmentType === 'alert') {
+        _reset_to_reflectivity();
+        try {
+            map.flyTo({ center: CONUS_CENTER, zoom: CONUS_ZOOM, speed: 1.2, essential: true });
+        } catch (_) {}
+    }
 }
 
 function _run_next() {
@@ -5680,7 +5695,7 @@ function _run_next() {
 
     function advance() {
         if (!_active) return;
-        _full_segment_cleanup();
+        _full_segment_cleanup({ zoomOutAfterAlert: true });
         setTimeout(_run_next, 600);
     }
 
@@ -5714,9 +5729,11 @@ function _on_tornado_interrupt(e) {
     if (!detail) return;
 
     var eventName = detail.event || '';
-    var isNewTornado = detail.type === 'new' && TORNADO_EVENTS.includes(eventName);
-    var isUpgradedTornado = detail.type === 'updated'
-        && String(eventName).trim().toLowerCase() === 'tornado warning'
+    var isTornadoEventName = TORNADO_EVENTS.includes(eventName) ||
+        String(eventName).trim().toLowerCase() === 'tornado warning';
+    var isNewTornado = detail.type === 'new' && isTornadoEventName;
+    var isUpgradedTornado = (detail.type === 'updated' || detail.type === 'new')
+        && isTornadoEventName
         && String(detail.tornadoStatus || '').toLowerCase() === 'upgraded';
     if (!isNewTornado && !isUpgradedTornado) return;
 
@@ -5728,13 +5745,13 @@ function _on_tornado_interrupt(e) {
     var bestScore = -Infinity;
     for (var i = 0; i < alerts.length; i++) {
         if (!TORNADO_EVENTS.includes(alerts[i]?.properties?.event)) continue;
-        var interruptContext = _get_alert_focus_context(alerts[i]);
-        if (_is_tornado_focus_blocked(interruptContext, nowMs)) continue;
         var alertId = alerts[i]?.id || alerts[i]?.properties?.id || null;
         if (targetAlertId && alertId === targetAlertId) {
             torFeature = alerts[i];
             break;
         }
+        var interruptContext = _get_alert_focus_context(alerts[i]);
+        if (_is_tornado_focus_blocked(interruptContext, nowMs)) continue;
         var score = _score_alert_for_focus(alerts[i], interruptContext, nowMs);
         if (score > bestScore) {
             bestScore = score;

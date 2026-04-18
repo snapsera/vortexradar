@@ -2,7 +2,7 @@
   "name": "vortex-radar",
   "version": "1.0.7",
   "productName": "Vortex Radar",
-  "main": "electron/main.js",
+  "main": "server.js",
   "scripts": {
     "build": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
     "start": "node server.js",
@@ -13,7 +13,7 @@
     "version:bump": "npm version patch --no-git-tag-version",
     "desktop:preflight:inner": "npm run version:bump && node scripts/check_github_publish_prereqs.js",
     "desktop:publish:inner": "npm run version:bump && npm run build && npm run generate:icon && electron-builder --win nsis --publish always",
-    "desktop:dev": "npm run build && npm run generate:icon && electron .",
+    "desktop:dev": "npm run build && npm run generate:icon && electron electron/main.js",
     "desktop:build": "npm run build && npm run generate:icon && electron-builder --dir",
     "desktop:dist": "npm run build && npm run generate:icon && electron-builder --win nsis",
     "desktop:preflight": "node scripts/run_with_gh_token.js npm run desktop:preflight:inner",
@@ -56,6 +56,9 @@
     "node": ">=18.0.0"
   },
   "build": {
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
     "appId": "com.vortexradar.desktop",
     "productName": "Vortex Radar",
     "artifactName": "${productName} Setup.${ext}",

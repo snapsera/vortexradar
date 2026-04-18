@@ -363,7 +363,7 @@ class RadarLoopController {
 
     stop_and_reset_to_latest() {
         this.pause();
-        if (window?.stormTrackData?.current_RadarUpdater) {
+        if (window?.stormTrackData?.current_RadarUpdater && !window?.stormTrackData?.liveModeActive) {
             window.stormTrackData.current_RadarUpdater.enable();
         }
         this.refresh_frames(() => {

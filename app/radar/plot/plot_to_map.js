@@ -424,7 +424,10 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
         window.stormTrackData.current_RadarUpdater.disable();
     }
     const isLoopPlaying = !!window?.stormTrackData?.loopPlayback?.playing;
-    if (!isInFileUploadMode && !isLoopPlaying) {
+    const liveModeActive = !!window?.stormTrackData?.liveModeActive;
+    // Live Mode keeps sweep as a visual effect only; do not auto-start
+    // RadarUpdater here or new scans can "sweep in" unexpectedly.
+    if (!isInFileUploadMode && !isLoopPlaying && !liveModeActive) {
         const current_RadarUpdater = new RadarUpdater(nexrad_factory);
         window.stormTrackData.current_RadarUpdater = current_RadarUpdater;
         current_RadarUpdater.enable();

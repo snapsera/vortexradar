@@ -92,6 +92,82 @@ npm run dev            # build + start
 
 Then open `http://localhost:3000`.
 
+## Desktop app (super simple)
+
+This project can build and publish a Windows desktop app with auto-updates through GitHub Releases.
+
+### One-time setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+1. Create a GitHub Personal Access Token (classic `repo` scope is easiest), then save it once on Windows:
+
+```powershell
+setx GH_TOKEN "YOUR_GITHUB_TOKEN"
+```
+
+1. Restart Cursor/terminal after running `setx`.
+
+### Build desktop app locally (no publish)
+
+```bash
+npm run desktop:dist
+```
+
+Output goes to:
+
+- `release-build/win-unpacked/` (unpacked app)
+- `release-build/Vortex Radar Setup.exe` (installer)
+
+### Publish a release to GitHub (auto-update)
+
+Run this when you want users to get an update:
+
+```bash
+npm run desktop:publish
+```
+
+What it does automatically:
+
+- bumps patch version (`1.0.x -> 1.0.x+1`)
+- builds web assets
+- builds desktop installer
+- uploads release artifacts to GitHub (`snapsera/vortexradar`)
+
+### Optional check before publish
+
+```bash
+npm run desktop:preflight
+```
+
+This checks token + repo permissions and also bumps patch version.
+
+### Quick release checklist
+
+1. Make your code changes
+1. Run `npm run desktop:publish`
+1. Verify new release appears on GitHub
+1. Open installed app and confirm update prompt appears
+
+### Common issues
+
+- **"GitHub Personal Access Token is not set"**
+  - Reopen terminal/Cursor after `setx`
+  - Verify token exists with:
+    - `echo $env:GH_TOKEN` (PowerShell)
+- **`EPERM ... bundle.js` build error**
+  - Close running app/build processes
+  - Delete stale temp files:
+    - `Remove-Item .\dist\bundle.js.tmp-browserify-* -Force -ErrorAction SilentlyContinue`
+  - Re-run publish
+- **Security reminder**
+  - Never paste your token in chat/screenshots/terminal logs
+  - If exposed, revoke and create a new token immediately
+
 ## Credits
 
 Built on top of [AtticRadar](https://github.com/SteepAtticStairs/AtticRadar) by [SteepAtticStairs](https://github.com/SteepAtticStairs). A lot of the core architecture, NEXRAD decoding, and WebGL rendering here started from or was heavily inspired by that project. Go check it out.

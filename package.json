@@ -1,14 +1,23 @@
 {
   "name": "vortex-radar",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "productName": "Vortex Radar",
+  "main": "electron/main.js",
   "scripts": {
     "build": "node scripts/build_css.js && browserify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js && uglifyjs dist/bundle.js -m -o dist/bundle.js",
     "start": "node server.js",
     "predev": "node scripts/ensure_port_free.js 3000",
     "dev": "npm run build && nodemon --watch .cursor/restart-trigger.txt --ext txt --signal SIGTERM --exec \"node server.js\"",
     "generate:icon": "node scripts/generate_app_icon.js",
-    "serve": "watchify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js -v"
+    "serve": "watchify -t brfs app/core/entry/entry.js -p glslify-require -o dist/bundle.js -v",
+    "version:bump": "npm version patch --no-git-tag-version",
+    "desktop:preflight:inner": "npm run version:bump && node scripts/check_github_publish_prereqs.js",
+    "desktop:publish:inner": "npm run version:bump && npm run build && npm run generate:icon && electron-builder --win nsis --publish always",
+    "desktop:dev": "npm run build && npm run generate:icon && electron .",
+    "desktop:build": "npm run build && npm run generate:icon && electron-builder --dir",
+    "desktop:dist": "npm run build && npm run generate:icon && electron-builder --win nsis",
+    "desktop:preflight": "node scripts/run_with_gh_token.js npm run desktop:preflight:inner",
+    "desktop:publish": "node scripts/run_with_gh_token.js npm run desktop:publish:inner"
   },
   "dependencies": {
     "@turf/turf": "^6.5.0",
@@ -16,6 +25,7 @@
     "bufferpack": "^0.0.6",
     "cheap-ruler": "^4.0.0",
     "chroma-js": "^2.4.2",
+    "electron-updater": "^6.8.3",
     "express": "^4.22.1",
     "luxon": "^3.0.3",
     "metar-plot": "^2.0.0",
@@ -29,6 +39,8 @@
   "devDependencies": {
     "brfs": "^2.0.2",
     "browserify": "^17.0.1",
+    "electron": "^39.8.8",
+    "electron-builder": "^26.8.1",
     "eslint": "^8.0.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.22.1",
@@ -42,5 +54,46 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "build": {
+    "appId": "com.vortexradar.desktop",
+    "productName": "Vortex Radar",
+    "artifactName": "${productName} Setup.${ext}",
+    "directories": {
+      "output": "release-build"
+    },
+    "files": [
+      "app/**/*",
+      "data/**/*",
+      "dist/**/*",
+      "electron/**/*",
+      "images/**/*",
+      "index.css",
+      "index.html",
+      "lib/**/*",
+      "server.js",
+      "site_defaults.json",
+      "favicon.ico",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "images/vortexicon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "include": "build/installer.nsh"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "snapsera",
+        "repo": "vortexradar"
+      }
+    ]
   }
 }

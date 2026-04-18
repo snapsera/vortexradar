@@ -3,7 +3,8 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const DEFAULT_PORT = Number(process.env.PORT) || 3000;
+const BUNDLED_SITE_DEFAULTS_FILE = path.join(__dirname, 'site_defaults.json');
 const liveModeViewerStreams = new Map();
 let liveModeViewerSeq = 0;
 
@@ -20,20 +21,45 @@ function getLocalLaunchTimestamp() {
 
 app.use(express.json());
 
+function getSiteDefaultsFile() {
+    return process.env.SITE_DEFAULTS_PATH || BUNDLED_SITE_DEFAULTS_FILE;
+}
+
 app.post('/api/save-defaults', (req, res) => {
     const defaults = req.body;
     if (!defaults || typeof defaults !== 'object') {
         return res.status(400).json({ error: 'Invalid payload' });
     }
-    const filePath = path.join(__dirname, 'site_defaults.json');
-    fs.writeFile(filePath, JSON.stringify(defaults, null, 2), 'utf8', (err) => {
-        if (err) {
-            console.error('Failed to write site_defaults.json:', err);
-            return res.status(500).json({ error: 'Write failed' });
+    const siteDefaultsFile = getSiteDefaultsFile();
+    fs.mkdir(path.dirname(siteDefaultsFile), { recursive: true }, (mkdirErr) => {
+        if (mkdirErr) {
+            console.error('Failed to prepare defaults directory:', mkdirErr);
+            return res.status(500).json({ error: 'Directory prep failed' });
         }
-        console.log('Site defaults saved to site_defaults.json');
-        res.json({ ok: true });
+        fs.writeFile(siteDefaultsFile, JSON.stringify(defaults, null, 2), 'utf8', (err) => {
+            if (err) {
+                console.error('Failed to write site defaults:', err);
+                return res.status(500).json({ error: 'Write failed' });
+            }
+            console.log(`Site defaults saved to ${siteDefaultsFile}`);
+            res.json({ ok: true });
+        });
     });
+});
+
+app.get('/site_defaults.json', (req, res) => {
+    const sendDefaultsFromPath = (targetPath) => {
+        fs.readFile(targetPath, 'utf8', (readErr, content) => {
+            if (readErr) {
+                if (targetPath !== BUNDLED_SITE_DEFAULTS_FILE) {
+                    return sendDefaultsFromPath(BUNDLED_SITE_DEFAULTS_FILE);
+                }
+                return res.status(404).json({ error: 'site_defaults.json not found' });
+            }
+            res.type('application/json').send(content);
+        });
+    };
+    sendDefaultsFromPath(getSiteDefaultsFile());
 });
 
 app.get('/api/metar', async (req, res) => {
@@ -132,8 +158,11 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(String.raw`
+function startServer({ port = DEFAULT_PORT, host = '0.0.0.0' } = {}) {
+    const server = app.listen(port, host, () => {
+        const address = server.address();
+        const resolvedPort = typeof address === 'object' && address ? address.port : port;
+        console.log(String.raw`
  /$$    /$$                      /$$                         /$$$$$$$                  /$$
 | $$   | $$                     | $$                        | $$__  $$                | $$
 | $$   | $$ /$$$$$$   /$$$$$$  /$$$$$$    /$$$$$$  /$$   /$$| $$  \ $$  /$$$$$$   /$$$$$$$  /$$$$$$   /$$$$$$
@@ -143,8 +172,22 @@ app.listen(PORT, '0.0.0.0', () => {
    \  $/  |  $$$$$$/| $$        |  $$$$/|  $$$$$$$ /$$/\  $$| $$  | $$|  $$$$$$$|  $$$$$$$|  $$$$$$$| $$
     \_/    \______/ |__/         \___/   \_______/|__/  \__/|__/  |__/ \_______/ \_______/ \_______/|__/
 `);
-    console.log(`Running on port ${PORT} -- ${getLocalLaunchTimestamp()}`);
-}).on('error', (err) => {
-    console.error('Failed to start server:', err);
-    process.exit(1);
-});
+        console.log(`Running on port ${resolvedPort} -- ${getLocalLaunchTimestamp()}`);
+    });
+
+    server.on('error', (err) => {
+        console.error('Failed to start server:', err);
+        process.exitCode = 1;
+    });
+
+    return server;
+}
+
+if (require.main === module) {
+    startServer();
+}
+
+module.exports = {
+    app,
+    startServer,
+};

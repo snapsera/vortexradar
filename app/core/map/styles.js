@@ -71,7 +71,7 @@ function change_map_style(style) {
         _safePaint('admin-0-boundary', 'line-color', '#5c637d');
         _safePaint('admin-0-boundary-disputed', 'line-color', '#5c637d');
         _safePaint('admin-0-boundary-bg', 'line-color', '#454c63');
-        _safePaint('admin-1-boundary', 'line-color', '#4b5269');
+        _safePaint('admin-1-boundary', 'line-color', '#ffffff');
     }
     function set_light() {
         const white = 'rgb(246, 244, 237)';
@@ -100,7 +100,7 @@ function change_map_style(style) {
         _safePaint('admin-0-boundary', 'line-color', '#b0b8c4');
         _safePaint('admin-0-boundary-disputed', 'line-color', '#b0b8c4');
         _safePaint('admin-0-boundary-bg', 'line-color', '#c8ced6');
-        _safePaint('admin-1-boundary', 'line-color', '#c8ced6');
+        _safePaint('admin-1-boundary', 'line-color', '#ffffff');
     }
 
     document.documentElement.dataset.mapTheme = style;

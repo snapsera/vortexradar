@@ -3974,6 +3974,7 @@ function _run_spotlight_segment(resolve) {
         station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D', { persist: false });
         _show_radar_render();
         _show_station_markers();
+        _show_alert_polygons();
         _show_radar_sweep();
         _show_lightning_overlay();
         _show_header_radar_info({ force: true });

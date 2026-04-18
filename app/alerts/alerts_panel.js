@@ -34,6 +34,15 @@ const ALIAS_EVENTS = {
 const _zoneGeometryCache = new Map();
 const _expandedGroups = new Set();
 let _prevAlertCount = null;
+let _headerAlertBannerEl = null;
+let _headerAlertBannerTimeout = null;
+let _headerAlertBannerFadeTimeout = null;
+let _headerAlertBannerQueue = [];
+let _headerAlertBannerShowing = false;
+let _headerAlertBannerListener = null;
+const _HEADER_ALERT_BANNER_MIN_MS = 10000;
+const _HEADER_ALERT_BANNER_MAX_MS = 15000;
+const _HEADER_ALERT_BANNER_EXIT_MS = 560;
 
 function _resolve_event_category(event) {
     const resolvedEvent = ALIAS_EVENTS[event] || event;
@@ -584,6 +593,141 @@ function _trigger_header_sweep() {
     sweep.classList.add('headerSweep-active');
 }
 
+function _set_header_clock_suppressed(suppressed) {
+    const $clock = $('#headerClock');
+    if (!$clock.length) return;
+    $clock.toggleClass('headerClock-hidden', !!suppressed);
+}
+
+function _ensure_header_alert_banner_el() {
+    if (_headerAlertBannerEl) return;
+    _headerAlertBannerEl = document.createElement('div');
+    _headerAlertBannerEl.className = 'lmAlertBanner';
+    const host = document.getElementById('top-right');
+    (host || document.body).appendChild(_headerAlertBannerEl);
+}
+
+function _position_header_alert_banner() {
+    if (!_headerAlertBannerEl) return;
+    const host = document.getElementById('top-right');
+    const btn = document.getElementById('alertsCountBtn');
+    if (!btn) return;
+    if (host) {
+        if (_headerAlertBannerEl.parentElement !== host) host.appendChild(_headerAlertBannerEl);
+        const tuckUnderPx = Math.round(Math.min(btn.offsetWidth * 0.28, 14));
+        const gapPx = 0;
+        const btnRect = btn.getBoundingClientRect();
+        const maxBannerWidthPx = Math.max(140, Math.floor(btnRect.left + tuckUnderPx - 12));
+        const safeRightTextInsetPx = tuckUnderPx + 6;
+        _headerAlertBannerEl.style.top = btn.offsetTop + 'px';
+        _headerAlertBannerEl.style.height = btn.offsetHeight + 'px';
+        _headerAlertBannerEl.style.right = Math.max(0, (host.clientWidth - btn.offsetLeft) - tuckUnderPx + gapPx) + 'px';
+        _headerAlertBannerEl.style.maxWidth = maxBannerWidthPx + 'px';
+        _headerAlertBannerEl.style.setProperty('--lmAlertBannerSafeRight', safeRightTextInsetPx + 'px');
+        return;
+    }
+
+    const rect = btn.getBoundingClientRect();
+    const fallbackTuckUnderPx = Math.round(Math.min(rect.width * 0.28, 14));
+    const fallbackGapPx = 0;
+    const fallbackLeftSpacePx = Math.max(140, Math.floor(rect.left - 12 + fallbackTuckUnderPx - fallbackGapPx));
+    const fallbackMaxWidthPx = fallbackLeftSpacePx;
+    const fallbackSafeRightTextInsetPx = fallbackTuckUnderPx + 6;
+    _headerAlertBannerEl.style.top = rect.top + 'px';
+    _headerAlertBannerEl.style.height = rect.height + 'px';
+    _headerAlertBannerEl.style.right = Math.max(0, (window.innerWidth - rect.left) - fallbackTuckUnderPx + fallbackGapPx) + 'px';
+    _headerAlertBannerEl.style.maxWidth = fallbackMaxWidthPx + 'px';
+    _headerAlertBannerEl.style.setProperty('--lmAlertBannerSafeRight', fallbackSafeRightTextInsetPx + 'px');
+}
+
+function _format_header_alert_banner_locations(states) {
+    if (!Array.isArray(states) || states.length === 0) return '';
+    const clean = states
+        .map((s) => (s == null ? '' : String(s)).trim())
+        .filter((s) => s.length > 0);
+    if (!clean.length) return '';
+    if (clean.length === 1) return clean[0];
+    if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+    return `${clean.slice(0, -1).join(', ')}, and ${clean[clean.length - 1]}`;
+}
+
+function _show_header_alert_banner(eventName, states) {
+    _ensure_header_alert_banner_el();
+    const colorInfo = get_polygon_colors(eventName);
+    const bgColor = colorInfo ? colorInfo.color : 'rgb(255, 0, 255)';
+
+    let text = `New ${eventName}`;
+    const locationList = _format_header_alert_banner_locations(states);
+    if (locationList) text += ` in ${locationList}`;
+
+    _headerAlertBannerEl.innerHTML =
+        '<i class="lmAlertBannerIcon fa-solid fa-triangle-exclamation" aria-hidden="true"></i>' +
+        `<span class="lmAlertBannerText">${$('<div>').text(text).html()}</span>`;
+    _headerAlertBannerEl.style.background = bgColor;
+    _headerAlertBannerEl.style.color = '#000';
+
+    _position_header_alert_banner();
+    _headerAlertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
+    void _headerAlertBannerEl.offsetWidth;
+    _headerAlertBannerEl.classList.add('lmAlertBanner-visible');
+    _headerAlertBannerShowing = true;
+    _set_header_clock_suppressed(true);
+
+    if (_headerAlertBannerTimeout) clearTimeout(_headerAlertBannerTimeout);
+    if (_headerAlertBannerFadeTimeout) clearTimeout(_headerAlertBannerFadeTimeout);
+    const visibleMs = _HEADER_ALERT_BANNER_MIN_MS + Math.floor(Math.random() * ((_HEADER_ALERT_BANNER_MAX_MS - _HEADER_ALERT_BANNER_MIN_MS) + 1));
+
+    _headerAlertBannerTimeout = setTimeout(function () {
+        if (!_headerAlertBannerEl) return;
+        _headerAlertBannerEl.classList.remove('lmAlertBanner-visible');
+        _headerAlertBannerEl.classList.add('lmAlertBanner-closing');
+        _headerAlertBannerFadeTimeout = setTimeout(function () {
+            if (_headerAlertBannerEl) _headerAlertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
+            _headerAlertBannerShowing = false;
+            _set_header_clock_suppressed(false);
+            _drain_header_alert_banner_queue();
+        }, _HEADER_ALERT_BANNER_EXIT_MS);
+    }, visibleMs);
+}
+
+function _drain_header_alert_banner_queue() {
+    if (_headerAlertBannerShowing) return;
+    if (_headerAlertBannerQueue.length === 0) return;
+    const next = _headerAlertBannerQueue.shift();
+    _show_header_alert_banner(next.event, next.states);
+}
+
+function _hide_header_alert_banner() {
+    _headerAlertBannerQueue = [];
+    _headerAlertBannerShowing = false;
+    if (_headerAlertBannerTimeout) { clearTimeout(_headerAlertBannerTimeout); _headerAlertBannerTimeout = null; }
+    if (_headerAlertBannerFadeTimeout) { clearTimeout(_headerAlertBannerFadeTimeout); _headerAlertBannerFadeTimeout = null; }
+    if (_headerAlertBannerEl) {
+        _headerAlertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
+    }
+    _set_header_clock_suppressed(false);
+}
+
+function _enable_header_alert_banner() {
+    if (_headerAlertBannerListener) return;
+    _headerAlertBannerListener = function (e) {
+        if (window?.stormTrackData?.liveModeActive) return;
+        const detail = e?.detail;
+        if (!detail || detail.type !== 'new') return;
+        const eventName = detail.event || '';
+        if (!eventName) return;
+        if (!_is_event_enabled(eventName)) return;
+        const states = detail.states || [];
+        if (_headerAlertBannerShowing) {
+            _headerAlertBannerQueue.push({ event: eventName, states: states });
+        } else {
+            _show_header_alert_banner(eventName, states);
+        }
+    };
+    window.addEventListener('alertNotification', _headerAlertBannerListener);
+    window.addEventListener('resize', _position_header_alert_banner);
+}
+
 function update_alerts_count_btn() {
     const btn = $('#alertsCountBtn');
     const data = window.stormTrackData?.alerts_data;
@@ -675,6 +819,8 @@ function init() {
             }
         }
     });
+
+    _enable_header_alert_banner();
 }
 
 module.exports = {

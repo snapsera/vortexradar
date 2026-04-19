@@ -67,8 +67,9 @@ function _update_position() {
     var centerLat = (_centerOverrideLat != null) ? _centerOverrideLat : _radarLat;
     var centerLng = (_centerOverrideLng != null) ? _centerOverrideLng : _radarLng;
     var screenPos = map.project([centerLng, centerLat]);
-    _cachedCx = screenPos.x + _cachedRect.left;
-    _cachedCy = screenPos.y + _cachedRect.top;
+    // project() is relative to map container; keep sweep anchored to map.
+    _cachedCx = screenPos.x;
+    _cachedCy = screenPos.y;
     _cachedRadius = _get_pixel_radius();
 
     var diameter = Math.ceil(_cachedRadius * 2);
@@ -191,7 +192,7 @@ function _create_elements() {
     _container = document.createElement('div');
     _container.id = 'radarSweepContainer';
     var isPreviewMode = !!(window?.stormTrackData?.radarPreviewMode);
-    _container.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:' + (isPreviewMode ? '99999' : '2') + ';will-change:transform;opacity:0;';
+    _container.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:' + (isPreviewMode ? '99999' : '2') + ';will-change:transform;opacity:0;';
     if (isPreviewMode) {
         _container.style.mixBlendMode = 'screen';
         _container.style.filter = 'brightness(1.35) saturate(1.15)';
@@ -204,7 +205,7 @@ function _create_elements() {
 
     _container.appendChild(_canvas);
 
-    var parent = document.getElementById('bodyDiv') || document.body;
+    var parent = map.getContainer ? map.getContainer() : (document.getElementById('bodyDiv') || document.body);
     parent.appendChild(_container);
 }
 

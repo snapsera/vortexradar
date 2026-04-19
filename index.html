@@ -574,19 +574,6 @@
             width: 100%;
             height: auto;
         }
-        #appCornerVersion {
-            display: none;
-            position: absolute;
-            left: 2px;
-            top: calc(100% + 4px);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            color: #b6c2d2;
-            text-transform: uppercase;
-            white-space: nowrap;
-            opacity: 0.95;
-        }
         .vrLogoContext--appCorner.vrLogo {
             opacity: 0.95;
         }
@@ -600,10 +587,6 @@
                 bottom: 8px;
                 width: clamp(100px, 28vw, 150px);
                 opacity: 0.34;
-            }
-            #appCornerVersion {
-                font-size: 9px;
-                top: calc(100% + 2px);
             }
         }
     </style>
@@ -1899,24 +1882,12 @@
             var ov = document.getElementById('loadingLibrariesDiv');
             var body = document.getElementById('bodyDiv');
             var cornerLogo = document.getElementById('appCornerLogo');
-            var desktopVersion = '';
-            try {
-                desktopVersion = new URLSearchParams(window.location.search || '').get('desktopVersion') || '';
-            } catch (_) {}
             if (cornerLogo && !cornerLogo.getAttribute('data-logo-rendered') &&
                 window.VortexLogos && typeof window.VortexLogos.renderVortexFull === 'function') {
                 window.VortexLogos.renderVortexFull(cornerLogo, {
                     variant: 'animated',
                     className: 'vrLogoContext--appCorner'
                 });
-                if (desktopVersion) {
-                    var versionEl = document.createElement('div');
-                    versionEl.id = 'appCornerVersion';
-                    versionEl.setAttribute('aria-hidden', 'true');
-                    versionEl.textContent = 'v' + desktopVersion;
-                    cornerLogo.appendChild(versionEl);
-                    versionEl.style.display = 'block';
-                }
                 cornerLogo.setAttribute('data-logo-rendered', '1');
             }
             if (body) {

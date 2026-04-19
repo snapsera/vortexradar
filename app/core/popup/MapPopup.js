@@ -18,7 +18,12 @@ class MapPopup {
     }
 
     add_to_map() {
-        $('body').append(this.map_popup_div);
+        var container = map.getContainer ? map.getContainer() : null;
+        if (container) {
+            $(container).append(this.map_popup_div);
+        } else {
+            $('body').append(this.map_popup_div);
+        }
         this.update_popup_pos();
 
         map.on('move', this._move);
@@ -38,19 +43,19 @@ class MapPopup {
         const triangle_height = 10;
         const popupWidth = this.map_popup_div.outerWidth();
         const popupHeight = this.map_popup_div.outerHeight();
-        const headerHeight = $('#radarHeader').height() || 0;
-        const viewportWidth = $(window).width() || 0;
-        const viewportHeight = $(window).height() || 0;
+        const container = map.getContainer ? map.getContainer() : null;
+        const viewportWidth = (container && container.clientWidth) || $(window).width() || 0;
+        const viewportHeight = (container && container.clientHeight) || $(window).height() || 0;
         const viewportPadding = 6;
-        const minTop = headerHeight + viewportPadding;
+        const minTop = viewportPadding;
         const maxTop = Math.max(minTop, viewportHeight - popupHeight - viewportPadding);
         const minLeft = viewportPadding;
         const maxLeft = Math.max(minLeft, viewportWidth - popupWidth - viewportPadding);
 
         const centeredLeft = pixel_coords.x - (popupWidth / 2);
         const left = Math.min(maxLeft, Math.max(minLeft, centeredLeft));
-        const topAbove = pixel_coords.y - (popupHeight - headerHeight) - triangle_height;
-        const topBelow = pixel_coords.y + headerHeight + triangle_height;
+        const topAbove = pixel_coords.y - popupHeight - triangle_height;
+        const topBelow = pixel_coords.y + triangle_height;
         const fitsAbove = topAbove >= minTop && (topAbove + popupHeight) <= (viewportHeight - viewportPadding);
         const fitsBelow = topBelow >= minTop && (topBelow + popupHeight) <= (viewportHeight - viewportPadding);
 

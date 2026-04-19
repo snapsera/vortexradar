@@ -39,7 +39,6 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 - **Drawing** — Freehand annotation on the map.
 - **Screenshots** — Save any region of the map.
 - **7-Day Forecast** — City/state/zip, current conditions, hourly out to 72h, day-by-day text forecasts.
-- **Change Log panel** — In-app changelog modal with day tabs so you can quickly see what changed in recent builds.
 
 ## 🗺️ Roadmap
 

@@ -1,0 +1,455 @@
+{
+  "state": "Colorado",
+  "abbr": "CO",
+  "agency": "Viaero Wireless",
+  "cams": [
+    {
+      "id": "viaero-abbey",
+      "name": "Abbey",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AbbeyCO",
+      "imageUrl": "",
+      "imageRefreshMs": 120000,
+      "center": [
+        -105.4752,
+        38.1761
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-akron",
+      "name": "Akron",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AkronCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/12.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.2117,
+        40.1647
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-alamosa",
+      "name": "Alamosa",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AlamosaCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/51.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -105.8742,
+        37.467
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-ault",
+      "name": "Ault",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AultCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/58.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -104.7315,
+        40.5824
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-boone",
+      "name": "Boone",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/BooneCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/37.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -104.2572,
+        38.2482
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-brush",
+      "name": "Brush",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/BrushCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/101.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.6215,
+        40.2553
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-burlington",
+      "name": "Burlington",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/BurlingtonCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/4.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.2788,
+        39.3009
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-campo",
+      "name": "Campo",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/CampoCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/43.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.579097,
+        37.105168
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-cedar-point",
+      "name": "Cedar Point",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/CedarPointCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/79.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.8705,
+        39.3453
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-cheyenne-wells",
+      "name": "Cheyenne Wells",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/CheyenneWellsCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/84.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.3492,
+        38.8194
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-dia",
+      "name": "DIA",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/DIA-CO",
+      "imageUrl": "https://cameras.viaero.com/img/th/8.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -104.6734,
+        39.8563
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-elizabeth",
+      "name": "Elizabeth",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/ElizabethCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/103.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -104.601172,
+        39.361476
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-farisita",
+      "name": "Farisita",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/FarisitaCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/88.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -105.071385,
+        37.745171
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-fort-morgan",
+      "name": "Fort Morgan",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/FortMorganCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/2.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.8015,
+        40.254
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-fowler",
+      "name": "Fowler",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/FowlerCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/44.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -104.0237,
+        38.1308
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-hillrose",
+      "name": "Hillrose",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/HillroseCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/104.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.5221,
+        40.3258
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-holly",
+      "name": "Holly",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/HollyCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/40.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.125099,
+        38.053313
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-holyoke",
+      "name": "Holyoke",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/HolyokeCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/13.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.302266,
+        40.585487
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-idalia",
+      "name": "Idalia",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/IdaliaCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/5.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.2915,
+        39.7025
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-julesburg",
+      "name": "Julesburg",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/JulesburgCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/47.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.2624,
+        40.9865
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-la-junta",
+      "name": "La Junta",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LaJuntaCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/6.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.5431,
+        37.9878
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-la-veta",
+      "name": "La Veta",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LaVetaCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/39.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -105.0092,
+        37.5036
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-lamar",
+      "name": "Lamar",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LamarCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/16.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.619179,
+        38.088173
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-last-chance",
+      "name": "Last Chance",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LastChanceCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/59.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.5935,
+        39.7399
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-limon",
+      "name": "Limon",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LimonCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/10.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.6961,
+        39.2639
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-lone-mountain",
+      "name": "Lone Mountain",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LoneMtnCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/9.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.0277,
+        40.4413
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-new-raymer",
+      "name": "New Raymer",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/NewRaymerCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/50.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.8452,
+        40.6059
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-yuma",
+      "name": "Yuma",
+      "area": "Colorado",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/YumaCO",
+      "imageUrl": "https://cameras.viaero.com/img/th/7.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.719093,
+        40.118591
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    }
+  ]
+}

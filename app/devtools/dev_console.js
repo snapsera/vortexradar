@@ -7,6 +7,8 @@ var get_nexrad_location = require('../radar/libnexrad/nexrad_locations').get_nex
 var _open = false;
 var _history = [];
 var _historyIndex = -1;
+var _trafficCamCycleListener = null;
+var _trafficCamCycleListenerTimeout = null;
 
 var COMMANDS = {
     shine: {
@@ -55,14 +57,19 @@ var COMMANDS = {
         run: _cmd_notify
     },
     'lm': {
-        description: 'Force a Live Mode segment (for alert, optional event name: e.g. lm alert sps)',
-        usage: 'lm [segment] [event name for alert]',
+        description: 'Force a Live Mode segment (example: lm alert sps, lm outages)',
+        usage: 'lm [segment|outages] [event name for alert]',
         run: _cmd_lm_segment
     },
     'lm-banner': {
         description: 'Test the Live Mode new-alert banner (uses a random enabled alert, or specify an event name)',
         usage: 'lm-banner [event name]',
         run: _cmd_lm_banner
+    },
+    'lm-cams-layout': {
+        description: 'Force traffic camera segment layout preview (optional state filter)',
+        usage: 'lm-cams-layout [state name or abbreviation]',
+        run: _cmd_lm_cams_layout
     },
     'duck-test': {
         description: 'Test music ducking (fades background music for a few seconds)',
@@ -93,8 +100,14 @@ function _log(html, cls) {
 
 function _cmd_lm_segment(args) {
     var live_mode = require('../live_mode/live_mode');
-    var valid = ['spc', 'alert', 'conus', 'spotlight', 'conditions', 'storm_reports', 'earthquake'];
+    var valid = ['spc', 'alert', 'conus', 'spotlight', 'conditions', 'storm_reports', 'earthquake', 'traffic_cams', 'power_outage'];
     var type = (args[0] || '').toLowerCase();
+    var aliases = {
+        outages: 'power_outage',
+        outage: 'power_outage',
+        power: 'power_outage'
+    };
+    if (aliases[type]) type = aliases[type];
     var eventName = args.slice(1).join(' ').trim();
     var options = null;
 
@@ -107,6 +120,8 @@ function _cmd_lm_segment(args) {
     if (type === 'alert' && eventName) {
         if (eventName.toLowerCase() === 'sps') eventName = 'Special Weather Statement';
         options = { eventName: eventName };
+    } else if (type === 'traffic_cams') {
+        options = { layoutOnly: true };
     }
 
     if (type === 'alert' && options?.eventName) {
@@ -117,6 +132,40 @@ function _cmd_lm_segment(args) {
     }
 
     live_mode.forceSegment(type, options);
+}
+
+function _cmd_lm_cams_layout(args) {
+    var live_mode = require('../live_mode/live_mode');
+    var stateFilter = args.join(' ').trim();
+    var options = { layoutOnly: true };
+    if (stateFilter) options.state = stateFilter;
+    if (_trafficCamCycleListener) {
+        window.removeEventListener('liveModeTrafficCamCycle', _trafficCamCycleListener);
+        _trafficCamCycleListener = null;
+    }
+    if (_trafficCamCycleListenerTimeout) {
+        clearTimeout(_trafficCamCycleListenerTimeout);
+        _trafficCamCycleListenerTimeout = null;
+    }
+    _trafficCamCycleListener = function (e) {
+        var d = e?.detail || {};
+        var idx = Number(d.index || 0);
+        var total = Number(d.total || 0);
+        var name = d.cameraName ? _escapeHtml(String(d.cameraName)) : 'Camera';
+        _log('Traffic cam cycle <span class="devConsoleAccent">' + idx + '/' + total + '</span>: ' + name);
+    };
+    window.addEventListener('liveModeTrafficCamCycle', _trafficCamCycleListener);
+    _trafficCamCycleListenerTimeout = setTimeout(function () {
+        if (_trafficCamCycleListener) {
+            window.removeEventListener('liveModeTrafficCamCycle', _trafficCamCycleListener);
+            _trafficCamCycleListener = null;
+        }
+        _trafficCamCycleListenerTimeout = null;
+    }, 130000);
+    _log('Forcing Live Mode traffic camera layout preview' +
+        (stateFilter ? ' for <span class="devConsoleAccent">' + _escapeHtml(stateFilter) + '</span>' : '') +
+        ' (5 cycles over ~2 minutes).');
+    live_mode.forceSegment('traffic_cams', options);
 }
 
 var _LM_BANNER_STATE_NAMES = {

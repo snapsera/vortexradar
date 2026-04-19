@@ -1,0 +1,23 @@
+{
+  "state": "Wyoming",
+  "abbr": "WY",
+  "agency": "Viaero Wireless",
+  "cams": [
+    {
+      "id": "viaero-archer",
+      "name": "Archer",
+      "area": "Wyoming",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/ArcherWY",
+      "imageUrl": "",
+      "imageRefreshMs": 120000,
+      "center": [
+        -104.7227,
+        41.1544
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    }
+  ]
+}

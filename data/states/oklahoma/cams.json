@@ -1,0 +1,341 @@
+{
+  "state": "Oklahoma",
+  "abbr": "OK",
+  "agency": "News 9 Skycam Network",
+  "cams": [
+    {
+      "id": "okwx-norman-skycam",
+      "name": "Norman Skycam",
+      "area": "Norman, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=86a355b3851a1b5635f46193bf12e07a",
+      "center": [-97.4395, 35.2226],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-blanchard-skycam",
+      "name": "Blanchard Skycam",
+      "area": "Blanchard, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=cf0ba6e800cf135999a6c1be09273fdd",
+      "center": [-97.6581, 35.1378],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-christensen-skycam",
+      "name": "Christensen Skycam",
+      "area": "Oklahoma City Metro, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=1f914cc7fd5dbea484898a12f79ebe47",
+      "center": [-97.5164, 35.4676],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-el-reno-skycam",
+      "name": "El Reno Skycam",
+      "area": "El Reno, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=65d489173cbf97673d22d0cded25afc7",
+      "center": [-97.955, 35.5323],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-american-fidelity-skycam",
+      "name": "American Fidelity Skycam",
+      "area": "Oklahoma City, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=14b2c84205dd85af1926947149fa68c0",
+      "center": [-97.5164, 35.4676],
+      "zoom": 10.5,
+      "enabled": true
+    }
+  ]
+}
+{
+  "state": "Oklahoma",
+  "abbr": "OK",
+  "agency": "News 9 Skycam Network",
+  "cams": [
+    {
+      "id": "okwx-norman-skycam",
+      "name": "Norman Skycam",
+      "area": "Norman, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=86a355b3851a1b5635f46193bf12e07a",
+      "center": [-97.4395, 35.2226],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-blanchard-skycam",
+      "name": "Blanchard Skycam",
+      "area": "Blanchard, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=cf0ba6e800cf135999a6c1be09273fdd",
+      "center": [-97.6581, 35.1378],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-christensen-skycam",
+      "name": "Christensen Skycam",
+      "area": "Oklahoma City Metro, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=1f914cc7fd5dbea484898a12f79ebe47",
+      "center": [-97.5164, 35.4676],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-el-reno-skycam",
+      "name": "El Reno Skycam",
+      "area": "El Reno, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=65d489173cbf97673d22d0cded25afc7",
+      "center": [-97.955, 35.5323],
+      "zoom": 10.5,
+      "enabled": true
+    },
+    {
+      "id": "okwx-american-fidelity-skycam",
+      "name": "American Fidelity Skycam",
+      "area": "Oklahoma City, Oklahoma",
+      "agency": "News 9 Skycam Network",
+      "type": "hls",
+      "streamUrl": "https://api.wetmet.net/widgets/stream/frame.php?uid=14b2c84205dd85af1926947149fa68c0",
+      "center": [-97.5164, 35.4676],
+      "zoom": 10.5,
+      "enabled": true
+    }
+  ]
+}
+{
+  "state": "Oklahoma",
+  "abbr": "OK",
+  "agency": "OKCWeather",
+  "cams": [
+    {
+      "id": "okcwx-okc-central",
+      "name": "Downtown Oklahoma City Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/okc_central/livepic/Cam1.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.5164,
+        35.4676
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-lawton",
+      "name": "Wichita Mountains / Lawton Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/lawton/livepic/LawtonCam.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -98.3959,
+        34.6036
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-guthrie-nw",
+      "name": "Downtown Guthrie NW View",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/guthrie_central/livepic2/Guthrie-NW.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4253,
+        35.8789
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-guthrie-central",
+      "name": "Downtown Guthrie Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/guthrie_central/livepic/KGOK.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4253,
+        35.8789
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-guthrie-se-cam1",
+      "name": "Southeast Guthrie Cam 1",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/guthrie_southeast/livepic/cam1/Cam1.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4042,
+        35.8475
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-guthrie-4k-nw",
+      "name": "Downtown Guthrie NW 4K Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/guthrie_central/livepic3/kgok4knw.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4253,
+        35.8789
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-okc-crosstown",
+      "name": "OKC Crosstown Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/okc_crosstown/livepic/crosstown.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.5164,
+        35.4676
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-okc-southwest",
+      "name": "Southwest Oklahoma City Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/okc_southwest/livepic/SW-OKC2.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.6025,
+        35.4201
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-edmond-north",
+      "name": "Edmond North Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/edmond_north/livepic/Cam1_000.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4781,
+        35.6528
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-norman-north",
+      "name": "North Norman Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/norman/livepic/Cam1.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4395,
+        35.2226
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-edmond-kelly",
+      "name": "Edmond Kelly Avenue Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/edmond_central/livepic/kellyave/kellycam.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4781,
+        35.6528
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-edmond-arcadia",
+      "name": "Edmond I-35 and 33rd Street Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/edmond_central/livepic/arcadia/arcadiacam.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.458,
+        35.6577
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-guthrie-lake",
+      "name": "Guthrie Lake Area Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/guthrie_south/livepic/GUTS.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4014,
+        35.9148
+      ],
+      "zoom": 10,
+      "enabled": true
+    },
+    {
+      "id": "okcwx-guthrie-se-180",
+      "name": "Southeast Guthrie 180 Degree Cam",
+      "area": "Oklahoma City Metro",
+      "agency": "OKCWeather",
+      "type": "weather",
+      "imageUrl": "https://www.okcweather.com/station/guthrie_southeast/livepic/NW4KW/nw4kw.jpg",
+      "imageRefreshMs": 45000,
+      "center": [
+        -97.4042,
+        35.8475
+      ],
+      "zoom": 10,
+      "enabled": true
+    }
+  ]
+}

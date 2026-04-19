@@ -1,0 +1,23 @@
+{
+  "state": "Kansas",
+  "abbr": "KS",
+  "agency": "Viaero Wireless",
+  "cams": [
+    {
+      "id": "viaero-phillipsburg",
+      "name": "Phillipsburg",
+      "area": "Kansas",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/PhillipsburgKS",
+      "imageUrl": "https://cameras.viaero.com/img/th/3.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -99.3261,
+        39.756
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    }
+  ]
+}

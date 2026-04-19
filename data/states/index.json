@@ -1,0 +1,9 @@
+{
+  "states": [
+    {
+      "state": "Oklahoma",
+      "abbr": "OK",
+      "camsFile": "./data/states/oklahoma_video/cams.json"
+    }
+  ]
+}

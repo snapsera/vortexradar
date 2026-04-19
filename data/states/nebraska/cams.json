@@ -1,0 +1,455 @@
+{
+  "state": "Nebraska",
+  "abbr": "NE",
+  "agency": "Viaero Wireless",
+  "cams": [
+    {
+      "id": "viaero-ainsworth",
+      "name": "Ainsworth",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AinsworthNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/65.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -99.8669,
+        42.5498
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-alliance",
+      "name": "Alliance",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AllianceNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/85.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -102.8722,
+        42.0973
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-ashland",
+      "name": "Ashland",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AshlandNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/98.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -96.3644,
+        41.0336
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-aurora",
+      "name": "Aurora",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/AuroraNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/29.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -97.9977,
+        40.8726
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-bridgeport",
+      "name": "Bridgeport",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/BridgeportNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/86.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.0996,
+        41.6705
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-broken-bow",
+      "name": "Broken Bow",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/BrokenBowNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/28.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -99.6394,
+        41.4017
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-chadron",
+      "name": "Chadron",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/ChadronNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/60.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.0006,
+        42.8294
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-fair-field",
+      "name": "Fair Field",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/FairFieldNE",
+      "imageUrl": "",
+      "imageRefreshMs": 120000,
+      "center": [
+        -98.1008,
+        40.3864
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-fremont",
+      "name": "Fremont",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/FremontNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/99.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -96.4974,
+        41.4514
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-gi-webb-road",
+      "name": "GI Webb Road",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/GIWebbRoadNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/1.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -98.3084,
+        40.9269
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-geneva",
+      "name": "Geneva",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/GenevaNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/94.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -97.5958,
+        40.5243
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-gering",
+      "name": "Gering",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/GeringNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/49.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.6603,
+        41.8216
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-hastings",
+      "name": "Hastings",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/HastingsNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/19.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -98.3926,
+        40.597
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-holdrege",
+      "name": "Holdrege",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/HoldregeNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/53.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -99.38,
+        40.4379
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-imperial",
+      "name": "Imperial",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/ImperialNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/52.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -101.6431,
+        40.513
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-indianola",
+      "name": "Indianola",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/IndianolaNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/62.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -100.4173,
+        40.2342
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-johnson-lake",
+      "name": "Johnson Lake",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/JohnsonLakeNE",
+      "imageUrl": "",
+      "imageRefreshMs": 120000,
+      "center": [
+        -99.7405,
+        40.6968
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-kearney",
+      "name": "Kearney",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/KearneyNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/12.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -99.0817,
+        40.6993
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-kimball",
+      "name": "Kimball",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/KimballNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/48.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.6628,
+        41.2357
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-lake-mcconaughy",
+      "name": "Lake McConaughy",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LakeMcConaughyNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/11.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -101.8086,
+        41.2814
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-lake-minatare",
+      "name": "Lake Minatare",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LakeMinatareNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/12.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -103.4799,
+        41.9208
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-lexington",
+      "name": "Lexington",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/LexingtonNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/31.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -99.739,
+        40.7759
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-neligh",
+      "name": "Neligh",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/NelighNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/6.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -98.0285,
+        42.1262
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-sparks",
+      "name": "Sparks",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/SparksNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/87.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -100.2571,
+        42.9408
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-superior",
+      "name": "Superior",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/SuperiorNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/34.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -98.0665,
+        40.0188
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-sutherland",
+      "name": "Sutherland",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/SutherlandNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/18.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -101.1262,
+        41.1568
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-wayne",
+      "name": "Wayne",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/WayneNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/96.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -97.0179,
+        42.2354
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    },
+    {
+      "id": "viaero-wisner",
+      "name": "Wisner",
+      "area": "Nebraska",
+      "agency": "Viaero Wireless",
+      "type": "weather",
+      "embedUrl": "https://links.viaero.media/WisnerNE",
+      "imageUrl": "https://cameras.viaero.com/img/th/64.jpg",
+      "imageRefreshMs": 120000,
+      "center": [
+        -96.9177,
+        41.9889
+      ],
+      "zoom": 9.8,
+      "enabled": true
+    }
+  ]
+}

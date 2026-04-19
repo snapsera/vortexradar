@@ -1,0 +1,322 @@
+{
+  "state": "Iowa",
+  "abbr": "IA",
+  "agency": "Iowa Environmental Mesonet",
+  "cams": [
+    {
+      "id": "iem-kcrg-032",
+      "name": "Amana Colonies",
+      "area": "Iowa, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-032/KCRG-032_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.9098,
+        41.8001
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-027",
+      "name": "Cascade",
+      "area": "Dubuque, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-027/KCRG-027_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.01191,
+        42.29914
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-001",
+      "name": "CDR - Mount Mercy",
+      "area": "Linn, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-001/KCRG-001_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.65,
+        42
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-012",
+      "name": "Cedar Falls/UNI",
+      "area": "Blackhawk, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-012/KCRG-012_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -92.459,
+        42.5154
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-018",
+      "name": "Coralville",
+      "area": "Johnson, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-018/KCRG-018_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.6072,
+        41.6966
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-013",
+      "name": "Decorah",
+      "area": "Winneshiek, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-013/KCRG-013_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.773,
+        43.293
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-005",
+      "name": "Dubuque",
+      "area": "Dubuque, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-005/KCRG-005_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -90.6568,
+        42.4974
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-016",
+      "name": "Fayette",
+      "area": "Fayette, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-016/KCRG-016_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.8006,
+        42.8386
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-029",
+      "name": "Guttenberg",
+      "area": "Clayton, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-029/KCRG-029_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.094786,
+        42.7806
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-022",
+      "name": "Manchester",
+      "area": "Delaware, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-022/KCRG-022_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.456,
+        42.484
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-024",
+      "name": "Marion",
+      "area": "Linn, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-024/KCRG-024_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.5955,
+        42.0331
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-033",
+      "name": "Mount Vernon",
+      "area": "Linn, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-033/KCRG-033_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.418,
+        41.922
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-025",
+      "name": "North Liberty",
+      "area": "Johnson, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-025/KCRG-025_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.6403,
+        41.7399
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-011",
+      "name": "Parkersburg",
+      "area": "Butler, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-011/KCRG-011_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -92.788978,
+        42.579266
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-034",
+      "name": "Peosta",
+      "area": "Dubuque, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-034/KCRG-034_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -90.8459,
+        42.4447
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-008",
+      "name": "Sigourney",
+      "area": "Keokuk, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-008/KCRG-008_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -92.2052,
+        41.3313
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-035",
+      "name": "Solon",
+      "area": "Johnson, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-035/KCRG-035_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.493,
+        41.807
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-010",
+      "name": "Tipton",
+      "area": "Cedar, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-010/KCRG-010_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.1235,
+        41.7711
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-004",
+      "name": "Vinton",
+      "area": "Vinton, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-004/KCRG-004_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -92.0241,
+        42.15017
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-003",
+      "name": "Washington",
+      "area": "Washington, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-003/KCRG-003_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -91.68,
+        41.29
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    },
+    {
+      "id": "iem-kcrg-021",
+      "name": "Waverly",
+      "area": "Bremer, Iowa",
+      "agency": "IEM",
+      "type": "weather",
+      "imageUrl": "https://mesonet.agron.iastate.edu/archive/data/2026/04/19/camera/KCRG-021/KCRG-021_202604190135.jpg",
+      "imageRefreshMs": 300000,
+      "center": [
+        -92.481817,
+        42.72914
+      ],
+      "zoom": 9.6,
+      "enabled": true
+    }
+  ]
+}

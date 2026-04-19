@@ -40,6 +40,7 @@ let _spcCigFeatures = [];
 
 const CONUS_CENTER = [-98.5606744, 39.5];
 const CONUS_ZOOM = 4.3;
+const LOWER_48_BOUNDS = [[-125.0, 24.0], [-66.5, 49.8]];
 
 const TORNADO_EVENTS = ['Tornado Warning', 'PDS Tornado Warning', 'Tornado Emergency'];
 const SEVERE_ALERT_EVENTS = [
@@ -97,6 +98,8 @@ const SPC_REPORTS_PROXY_PREFIX = 'https://corsproxy.io/?url=';
 const EARTHQUAKE_DURATION_MS = 22000;
 const EARTHQUAKE_FEED_URL = '/api/earthquakes';
 const ODI_PUBLIC_OUTAGE_SUMMARY_URL = 'https://odin.ornl.gov/odi?format=json';
+const ODI_PUBLIC_OUTAGE_MAP_URL = 'https://odin.ornl.gov/odi/map?type=';
+const POWER_OUTAGE_US_URL = 'https://poweroutage.us/';
 const LM_QUAKE_SOURCE = 'lmQuakeSource';
 const LM_QUAKE_CIRCLE = 'lmQuakeCircle';
 const LM_QUAKE_LABEL = 'lmQuakeLabel';
@@ -127,6 +130,7 @@ let _spotlightForecastRequestEpoch = 0;
 let _spotlightForecastCache = {};
 let _powerOutageSnapshotCache = null;
 let _powerOutageSnapshotCacheAt = 0;
+let _powerOutageMapGeometryCache = Object.create(null);
 
 let _preSaveState = null;
 let _recentSegments = [];
@@ -165,6 +169,7 @@ let _trafficCamFallbackStationInFlight = false;
 let _trafficCamFallbackStation = null;
 let _trafficCamRotationTickToken = 0;
 let _trafficCamLastBottomAlertId = '';
+let _trafficCamLayoutTeardownTimer = null;
 let _trafficCamFrameColorSyncTimer = null;
 let _trafficCameraPreloader = null;
 let _trafficCameraPreloadKey = '';
@@ -5291,6 +5296,8 @@ function _fetch_power_outage_snapshot() {
         .then(function (json) {
             var outages = Array.isArray(json?.outage) ? json.outage : [];
             var byState = Object.create(null);
+            var byCounty = Object.create(null);
+            var byUtility = Object.create(null);
             var totalMetersOut = 0;
             var totalEvents = 0;
 
@@ -5305,18 +5312,51 @@ function _fetch_power_outage_snapshot() {
                 if (!byState[abbr]) byState[abbr] = { state: abbr, metersOut: 0, events: 0 };
                 byState[abbr].metersOut += meters;
                 byState[abbr].events += 1;
+                if (descriptor.length >= 5) {
+                    var countyFips = descriptor.slice(0, 5);
+                    if (!byCounty[countyFips]) {
+                        byCounty[countyFips] = {
+                            countyFips: countyFips,
+                            stateFips: countyFips.slice(0, 2),
+                            metersOut: 0,
+                            events: 0
+                        };
+                    }
+                    byCounty[countyFips].metersOut += meters;
+                    byCounty[countyFips].events += 1;
+                }
+                var utilityName = '';
+                var names = Array.isArray(out.names) ? out.names : [];
+                for (var n = 0; n < names.length; n++) {
+                    var item = names[n] || {};
+                    if (String(item.nameType || '').toLowerCase() === 'utilityname') {
+                        utilityName = String(item.name || '').trim();
+                        break;
+                    }
+                }
+                if (utilityName) {
+                    if (!byUtility[utilityName]) byUtility[utilityName] = { utility: utilityName, metersOut: 0, events: 0 };
+                    byUtility[utilityName].metersOut += meters;
+                    byUtility[utilityName].events += 1;
+                }
                 totalMetersOut += meters;
                 totalEvents += 1;
             }
 
             var rows = Object.keys(byState).map(function (k) { return byState[k]; })
                 .sort(function (a, b) { return b.metersOut - a.metersOut; });
+            var utilityRows = Object.keys(byUtility).map(function (k) { return byUtility[k]; })
+                .sort(function (a, b) { return b.metersOut - a.metersOut; });
             var snapshot = {
                 updatedAt: now,
-                sourceUrl: ODI_PUBLIC_OUTAGE_SUMMARY_URL,
+                sourceUrl: POWER_OUTAGE_US_URL,
                 totalMetersOut: totalMetersOut,
                 totalEvents: totalEvents,
-                topStates: rows.slice(0, 10)
+                topStates: rows.slice(0, 10),
+                stateTotals: rows,
+                countyTotals: Object.keys(byCounty).map(function (k) { return byCounty[k]; })
+                    .sort(function (a, b) { return b.metersOut - a.metersOut; }),
+                topUtilities: utilityRows.slice(0, 12)
             };
             _powerOutageSnapshotCache = snapshot;
             _powerOutageSnapshotCacheAt = now;
@@ -5325,53 +5365,316 @@ function _fetch_power_outage_snapshot() {
         .catch(function () {
             return {
                 updatedAt: now,
-                sourceUrl: ODI_PUBLIC_OUTAGE_SUMMARY_URL,
+                sourceUrl: POWER_OUTAGE_US_URL,
                 totalMetersOut: 0,
                 totalEvents: 0,
-                topStates: []
+                topStates: [],
+                stateTotals: [],
+                countyTotals: [],
+                topUtilities: []
             };
         });
+}
+
+function _normalize_power_outage_geometry(geom) {
+    if (!geom || !Array.isArray(geom.coordinates)) return null;
+    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') return geom;
+    var coords = geom.coordinates;
+    var isMulti = Array.isArray(coords[0]) &&
+        Array.isArray(coords[0][0]) &&
+        Array.isArray(coords[0][0][0]) &&
+        Array.isArray(coords[0][0][0][0]);
+    return {
+        type: isMulti ? 'MultiPolygon' : 'Polygon',
+        coordinates: coords
+    };
+}
+
+function _fetch_power_outage_map_geometry(type, countyCodes) {
+    var mapType = String(type || '').toUpperCase();
+    if (!mapType) return Promise.resolve([]);
+    var cacheKey = mapType;
+    if (Array.isArray(countyCodes) && countyCodes.length) cacheKey += ':' + countyCodes.join(',');
+    if (_powerOutageMapGeometryCache[cacheKey]) return Promise.resolve(_powerOutageMapGeometryCache[cacheKey]);
+    var url = ODI_PUBLIC_OUTAGE_MAP_URL + encodeURIComponent(mapType);
+    if (mapType === 'COUNTY' && Array.isArray(countyCodes) && countyCodes.length) {
+        for (var i = 0; i < countyCodes.length; i++) {
+            var c = String(countyCodes[i] || '').trim();
+            if (!c) continue;
+            url += '&countyCd=' + encodeURIComponent(c);
+        }
+    }
+    function _fetch_json(rawUrl) {
+        return fetch(rawUrl, { cache: 'no-store' }).then(function (res) {
+            if (!res.ok) throw new Error('Bad response');
+            return res.json();
+        });
+    }
+    return _fetch_json(url)
+        .catch(function () {
+            var proxyUrl = SPC_REPORTS_PROXY_PREFIX + encodeURIComponent(url);
+            return _fetch_json(proxyUrl);
+        })
+        .then(function (arr) {
+            var normalized = Array.isArray(arr) ? arr : [];
+            _powerOutageMapGeometryCache[cacheKey] = normalized;
+            return normalized;
+        })
+        .catch(function () {
+            return [];
+        });
+}
+
+function _build_power_outage_state_geojson(stateTotals, stateGeometryRows) {
+    var byStateFips = Object.create(null);
+    (Array.isArray(stateTotals) ? stateTotals : []).forEach(function (row) {
+        var abbr = String(row?.state || '').trim();
+        if (!abbr) return;
+        var fips = null;
+        Object.keys(_STATE_FIPS_TO_ABBR).some(function (k) {
+            if (_STATE_FIPS_TO_ABBR[k] === abbr) {
+                fips = k;
+                return true;
+            }
+            return false;
+        });
+        if (!fips) return;
+        byStateFips[fips] = Number(row?.metersOut || 0);
+    });
+    var features = [];
+    (Array.isArray(stateGeometryRows) ? stateGeometryRows : []).forEach(function (row) {
+        var stateFips = String(row?.id || '').padStart(2, '0');
+        var geom = _normalize_power_outage_geometry(row?.feature);
+        if (!geom) return;
+        features.push({
+            type: 'Feature',
+            properties: {
+                stateFips: stateFips,
+                metersOut: Number(byStateFips[stateFips] || 0)
+            },
+            geometry: geom
+        });
+    });
+    return { type: 'FeatureCollection', features: features };
+}
+
+function _build_power_outage_county_geojson(countyTotals, countyGeometryRows) {
+    var byCountyFips = Object.create(null);
+    (Array.isArray(countyTotals) ? countyTotals : []).forEach(function (row) {
+        var fips = String(row?.countyFips || '').trim();
+        if (!fips) return;
+        byCountyFips[fips] = Number(row?.metersOut || 0);
+    });
+    var features = [];
+    (Array.isArray(countyGeometryRows) ? countyGeometryRows : []).forEach(function (row) {
+        var countyFips = String(row?.id || '').trim();
+        var metersOut = Number(byCountyFips[countyFips] || 0);
+        if (metersOut <= 0) return;
+        var geom = _normalize_power_outage_geometry(row?.feature);
+        if (!geom) return;
+        features.push({
+            type: 'Feature',
+            properties: {
+                countyFips: countyFips,
+                metersOut: metersOut
+            },
+            geometry: geom
+        });
+    });
+    return { type: 'FeatureCollection', features: features };
+}
+
+function _build_power_outage_legend_bins(countyTotals) {
+    var defaultBins = {
+        thresholds: [10000, 50000, 100000, 500000],
+        labels: ['< 10K', '10K-50K', '50K-100K', '100K-500K', '500K+'],
+        isLowActivity: false,
+        maxValue: 0
+    };
+    var vals = (Array.isArray(countyTotals) ? countyTotals : [])
+        .map(function (r) { return Number(r?.metersOut || 0); })
+        .filter(function (v) { return Number.isFinite(v) && v > 0; })
+        .sort(function (a, b) { return a - b; });
+    if (!vals.length) return defaultBins;
+    var max = vals[vals.length - 1];
+    if (max >= 10000) {
+        defaultBins.maxValue = max;
+        return defaultBins;
+    }
+
+    function _q(p) {
+        var idx = Math.max(0, Math.min(vals.length - 1, Math.floor((vals.length - 1) * p)));
+        return vals[idx];
+    }
+    function _nice(v) {
+        if (v <= 0) return 0;
+        if (v < 100) return Math.ceil(v / 5) * 5;
+        if (v < 1000) return Math.ceil(v / 25) * 25;
+        return Math.ceil(v / 100) * 100;
+    }
+    function _fmt(v) {
+        if (v >= 1000) {
+            var k = (v / 1000);
+            var txt = (Math.round(k * 10) / 10).toString();
+            if (txt.endsWith('.0')) txt = txt.slice(0, -2);
+            return txt + 'K';
+        }
+        return String(Math.round(v));
+    }
+
+    var t1 = _nice(Math.max(1, _q(0.50)));
+    var t2 = _nice(Math.max(t1 + 1, _q(0.75)));
+    var t3 = _nice(Math.max(t2 + 1, _q(0.90)));
+    var t4 = _nice(Math.max(t3 + 1, _q(0.97)));
+    var labels = [
+        '< ' + _fmt(t1),
+        _fmt(t1) + '-' + _fmt(t2),
+        _fmt(t2) + '-' + _fmt(t3),
+        _fmt(t3) + '-' + _fmt(t4),
+        _fmt(t4) + '+'
+    ];
+    return { thresholds: [t1, t2, t3, t4], labels: labels, isLowActivity: true, maxValue: max };
 }
 
 function _render_power_outage_main_view(snapshot) {
     if (!_trafficCamMainViewEl) return;
     _destroy_traffic_camera_player();
-    var rows = Array.isArray(snapshot?.topStates) ? snapshot.topStates : [];
-    var maxOut = rows.length ? rows[0].metersOut : 0;
     var updated = new Date(snapshot?.updatedAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     var shell = document.createElement('div');
+    var mapId = 'liveModePowerOutageMap-' + String(Date.now()) + '-' + String(Math.round(Math.random() * 1000));
+    var listId = mapId + '-list';
     shell.style.width = '100%';
     shell.style.height = '100%';
     shell.style.position = 'relative';
     shell.style.background = 'radial-gradient(120% 120% at 80% 10%, rgba(56, 189, 248, 0.12), transparent 48%), linear-gradient(180deg, rgba(15,24,39,0.96), rgba(3,7,18,0.98))';
-    var listHtml = '';
-    if (!rows.length) {
-        listHtml = '<div style="opacity:0.82;margin-top:6px;">No active outage reports in the current snapshot.</div>';
-    } else {
+    var stateRows = Array.isArray(snapshot?.topStates) ? snapshot.topStates : [];
+    var countyTotalsAll = Array.isArray(snapshot?.countyTotals) ? snapshot.countyTotals : [];
+    var legendBins = _build_power_outage_legend_bins(countyTotalsAll);
+    var legendLabels = legendBins.labels;
+    var legendThresholds = legendBins.thresholds;
+    var lowActivityLegendHtml = legendBins.isLowActivity
+        ? ('<div style="margin-top:6px;opacity:0.86;color:#93c5fd;font-size:10px;">Low activity scale active (max county: ' +
+            _escape_html(_format_outage_count(legendBins.maxValue || 0)) + ')</div>')
+        : '';
+    function _render_list_rows(rows, keyField) {
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div style="padding:10px 0;opacity:0.74;">No active outage rows available.</div>';
+        }
+        var html = '';
         for (var i = 0; i < Math.min(8, rows.length); i++) {
-            var r = rows[i];
-            var pct = maxOut > 0 ? Math.max(8, Math.round((r.metersOut / maxOut) * 100)) : 8;
-            listHtml +=
-                '<div style="display:grid;grid-template-columns:56px 1fr auto;gap:8px;align-items:center;margin-top:8px;">' +
-                    '<div style="font-weight:700;letter-spacing:0.08em;opacity:0.92;">' + _escape_html(r.state) + '</div>' +
-                    '<div style="height:8px;border-radius:999px;background:rgba(148,163,184,0.22);overflow:hidden;">' +
-                        '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#f59e0b,#ef4444);"></div>' +
-                    '</div>' +
-                    '<div style="font-weight:700;">' + _escape_html(_format_outage_count(r.metersOut)) + '</div>' +
+            var row = rows[i] || {};
+            var label = String(row[keyField] || '').trim() || '--';
+            if (keyField === 'utility' && label.length > 26) label = label.slice(0, 26) + '...';
+            html +=
+                '<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(148,163,184,0.18);">' +
+                    '<div style="font-weight:700;letter-spacing:0.01em;">' + _escape_html(label) + '</div>' +
+                    '<div style="padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.34);font-weight:700;">' + _escape_html(_format_outage_count(row.metersOut || 0)) + '</div>' +
                 '</div>';
         }
+        return html;
     }
     shell.innerHTML =
-        _build_traffic_cam_overlay_html('POWER OUTAGE SNAPSHOT', 'Utility Outages', 'United States', 'ORNL ODIN', 'Live') +
-        '<div style="position:absolute;left:18px;right:18px;top:88px;bottom:16px;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.14);background:rgba(4,9,20,0.68);overflow:auto;">' +
+        '<div style="position:absolute;left:18px;right:18px;top:10px;bottom:16px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.14);background:rgba(4,9,20,0.68);overflow:hidden;">' +
             '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">' +
-                '<div style="font-size:16px;font-weight:700;letter-spacing:0.02em;">Top states by customers out</div>' +
+                '<div style="font-size:16px;font-weight:700;letter-spacing:0.02em;">County Outage Map (Lower 48)</div>' +
                 '<div style="font-size:11px;opacity:0.78;">Updated ' + _escape_html(updated) + '</div>' +
             '</div>' +
-            '<div style="margin-top:4px;font-size:12px;opacity:0.82;">Total customers out: <b>' + _escape_html(_format_outage_count(snapshot?.totalMetersOut || 0)) + '</b> · Active outage events: <b>' + _escape_html(String(snapshot?.totalEvents || 0)) + '</b></div>' +
-            listHtml +
+            '<div style="margin-top:4px;font-size:12px;opacity:0.82;">Total customers out: <b>' + _escape_html(_format_outage_count(snapshot?.totalMetersOut || 0)) + '</b> · Active outage events: <b>' + _escape_html(String(snapshot?.totalEvents || 0)) + '</b> · Counties shown: <b>' + _escape_html(String(Math.min(160, Array.isArray(snapshot?.countyTotals) ? snapshot.countyTotals.length : 0))) + '</b></div>' +
+            '<div id="' + _escape_html(mapId) + '" style="position:absolute;left:10px;right:320px;top:56px;bottom:10px;border-radius:10px;border:1px solid rgba(148,163,184,0.24);overflow:hidden;background:rgba(2,6,23,0.92);"></div>' +
+            '<div style="position:absolute;left:22px;bottom:26px;z-index:4;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.4);background:rgba(2,6,23,0.84);font-size:11px;">' +
+                '<div style="margin-bottom:6px;font-weight:700;">Customers Out</div>' +
+                '<div style="display:flex;gap:0;">' +
+                    '<span style="padding:3px 7px;background:#0ea5e9;color:#fff;border-radius:4px 0 0 4px;">' + _escape_html(legendLabels[0]) + '</span>' +
+                    '<span style="padding:3px 7px;background:#3b82f6;color:#fff;">' + _escape_html(legendLabels[1]) + '</span>' +
+                    '<span style="padding:3px 7px;background:#facc15;color:#111;">' + _escape_html(legendLabels[2]) + '</span>' +
+                    '<span style="padding:3px 7px;background:#fb7185;color:#111;">' + _escape_html(legendLabels[3]) + '</span>' +
+                    '<span style="padding:3px 7px;background:#dc2626;color:#fff;border-radius:0 4px 4px 0;">' + _escape_html(legendLabels[4]) + '</span>' +
+                '</div>' +
+                lowActivityLegendHtml +
+            '</div>' +
+            '<div style="position:absolute;right:10px;top:56px;bottom:10px;width:300px;border-radius:10px;border:1px solid rgba(148,163,184,0.24);background:rgba(2,6,23,0.86);padding:12px;display:flex;flex-direction:column;z-index:4;">' +
+                '<div style="font-size:34px;font-weight:800;line-height:1;">' + _escape_html(_format_outage_count(snapshot?.totalMetersOut || 0)) + '</div>' +
+                '<div style="font-size:12px;opacity:0.84;margin-top:2px;">Total US Customers Out</div>' +
+                '<div id="' + _escape_html(listId) + '" style="margin-top:10px;overflow:auto;flex:1;font-size:14px;">' + _render_list_rows(stateRows, 'state') + '</div>' +
+                '<div style="font-size:11px;opacity:0.72;margin-top:8px;">Source: <a href="' + _escape_html(POWER_OUTAGE_US_URL) + '" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:none;">poweroutage.us</a></div>' +
+            '</div>' +
         '</div>';
-    _mount_traffic_camera_player({ type: 'outage', el: shell });
+    var playerRef = { type: 'outage', el: shell };
+    _mount_traffic_camera_player(playerRef);
+
+    if (typeof mapboxgl === 'undefined') return;
+    if (!mapboxgl.accessToken) mapboxgl.accessToken = MAPBOX_TOKEN;
+
+    var stateTotals = Array.isArray(snapshot?.stateTotals) ? snapshot.stateTotals : [];
+    var countyTotals = (Array.isArray(snapshot?.countyTotals) ? snapshot.countyTotals : []).slice(0, 160);
+    var countyCodes = countyTotals.map(function (row) { return String(row?.countyFips || '').trim(); }).filter(Boolean);
+
+    Promise.all([
+        _fetch_power_outage_map_geometry('STATE'),
+        _fetch_power_outage_map_geometry('COUNTY', countyCodes)
+    ]).then(function (results) {
+        if (!_active || _currentSegmentType !== 'power_outage' || _trafficCameraPlayer !== playerRef) return;
+        var stateGeo = _build_power_outage_state_geojson(stateTotals, results[0] || []);
+        var countyGeo = _build_power_outage_county_geojson(countyTotals, results[1] || []);
+        var mapEl = document.getElementById(mapId);
+        if (!mapEl) return;
+
+        var outageMap = new mapboxgl.Map({
+            container: mapEl,
+            style: 'mapbox://styles/mapbox/dark-v11',
+            center: [-98.5, 39.8],
+            zoom: 3.9,
+            attributionControl: false,
+            preserveDrawingBuffer: false
+        });
+        playerRef.map = outageMap;
+
+        outageMap.on('load', function () {
+            try { outageMap.fitBounds(LOWER_48_BOUNDS, { padding: 20, duration: 0 }); } catch (_) {}
+            try { outageMap.setMaxBounds(LOWER_48_BOUNDS); } catch (_) {}
+            if (!outageMap.getSource('po-states')) {
+                outageMap.addSource('po-states', { type: 'geojson', data: stateGeo });
+                outageMap.addLayer({
+                    id: 'po-state-line',
+                    type: 'line',
+                    source: 'po-states',
+                    paint: {
+                        'line-color': 'rgba(226,232,240,0.42)',
+                        'line-width': 0.9
+                    }
+                });
+            }
+            if (!outageMap.getSource('po-counties')) {
+                outageMap.addSource('po-counties', { type: 'geojson', data: countyGeo });
+                outageMap.addLayer({
+                    id: 'po-county-fill',
+                    type: 'fill',
+                    source: 'po-counties',
+                    paint: {
+                        'fill-color': [
+                            'step',
+                            ['coalesce', ['get', 'metersOut'], 0],
+                            '#0ea5e9',
+                            legendThresholds[0], '#3b82f6',
+                            legendThresholds[1], '#facc15',
+                            legendThresholds[2], '#fb7185',
+                            legendThresholds[3], '#dc2626'
+                        ],
+                        'fill-opacity': 0.74
+                    }
+                });
+                outageMap.addLayer({
+                    id: 'po-county-line',
+                    type: 'line',
+                    source: 'po-counties',
+                    paint: {
+                        'line-color': 'rgba(248,250,252,0.55)',
+                        'line-width': 0.45
+                    }
+                });
+            }
+        });
+    }).catch(function () {});
 }
 
 function _set_power_outage_bottom_stack(snapshot) {
@@ -5422,6 +5725,7 @@ function _run_power_outage_segment(resolve) {
     function _cleanup() {
         _set_segment_stage('finish');
         _stop_typewriter();
+        _stop_traffic_cam_alert_rotation();
         _destroy_traffic_camera_player();
         _hide_traffic_cam_layout();
         _show_header_radar_info();
@@ -5435,7 +5739,13 @@ function _run_power_outage_segment(resolve) {
         _record_segment('power_outage', 'snapshot');
         _set_segment_stage('render');
         _render_power_outage_main_view(snapshot);
-        _set_power_outage_bottom_stack(snapshot);
+        _stop_traffic_cam_alert_rotation();
+        _refresh_traffic_cam_bottom_alert_bars();
+        _trafficCamBottomAlertRotateTimer = _trackAlertTimer(function _outage_bottom_tick() {
+            if (!_active || _currentSegmentType !== 'power_outage') return;
+            _refresh_traffic_cam_bottom_alert_bars();
+            _trafficCamBottomAlertRotateTimer = _trackAlertTimer(_outage_bottom_tick, TRAFFIC_CAM_BOTTOM_ALERT_ROTATE_MS);
+        }, TRAFFIC_CAM_BOTTOM_ALERT_ROTATE_MS);
         _typewrite(_pick_random([
             'Here is a live utility outage snapshot, highlighting states with the most customers currently without power.',
             'Now showing a national outage check from ODIN with the highest-impact states at the top.',
@@ -5449,6 +5759,10 @@ function _run_power_outage_segment(resolve) {
 
 function _destroy_traffic_camera_player() {
     if (_trafficCameraPlayer && _trafficCameraPlayer.el) {
+        if (_trafficCameraPlayer.map) {
+            try { _trafficCameraPlayer.map.remove(); } catch (_) {}
+            _trafficCameraPlayer.map = null;
+        }
         if (_trafficCameraPlayer.imageRefreshTimer) {
             try { clearInterval(_trafficCameraPlayer.imageRefreshTimer); } catch (_) {}
             _trafficCameraPlayer.imageRefreshTimer = null;
@@ -5960,7 +6274,7 @@ function _stop_traffic_cam_alert_rotation() {
 }
 
 function _refresh_traffic_cam_bottom_alert_bars() {
-    if (!_active || _currentSegmentType !== 'traffic_cams') return;
+    if (!_active || (_currentSegmentType !== 'traffic_cams' && _currentSegmentType !== 'power_outage')) return;
     _update_traffic_cam_mini_radar_frame_color();
     var allAlerts = _get_active_alerts_unfiltered();
     var severeAll = _get_unfiltered_severe_alerts();
@@ -6303,6 +6617,10 @@ function _start_traffic_cam_alert_rotation(seedEventName, options) {
 
 function _show_traffic_cam_layout() {
     _ensure_traffic_cam_layout_el();
+    if (_trafficCamLayoutTeardownTimer) {
+        clearTimeout(_trafficCamLayoutTeardownTimer);
+        _trafficCamLayoutTeardownTimer = null;
+    }
     if (_trafficCamLayoutEl) _trafficCamLayoutEl.classList.add('liveModeTrafficCamLayout-visible');
     if (_trafficCamBottomAlertEl) _trafficCamBottomAlertEl.classList.add('liveModeTrafficCamBottomAlert-visible');
     if (_trafficCamBottomInfoEl) _trafficCamBottomInfoEl.classList.remove('liveModeTrafficCamBottomInfo-fading');
@@ -6314,14 +6632,23 @@ function _show_traffic_cam_layout() {
 
 function _hide_traffic_cam_layout() {
     if (_trafficCamLayoutEl) _trafficCamLayoutEl.classList.remove('liveModeTrafficCamLayout-visible');
-    if (_trafficCamMainViewEl) _trafficCamMainViewEl.innerHTML = '';
-    if (_trafficCamBottomInfoEl) _trafficCamBottomInfoEl.innerHTML = '';
+    _destroy_traffic_camera_player();
     if (_trafficCamBottomAlertEl) {
         _trafficCamBottomAlertEl.classList.remove('liveModeTrafficCamBottomAlert-visible');
         _trafficCamBottomAlertEl.classList.remove('liveModeTrafficCamBottomAlert-fading');
-        _trafficCamBottomAlertEl.innerHTML = '';
     }
     if (_trafficCamBottomInfoEl) _trafficCamBottomInfoEl.classList.remove('liveModeTrafficCamBottomInfo-fading');
+    if (_trafficCamLayoutTeardownTimer) {
+        clearTimeout(_trafficCamLayoutTeardownTimer);
+        _trafficCamLayoutTeardownTimer = null;
+    }
+    _trafficCamLayoutTeardownTimer = _trackAlertTimer(function () {
+        _trafficCamLayoutTeardownTimer = null;
+        if (_trafficCamLayoutEl && _trafficCamLayoutEl.classList.contains('liveModeTrafficCamLayout-visible')) return;
+        if (_trafficCamMainViewEl) _trafficCamMainViewEl.innerHTML = '';
+        if (_trafficCamBottomInfoEl) _trafficCamBottomInfoEl.innerHTML = '';
+        if (_trafficCamBottomAlertEl) _trafficCamBottomAlertEl.innerHTML = '';
+    }, 240);
     _clear_traffic_camera_preload();
     _stop_traffic_cam_alert_rotation();
     _exit_traffic_cam_minimap_mode();
@@ -7703,6 +8030,7 @@ function _pick_next_segment() {
     options.push({ type: 'conditions', weight: 3 });
     options.push({ type: 'storm_reports', weight: 3 });
     options.push({ type: 'earthquake', weight: 2 });
+    options.push({ type: 'power_outage', weight: 2 });
 
     if (hasAnySevere) {
         var alertWeight = 5 + alerts.length * 2;

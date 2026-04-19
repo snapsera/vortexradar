@@ -57,8 +57,8 @@ var COMMANDS = {
         run: _cmd_notify
     },
     'lm': {
-        description: 'Force a Live Mode segment (example: lm alert sps, lm outages)',
-        usage: 'lm [segment|outages] [event name for alert]',
+        description: 'Force a Live Mode segment (example: lm alert sps, lm power)',
+        usage: 'lm [segment|power] [event name for alert]',
         run: _cmd_lm_segment
     },
     'lm-banner': {
@@ -103,8 +103,6 @@ function _cmd_lm_segment(args) {
     var valid = ['spc', 'alert', 'conus', 'spotlight', 'conditions', 'storm_reports', 'earthquake', 'traffic_cams', 'power_outage'];
     var type = (args[0] || '').toLowerCase();
     var aliases = {
-        outages: 'power_outage',
-        outage: 'power_outage',
         power: 'power_outage'
     };
     if (aliases[type]) type = aliases[type];

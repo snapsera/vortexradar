@@ -41,6 +41,37 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 - **7-Day Forecast** — City/state/zip, current conditions, hourly out to 72h, day-by-day text forecasts.
 - **Change Log panel** — In-app changelog modal with day tabs so you can quickly see what changed in recent builds.
 
+## 🗺️ Roadmap
+
+Progress bars below are a living snapshot of where Vortex Radar stands today and what is planned next.
+
+### Current App Progress
+
+- Core platform maturity: `█████████░` **90%**
+- Live weather coverage: `████████░░` **85%**
+- UI/UX polish: `███████░░░` **70%**
+- Desktop packaging + release flow: `██████░░░░` **65%**
+- Performance and optimization pass: `██████░░░░` **60%**
+
+### Feature Completion
+
+- NEXRAD radar + national loop: `██████████` **100%**
+- Alerts + polygons + ticker/voice: `█████████░` **90%**
+- 24/7 Live Mode engine: `████████░░` **80%**
+- Forecast experience (hourly + 7-day): `███████░░░` **75%**
+- Lightning/METAR/fronts/SPC overlays: `████████░░` **80%**
+- Hurricanes and tropical tools: `███████░░░` **70%**
+- Desktop app + updater reliability: `██████░░░░` **65%**
+
+### Future Plans (In Progress / Planned)
+
+- Multi-region camera expansion + smarter rotation: `██████░░░░` **60%**
+- Live Mode segment customization controls: `█████░░░░░` **50%**
+- Map performance tuning for low-end GPUs: `████░░░░░░` **40%**
+- Mobile responsiveness improvements: `███░░░░░░░` **30%**
+- Better onboarding/help and discoverability: `███░░░░░░░` **30%**
+- Testing/QA automation coverage: `██░░░░░░░░` **20%**
+
 ## 🗂️ Project layout
 
 ```text

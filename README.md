@@ -42,9 +42,6 @@ You can view the live version here: [vortexradar.snapsera.com](https://vortexrad
 
 ## 🗺️ Roadmap
 
-Progress bars below are a living snapshot of where Vortex Radar stands today and what is planned next.
-Legend: each bar has 10 blocks (`🟩` done, `⬜` remaining).
-
 ### Current App Progress
 
 - Core platform maturity — **90%** `🟩🟩🟩🟩🟩🟩🟩🟩🟩⬜`

@@ -63,7 +63,7 @@ Progress bars below are a living snapshot of where Vortex Radar stands today and
 - Hurricanes and tropical tools: `███████░░░` **70%**
 - Desktop app + updater reliability: `██████░░░░` **65%**
 
-### Future Plans (In Progress / Planned)
+### Future Plans (In Progress / Planned) 
 
 - Multi-region camera expansion + smarter rotation: `██████░░░░` **60%**
 - Live Mode segment customization controls: `█████░░░░░` **50%**

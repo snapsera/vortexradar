@@ -72,25 +72,35 @@ function _fetch_alerts_data(callback) {
 }
 
 var byte_length = 0;
-function _fetch_zone_dictionaries(callback, index = 0) {
-    fetch(zone_urls[index])
-    .then(response => response.arrayBuffer())
-    .then(buffer => {
-        byte_length += buffer.byteLength;
-        const inflated = pako.inflate(buffer, { to: 'string' });
+function _fetch_zone_dictionary(url) {
+    return fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(buffer => {
+            return {
+                byteLength: buffer.byteLength,
+                scriptText: pako.inflate(buffer, { to: 'string' })
+            };
+        });
+}
 
-        var s = document.createElement('script');
-        s.type = 'text/javascript';
-        s.innerHTML = inflated;
-        document.head.appendChild(s);
-
-        if (index < zone_urls.length - 1) {
-            _fetch_zone_dictionaries(callback, index + 1);
-        } else {
-            console.log(`Loaded alert zone dictionaries with a size length of ${ut.formatBytes(byte_length)}.`);
-            callback();
+function _fetch_zone_dictionaries(callback) {
+    byte_length = 0;
+    Promise.all(zone_urls.map((url) => _fetch_zone_dictionary(url)))
+    .then((results) => {
+        for (var i = 0; i < results.length; i++) {
+            byte_length += results[i].byteLength;
+            var s = document.createElement('script');
+            s.type = 'text/javascript';
+            s.innerHTML = results[i].scriptText;
+            document.head.appendChild(s);
         }
+        console.log(`Loaded alert zone dictionaries with a size length of ${ut.formatBytes(byte_length)}.`);
+        callback();
     })
+    .catch((err) => {
+        console.error('Failed to load zone dictionaries:', err);
+        callback();
+    });
 }
 
 function _fetch_data() {

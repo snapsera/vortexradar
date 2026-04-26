@@ -98,14 +98,13 @@ function _draw_stroke(stroke) {
 
     _ctx.lineCap = 'round';
     _ctx.lineJoin = 'round';
-    _ctx.lineWidth = stroke.size;
 
     if (stroke.tool === 'eraser') {
         _ctx.globalCompositeOperation = 'destination-out';
         _ctx.strokeStyle = 'rgba(0,0,0,1)';
+        _ctx.lineWidth = stroke.size;
     } else {
         _ctx.globalCompositeOperation = 'source-over';
-        _ctx.strokeStyle = stroke.color;
     }
 
     _ctx.beginPath();
@@ -119,6 +118,16 @@ function _draw_stroke(stroke) {
         }
     }
 
+    if (stroke.tool !== 'eraser') {
+        // Draw a stronger outline first so light colors stay visible on radar imagery.
+        var outlineWidth = Math.max(2, stroke.size * 0.35);
+        _ctx.strokeStyle = '#000000';
+        _ctx.lineWidth = stroke.size + outlineWidth;
+        _ctx.stroke();
+    }
+
+    _ctx.strokeStyle = stroke.tool === 'eraser' ? 'rgba(0,0,0,1)' : stroke.color;
+    _ctx.lineWidth = stroke.size;
     _ctx.stroke();
     _ctx.restore();
 }

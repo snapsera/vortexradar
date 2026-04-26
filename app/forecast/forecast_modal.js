@@ -506,7 +506,7 @@ function _renderAlerts(alertsData) {
         html += '<div class="forecastAlertItemMeta">';
         if (severity) html += '<span><i class="fa-solid fa-shield-halved"></i> ' + severity + '</span>';
         if (onset) html += '<span><i class="fa-solid fa-clock"></i> ' + onset.toLocaleString() + '</span>';
-        if (expires) html += '<span><i class="fa-solid fa-hourglass-end"></i> Expires ' + expires.toLocaleString() + '</span>';
+        if (expires) html += '<span><i class="fa-solid fa-hourglass-half"></i> Expires ' + expires.toLocaleString() + '</span>';
         if (sender) html += '<span><i class="fa-solid fa-building"></i> ' + sender + '</span>';
         html += '</div></div>';
         html += '<button class="forecastAlertDetailsBtn" data-alert-idx="' + i + '"><i class="fa-solid fa-chevron-down"></i> View Details</button>';
@@ -653,7 +653,7 @@ function _render7Day(forecastData) {
         if (precipStr) html += '<span class="forecastDayPrecip"><i class="fa-solid fa-droplet"></i> ' + precipStr + '</span>';
         html += '<span class="forecastDayWind"><i class="fa-solid fa-wind"></i> ' + wind + '</span>';
         html += '</span>';
-        html += '<i class="fa-solid fa-chevron-right forecastDayChevron"></i>';
+        html += '<i class="forecastDayChevron fa-solid fa-chevron-right"></i>';
         html += '</div>';
 
         // Detail panel
@@ -983,7 +983,7 @@ function _loadForecast(lat, lon, displayName, boundaryGeojson, osmType, osmId) {
 
         var favActive = _isFavorite(lat, lon);
         var locationHtml = '<div class="forecastLocation">' +
-            '<i class="fa-solid fa-location-dot forecastLocationIcon"></i>' +
+            '<i class="forecastLocationIcon fa-solid fa-location-dot"></i>' +
             '<span class="forecastLocationName">' + name + '</span>' +
             '<button class="forecastFavBtn' + (favActive ? ' forecastFavBtn-active' : '') + '" id="forecastFavBtn" title="' + (favActive ? 'Remove from favorites' : 'Add to favorites') + '"><i class="fa-' + (favActive ? 'solid' : 'regular') + ' fa-star"></i></button>' +
             '<span class="forecastLocationSub"><span>' + lat.toFixed(4) + ', ' + lon.toFixed(4) + '</span>' +
@@ -1089,8 +1089,8 @@ function _renderLanding() {
 
     // Landing tabs
     html += '<div class="forecastLandingTabs">';
-    html += '<button class="forecastLandingTab forecastLandingTab-active" data-landing-tab="favorites"><i class="fa-solid fa-star forecastTabIcon"></i> Favorites</button>';
-    html += '<button class="forecastLandingTab" data-landing-tab="recents"><i class="fa-solid fa-clock-rotate-left forecastTabIcon"></i> Recent Searches</button>';
+    html += '<button class="forecastLandingTab forecastLandingTab-active" data-landing-tab="favorites"><i class="forecastTabIcon fa-solid fa-star"></i> Favorites</button>';
+    html += '<button class="forecastLandingTab" data-landing-tab="recents"><i class="forecastTabIcon fa-solid fa-clock-rotate-left"></i> Recent Searches</button>';
     html += '</div>';
 
     // Favorites panel
@@ -1100,7 +1100,7 @@ function _renderLanding() {
         for (var f = 0; f < favorites.length; f++) {
             var fav = favorites[f];
             html += '<div class="forecastSavedRow" data-lat="' + fav.lat + '" data-lon="' + fav.lon + '" data-name="' + (fav.name || '').replace(/"/g, '&quot;') + '">';
-            html += '<i class="fa-solid fa-star forecastSavedIcon forecastSavedIcon-fav"></i>';
+            html += '<i class="forecastSavedIcon forecastSavedIcon-fav fa-solid fa-star"></i>';
             html += '<span class="forecastSavedName">' + fav.name + '</span>';
             html += '<span class="forecastSavedCoords">' + parseFloat(fav.lat).toFixed(2) + ', ' + parseFloat(fav.lon).toFixed(2) + '</span>';
             html += '<button class="forecastSavedRemove forecastSavedRemoveFav" data-lat="' + fav.lat + '" data-lon="' + fav.lon + '" title="Remove"><i class="fa-solid fa-xmark"></i></button>';
@@ -1108,7 +1108,7 @@ function _renderLanding() {
         }
         html += '</div>';
     } else {
-        html += '<div class="forecastLandingEmpty"><i class="fa-regular fa-star forecastLandingEmptyIcon"></i>';
+        html += '<div class="forecastLandingEmpty"><i class="forecastLandingEmptyIcon fa-solid fa-star"></i>';
         html += '<div class="forecastLandingEmptyText">No favorites yet.<br>Search for a location and tap the star to save it.</div></div>';
     }
     html += '</div>';
@@ -1121,7 +1121,7 @@ function _renderLanding() {
             var item = history[h];
             var ago = _timeAgo(item.ts);
             html += '<div class="forecastSavedRow" data-lat="' + item.lat + '" data-lon="' + item.lon + '" data-name="' + (item.name || '').replace(/"/g, '&quot;') + '">';
-            html += '<i class="fa-solid fa-clock-rotate-left forecastSavedIcon"></i>';
+            html += '<i class="forecastSavedIcon fa-solid fa-clock-rotate-left"></i>';
             html += '<span class="forecastSavedName">' + item.name + '</span>';
             html += '<span class="forecastSavedAgo">' + ago + '</span>';
             html += '<button class="forecastSavedRemove forecastSavedRemoveHistory" data-lat="' + item.lat + '" data-lon="' + item.lon + '" title="Remove"><i class="fa-solid fa-xmark"></i></button>';
@@ -1129,7 +1129,7 @@ function _renderLanding() {
         }
         html += '</div>';
     } else {
-        html += '<div class="forecastLandingEmpty"><i class="fa-solid fa-clock-rotate-left forecastLandingEmptyIcon"></i>';
+        html += '<div class="forecastLandingEmpty"><i class="forecastLandingEmptyIcon fa-solid fa-clock-rotate-left"></i>';
         html += '<div class="forecastLandingEmptyText">No recent searches.</div></div>';
     }
     html += '</div>';
@@ -1194,7 +1194,7 @@ function _buildOverlay() {
                 '</div>' +
                 '<div class="forecastSidebar">' +
                     '<div class="forecastSearch">' +
-                        '<i class="fa-solid fa-magnifying-glass forecastSearchIcon"></i>' +
+                        '<i class="forecastSearchIcon fa-solid fa-magnifying-glass"></i>' +
                         '<div class="forecastSearchWrap">' +
                             '<input type="text" class="forecastSearchInput" id="forecastSearchInput" placeholder="Search city, state, or zip..." autocomplete="off">' +
                             '<div class="forecastSuggestions" id="forecastSuggestions"></div>' +
@@ -1203,9 +1203,9 @@ function _buildOverlay() {
                     '</div>' +
                     '<button type="button" class="forecastBackBtn" id="forecastBackBtn" style="display:none"><i class="fa-solid fa-arrow-left"></i> Back to Home</button>' +
                     '<div class="forecastTabs" id="forecastTabs" style="display:none">' +
-                        '<button class="forecastTab forecastTab-active" data-tab="overview"><i class="fa-solid fa-cloud-sun forecastTabIcon"></i> Overview</button>' +
-                        '<button class="forecastTab" data-tab="hourly"><i class="fa-solid fa-clock forecastTabIcon"></i> Hourly</button>' +
-                        '<button class="forecastTab" data-tab="details"><i class="fa-solid fa-list forecastTabIcon"></i> Details</button>' +
+                        '<button class="forecastTab forecastTab-active" data-tab="overview"><i class="forecastTabIcon fa-solid fa-cloud-sun"></i> Overview</button>' +
+                        '<button class="forecastTab" data-tab="hourly"><i class="forecastTabIcon fa-solid fa-clock"></i> Hourly</button>' +
+                        '<button class="forecastTab" data-tab="details"><i class="forecastTabIcon fa-solid fa-list"></i> Details</button>' +
                     '</div>' +
                 '</div>' +
                 '<div class="forecastBody" id="forecastBody"></div>' +
@@ -1304,7 +1304,7 @@ function _buildOverlay() {
             $(this).remove();
             if (!_body.find('[data-landing-panel="favorites"] .forecastSavedRow').length) {
                 _body.find('[data-landing-panel="favorites"]').html(
-                    '<div class="forecastLandingEmpty"><i class="fa-regular fa-star forecastLandingEmptyIcon"></i>' +
+                    '<div class="forecastLandingEmpty"><i class="forecastLandingEmptyIcon fa-solid fa-star"></i>' +
                     '<div class="forecastLandingEmptyText">No favorites yet.<br>Search for a location and tap the star to save it.</div></div>'
                 );
             }
@@ -1321,7 +1321,7 @@ function _buildOverlay() {
             $(this).remove();
             if (!_body.find('[data-landing-panel="recents"] .forecastSavedRow').length) {
                 _body.find('[data-landing-panel="recents"]').html(
-                    '<div class="forecastLandingEmpty"><i class="fa-solid fa-clock-rotate-left forecastLandingEmptyIcon"></i>' +
+                    '<div class="forecastLandingEmpty"><i class="forecastLandingEmptyIcon fa-solid fa-clock-rotate-left"></i>' +
                     '<div class="forecastLandingEmptyText">No recent searches.</div></div>'
                 );
             }

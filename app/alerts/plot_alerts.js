@@ -362,7 +362,11 @@ function _add_alert_layers(geojson) {
             'type': 'line',
             'source': 'alertsSource',
             'filter': ['all', ['==', ['get', 'blinking'], true], ['==', ['get', 'type'], 'outline']],
-            'layout': { 'visibility': 'none' },
+            'layout': {
+                'visibility': 'none',
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
             'paint': {
                 'line-color': _get_blink_color(),
                 'line-width': _get_outline_line_width(bScale)
@@ -373,6 +377,10 @@ function _add_alert_layers(geojson) {
             'type': 'line',
             'source': `alertsSource`,
             'filter': ['!=', ['get', '_dashed'], true],
+            'layout': {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
             'paint': {
                 'line-color': _get_normal_line_color_expr(),
                 'line-width': [
@@ -442,7 +450,7 @@ function plot_alerts(alerts_data, options) {
     const focusNewAlerts = options.focus_new_alerts || false;
 
     if (window.stormTrackData && window.stormTrackData.testAlertFeatures && window.stormTrackData.testAlertFeatures.length > 0) {
-        alerts_data = JSON.parse(JSON.stringify(alerts_data));
+        alerts_data = _deep_clone(alerts_data);
         alerts_data.features = (alerts_data.features || []).concat(window.stormTrackData.testAlertFeatures);
     }
 
@@ -507,24 +515,27 @@ function plot_alerts(alerts_data, options) {
     }
 
     const duplicate_features = [];
+    // Draw all black casings first so same-color outlines stay clean at intersections.
+    for (const feature of alerts_data.features) {
+        const baseProps = Object.assign({}, feature.properties);
+        duplicate_features.push(Object.assign({}, feature, {
+            properties: Object.assign({}, baseProps, {
+                type: 'border',
+                blinking: false,
+                _dashed: !!baseProps._dashed
+            })
+        }));
+    }
+
     for (const feature of alerts_data.features) {
         const alertId = feature.id || feature.properties?.id;
         const blinking = _blinkingAlerts.has(alertId);
         const baseProps = Object.assign({}, feature.properties);
-        const isDashed = !!feature.properties?._dashed;
-
-        duplicate_features.push(Object.assign({}, feature, {
-            properties: Object.assign({}, baseProps, {
-                type: 'border',
-                blinking,
-                _dashed: isDashed
-            })
-        }));
         duplicate_features.push(Object.assign({}, feature, {
             properties: Object.assign({}, baseProps, {
                 type: 'outline',
                 blinking,
-                _dashed: isDashed
+                _dashed: !!baseProps._dashed
             })
         }));
     }

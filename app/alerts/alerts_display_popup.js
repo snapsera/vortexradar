@@ -189,7 +189,7 @@ function _build_info_panel() {
                 <span>Top Alert</span>
             </div>
             <div class="adpInfoDangerBody" id="adpInfoDangerBody">
-                <div class="adpInfoDangerLoading"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+                <div class="adpInfoDangerLoading"><i class="fa-solid fa-spinner"></i> Loading...</div>
             </div>
         </div>
     </div>`;
@@ -214,11 +214,11 @@ function _build_html() {
                 </div>
                 <div class="adpHeaderActions">
                     <button type="button" class="adpBtnAll adpBtnMd${mdActiveClass}" id="adpToggleMd">
-                        <i class="fa-solid fa-comments"></i> Mesoscale
+                        <i class="fa-solid fa-circle"></i> Mesoscale
                     </button>
                     <button type="button" class="adpBtnAll" id="adpEnableAll">Enable All</button>
                     <button type="button" class="adpBtnAll adpBtnAllOff" id="adpDisableAll">Disable All</button>
-                    <button type="button" class="adpCloseBtn" id="adpClose"><i class="fa fa-xmark"></i></button>
+                    <button type="button" class="adpCloseBtn" id="adpClose"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
             <div class="adpContent">
@@ -320,7 +320,7 @@ function _render_danger_from_data(data) {
             ${areas ? `<div class="adpDangerAreas"><i class="fa-solid fa-location-dot"></i> ${_truncate(areas, 120)}</div>` : ''}
             <div class="adpDangerMeta">
                 ${sender ? `<span><i class="fa-solid fa-building"></i> ${sender}</span>` : ''}
-                ${expiresStr ? `<span><i class="fa-regular fa-clock"></i> Until ${expiresStr}</span>` : ''}
+                ${expiresStr ? `<span><i class="fa-solid fa-clock"></i> Until ${expiresStr}</span>` : ''}
             </div>
             ${hint ? `<div class="adpDangerHint"><i class="fa-solid fa-shield-halved"></i> ${hint}</div>` : ''}
         </div>`;

@@ -18,8 +18,7 @@ const station_markers = require('../radar/station_markers/station_markers');
 const lightning = require('../lightning/lightning');
 const {
     NEXRAD_LOCATIONS: nexrad_locations,
-    get_station_timezone,
-    get_station_state
+    get_station_timezone
 } = require('../radar/libnexrad/nexrad_locations');
 const LiveModeHeaderController = require('./live_mode_header_controller');
 const LiveModeMusicController = require('./live_mode_music_controller');
@@ -30,7 +29,6 @@ const LiveModeCommentator = require('./live_mode_commentator');
 const SPC_BASE_URL = 'https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer';
 const DAY1_LAYERS = { categorical: 1, tornado: 3, hail: 5, wind: 7 };
 const SPC_HAZARDS = ['categorical', 'tornado', 'wind', 'hail'];
-const SPC_PROBABILITY_HAZARDS = ['tornado', 'wind', 'hail'];
 let _spcOverlayCanvas = null;
 let _spcOverlayCtx = null;
 let _spcRenderListener = null;
@@ -40,7 +38,6 @@ let _spcCigFeatures = [];
 
 const CONUS_CENTER = [-98.5606744, 39.5];
 const CONUS_ZOOM = 4.3;
-const LOWER_48_BOUNDS = [[-125.0, 24.0], [-66.5, 49.8]];
 
 const TORNADO_EVENTS = ['Tornado Warning', 'PDS Tornado Warning', 'Tornado Emergency'];
 const SEVERE_ALERT_EVENTS = [
@@ -55,6 +52,7 @@ const MAX_TORNADO_FOCUS_STREAK = 2;
 const ALERT_CLASS_FAIRNESS_RAMP_MIN = 6;
 const ALERT_CLASS_FAIRNESS_BONUS_MAX = 28;
 const ALERT_TORNADO_EXPIRE_SOON_MIN = 5;
+const ALERT_FOCUS_MAX_ZOOM = 9;
 const CONUS_SEGMENT_DURATION_MS = 28000;
 const CONUS_OVERVIEW_SHARE = 10 / 28;
 const CONUS_REGION_FOCUS_COUNT = 3;
@@ -76,17 +74,6 @@ const PLAYBACK_SPEED = 10;
 const PLAYBACK_FRAME_COUNT = 14;
 const SPOTLIGHT_FORECAST_CACHE_TTL_MS = 8 * 60 * 1000;
 const STORM_REPORTS_SEGMENT_DURATION_MS = 17000;
-const POWER_OUTAGE_SEGMENT_DURATION_MS = 22000;
-const TRAFFIC_CAMERA_SEGMENT_TOTAL_MS = 120000;
-const TRAFFIC_CAMERA_SEGMENT_CYCLES = 5;
-const TRAFFIC_CAMERA_SEGMENT_DURATION_MS = Math.floor(TRAFFIC_CAMERA_SEGMENT_TOTAL_MS / TRAFFIC_CAMERA_SEGMENT_CYCLES);
-const TRAFFIC_CAMERA_LAYOUT_ONLY_DEFAULT = false;
-const TRAFFIC_CAM_ALERT_ROTATE_MS = 20000;
-const TRAFFIC_CAM_BOTTOM_ALERT_ROTATE_MS = 12000;
-const TRAFFIC_CAM_ALERT_PLAYBACK_CUTOFF_MS = 18000;
-const TRAFFIC_CAM_ALERT_FADE_MS = 180;
-const TRAFFIC_CAM_PLAYBACK_RETRY_MS = 900;
-const TRAFFIC_CAM_FRAME_COLOR_SYNC_MS = 250;
 const SPC_TODAY_REPORTS_URL = 'https://www.spc.noaa.gov/climo/reports/today.html';
 const SPC_TODAY_REPORT_CSV_DEFAULT_URLS = {
     tornado: 'https://www.spc.noaa.gov/climo/reports/today_torn.csv',
@@ -97,9 +84,6 @@ const SPC_REPORTS_PROXY_PREFIX = 'https://corsproxy.io/?url=';
 
 const EARTHQUAKE_DURATION_MS = 22000;
 const EARTHQUAKE_FEED_URL = '/api/earthquakes';
-const ODI_PUBLIC_OUTAGE_SUMMARY_URL = 'https://odin.ornl.gov/odi?format=json';
-const ODI_PUBLIC_OUTAGE_MAP_URL = 'https://odin.ornl.gov/odi/map?type=';
-const POWER_OUTAGE_US_URL = 'https://poweroutage.us/';
 const LM_QUAKE_SOURCE = 'lmQuakeSource';
 const LM_QUAKE_CIRCLE = 'lmQuakeCircle';
 const LM_QUAKE_LABEL = 'lmQuakeLabel';
@@ -107,9 +91,8 @@ const LM_QUAKE_PULSE = 'lmQuakePulse';
 const LM_STORM_REPORTS_SOURCE = 'lmStormReportsSource';
 const LM_STORM_REPORTS_LAYER = 'lmStormReportsLayer';
 const LM_STORM_REPORTS_SIG_LAYER = 'lmStormReportsSigLayer';
-const STATE_CAMERA_INDEX_URL = '/data/states/index.json';
 
-const SEGMENT_WEIGHTS = { spc: 3, alert: 5, conus: 2, spotlight: 4, conditions: 3, storm_reports: 3, earthquake: 2, power_outage: 2 };
+const SEGMENT_WEIGHTS = { spc: 3, alert: 5, conus: 2, spotlight: 4, conditions: 3, storm_reports: 3, earthquake: 2 };
 const ALERT_CATEGORY_ICON_META = {
     'Severe Weather': { icon: 'fa-bolt-lightning' },
     'Winter': { icon: 'fa-snowflake' },
@@ -128,9 +111,6 @@ let _segmentTimer = null;
 let _currentSegmentType = null;
 let _spotlightForecastRequestEpoch = 0;
 let _spotlightForecastCache = {};
-let _powerOutageSnapshotCache = null;
-let _powerOutageSnapshotCacheAt = 0;
-let _powerOutageMapGeometryCache = Object.create(null);
 
 let _preSaveState = null;
 let _recentSegments = [];
@@ -148,33 +128,6 @@ let _focusGlowOpacity = 0;
 let _alertEpoch = 0;
 let _alertPendingTimers = [];
 let _scanLoadListener = null;
-let _trafficCameraPlayer = null;
-let _trafficCameraCatalogCache = null;
-let _trafficCameraCatalogPromise = null;
-let _trafficCamLayoutEl = null;
-let _trafficCamMainViewEl = null;
-let _trafficCamMiniRadarFrameEl = null;
-let _trafficCamBottomStackEl = null;
-let _trafficCamBottomInfoEl = null;
-let _trafficCamBottomAlertEl = null;
-let _trafficCamMiniMapModeActive = false;
-let _trafficCamAlertRotateTimer = null;
-let _trafficCamBottomAlertRotateTimer = null;
-let _trafficCamInfoFadeTimer = null;
-let _trafficCamAlertRotateIndex = 0;
-let _trafficCamAlertRotationActive = false;
-let _trafficCamPlaybackRetryTimer = null;
-let _trafficCamPlaybackCutoffTimer = null;
-let _trafficCamFallbackStationInFlight = false;
-let _trafficCamFallbackStation = null;
-let _trafficCamRotationTickToken = 0;
-let _trafficCamLastBottomAlertId = '';
-let _trafficCamLayoutTeardownTimer = null;
-let _trafficCamFrameColorSyncTimer = null;
-let _trafficCameraPreloader = null;
-let _trafficCameraPreloadKey = '';
-let _trafficCamDacastContentIdCache = Object.create(null);
-let _trafficCamWetmetStreamCache = Object.create(null);
 let _spcLegendHideTimer = null;
 let _sweepBaseSelectionListener = null;
 let _sweepBaseLoadedListener = null;
@@ -216,72 +169,6 @@ function _get_active_severe_alerts() {
         const ev = f?.properties?.event;
         return SEVERE_ALERT_EVENTS.includes(ev) && filter_alerts.should_show_alert_feature(f);
     });
-}
-
-function _get_active_display_alerts() {
-    const data = window.stormTrackData?.alerts_data;
-    if (!data || !data.features) return [];
-    const seen = new Set();
-    return data.features.filter(function (f) {
-        const id = f.id || f?.properties?.id;
-        if (!id || seen.has(id) || !f.geometry) return false;
-        seen.add(id);
-        return filter_alerts.should_show_alert_feature(f);
-    });
-}
-
-function _get_active_alerts_unfiltered() {
-    const data = window.stormTrackData?.alerts_data;
-    if (!data || !Array.isArray(data.features)) return [];
-    const seen = new Set();
-    return data.features.filter(function (f, idx) {
-        if (!f || !f.properties) return false;
-        const id = f.id || f?.properties?.id || ('idx-' + idx);
-        if (seen.has(id)) return false;
-        seen.add(id);
-        return true;
-    });
-}
-
-function _is_severe_event_name(eventName) {
-    return SEVERE_ALERT_EVENTS.indexOf(String(eventName || '')) !== -1;
-}
-
-function _get_unfiltered_severe_alerts() {
-    return _get_active_alerts_unfiltered().filter(function (f) {
-        return _is_severe_event_name(f?.properties?.event);
-    });
-}
-
-function _get_alert_identity_key(feature) {
-    if (!feature || !feature.properties) return '';
-    return String(
-        feature.id
-        || feature.properties.id
-        || (String(feature.properties.event || '') + '|' + String(feature.properties.areaDesc || ''))
-    );
-}
-
-function _pick_random_traffic_cam_bottom_alert(allAlerts, severeAlerts) {
-    if (!Array.isArray(allAlerts) || allAlerts.length === 0) return null;
-    severeAlerts = Array.isArray(severeAlerts) ? severeAlerts : [];
-
-    // Weighted random: severe alerts get extra weight, but all alerts stay eligible.
-    var weighted = allAlerts.slice();
-    for (var i = 0; i < severeAlerts.length; i++) weighted.push(severeAlerts[i]);
-    for (var j = 0; j < severeAlerts.length; j++) weighted.push(severeAlerts[j]);
-
-    var pool = weighted;
-    if (_trafficCamLastBottomAlertId && weighted.length > 1) {
-        var withoutLast = weighted.filter(function (f) {
-            return _get_alert_identity_key(f) !== _trafficCamLastBottomAlertId;
-        });
-        if (withoutLast.length) pool = withoutLast;
-    }
-
-    var picked = _pick_random(pool) || _pick_random(allAlerts) || null;
-    if (picked) _trafficCamLastBottomAlertId = _get_alert_identity_key(picked);
-    return picked;
 }
 
 function _is_tornado_eligible(feature) {
@@ -1213,11 +1100,7 @@ var LIGHTNING_GLOW_LAYER_ID = 'lightningGlow';
 var LIGHTNING_CORE_LAYER_ID = 'lightningCore';
 
 function _segment_allows_site_radar() {
-    return !_active
-        || _currentSegmentType === 'alert'
-        || _currentSegmentType === 'spotlight'
-        || _currentSegmentType === 'traffic_cams'
-        || _currentSegmentType === 'power_outage';
+    return !_active || _currentSegmentType === 'alert' || _currentSegmentType === 'spotlight';
 }
 
 function _clear_active_station_selection() {
@@ -1494,16 +1377,7 @@ function _show_all_map_overlays() {
 function _run_spc_segment(resolve) {
     var hazard = _pick_random(SPC_HAZARDS.filter(function (h) { return !_was_recent('spc', h); }));
     if (!hazard) hazard = _pick_random(SPC_HAZARDS);
-    var hazardCandidates = [hazard];
-    if (SPC_PROBABILITY_HAZARDS.indexOf(hazard) !== -1) {
-        var nonRecentFallbacks = SPC_PROBABILITY_HAZARDS.filter(function (h) {
-            return h !== hazard && !_was_recent('spc', h);
-        });
-        var remainingFallbacks = SPC_PROBABILITY_HAZARDS.filter(function (h) {
-            return h !== hazard && nonRecentFallbacks.indexOf(h) === -1;
-        });
-        hazardCandidates = hazardCandidates.concat(nonRecentFallbacks, remainingFallbacks);
-    }
+    _record_segment('spc', hazard);
     _currentSegmentType = 'spc';
     _set_segment_stage('enter');
 
@@ -1519,60 +1393,17 @@ function _run_spc_segment(resolve) {
     _hide_header_radar_info(null, { allowSocialFallback: false });
     _show_info_panel(_build_spc_panel_html(_spc_label(hazard)));
 
-    _set_segment_stage('fetch');
-    function _fetch_next_spc_candidate(candidateIndex) {
-        if (candidateIndex >= hazardCandidates.length) {
-            return Promise.resolve({
-                selectedHazard: hazard,
-                geojson: { type: 'FeatureCollection', features: [] },
-            });
-        }
-        var candidateHazard = hazardCandidates[candidateIndex];
-        return _fetch_spc_geojson(candidateHazard).then(function (candidateGeojson) {
-            var candidateFeatures = (candidateGeojson && candidateGeojson.features)
-                ? candidateGeojson.features.filter(function (f) { return f.geometry; })
-                : [];
-            if (SPC_PROBABILITY_HAZARDS.indexOf(candidateHazard) !== -1 && candidateFeatures.length === 0) {
-                return _fetch_next_spc_candidate(candidateIndex + 1);
-            }
-            return {
-                selectedHazard: candidateHazard,
-                geojson: candidateGeojson,
-            };
-        });
-    }
+    var catPromise = (hazard !== 'categorical')
+        ? _fetch_spc_geojson('categorical')
+        : Promise.resolve(null);
 
-    _fetch_next_spc_candidate(0).then(function (selection) {
-        var hazardToRender = selection.selectedHazard;
-        var geojson = selection.geojson;
-        var catPromise = (hazardToRender !== 'categorical')
-            ? _fetch_spc_geojson('categorical')
-            : Promise.resolve(null);
-        return catPromise.then(function (catGeojson) {
-            return {
-                hazard: hazardToRender,
-                geojson: geojson,
-                catGeojson: catGeojson,
-            };
-        });
-    }).then(function (selection) {
-        var hazard = selection.hazard;
-        var geojson = selection.geojson;
-        var catGeojson = selection.catGeojson;
+    _set_segment_stage('fetch');
+    Promise.all([_fetch_spc_geojson(hazard), catPromise]).then(function (results) {
+        var geojson = results[0];
+        var catGeojson = results[1];
         if (!_active) { _show_header_radar_info(); _hide_spc_legend(); return resolve(); }
 
         var features = (geojson && geojson.features) ? geojson.features.filter(function (f) { return f.geometry; }) : [];
-        if (SPC_PROBABILITY_HAZARDS.indexOf(hazard) !== -1 && features.length === 0) {
-            _set_segment_stage('skip-empty');
-            _stop_typewriter();
-            _remove_spc_layers();
-            _hide_spc_legend();
-            _show_header_radar_info();
-            _hide_info_panel();
-            return resolve();
-        }
-        _record_segment('spc', hazard);
-
         if (features.length) {
             try {
                 var bbox = turf.bbox(geojson);
@@ -1753,12 +1584,10 @@ function _get_station_for_alert(feature) {
     } catch (_) { return null; }
 }
 
-function _fly_to_alert(feature, options) {
-    options = options || {};
-    var duration = options.immediate ? 0 : 800;
+function _fly_to_alert(feature) {
     try {
         var bbox = turf.bbox(turf.feature(feature.geometry));
-        map.fitBounds(bbox, { padding: 60, maxZoom: 8, duration: duration });
+        map.fitBounds(bbox, { padding: 60, maxZoom: ALERT_FOCUS_MAX_ZOOM, duration: 800 });
     } catch (_) {}
 }
 
@@ -3418,10 +3247,6 @@ function _cleanup_scan_load_listener() {
 }
 
 function _switch_to_velocity(epoch, feature, done) {
-    if (_currentSegmentType === 'traffic_cams') {
-        done();
-        return;
-    }
     function isStale() { return epoch !== _alertEpoch || !_active; }
     var finished = false;
     function finish_once() {
@@ -5218,6 +5043,7 @@ function _build_storm_reports_panel_html(summary) {
 function _run_storm_reports_segment(resolve) {
     _currentSegmentType = 'storm_reports';
     _set_segment_stage('enter');
+    _record_segment('storm_reports', 'spc-reports-map');
     _set_clock_mode('hidden');
     _hide_header_radar_info(null);
 
@@ -5240,12 +5066,6 @@ function _run_storm_reports_segment(resolve) {
     _set_segment_stage('fetch');
     _fetch_spc_today_report_summary().then(function (summary) {
         if (!_active) return _cleanup();
-        var totalReports = (summary?.tornadoCount || 0) + (summary?.hailCount || 0) + (summary?.windCount || 0);
-        if (!totalReports) {
-            _set_segment_stage('skip-empty');
-            return _cleanup();
-        }
-        _record_segment('storm_reports', 'spc-reports-map');
         _set_segment_stage('render');
         _add_live_storm_reports_layer(summary);
         _focus_storm_reports_map(summary);
@@ -5255,1883 +5075,13 @@ function _run_storm_reports_segment(resolve) {
         }, STORM_REPORTS_SEGMENT_DURATION_MS);
     }).catch(function () {
         if (!_active) return _cleanup();
-        _set_segment_stage('skip-empty');
-        _cleanup();
-    });
-}
-
-const _STATE_FIPS_TO_ABBR = {
-    '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA', '08': 'CO', '09': 'CT',
-    '10': 'DE', '11': 'DC', '12': 'FL', '13': 'GA', '15': 'HI', '16': 'ID', '17': 'IL',
-    '18': 'IN', '19': 'IA', '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME', '24': 'MD',
-    '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS', '29': 'MO', '30': 'MT', '31': 'NE',
-    '32': 'NV', '33': 'NH', '34': 'NJ', '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND',
-    '39': 'OH', '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI', '45': 'SC', '46': 'SD',
-    '47': 'TN', '48': 'TX', '49': 'UT', '50': 'VT', '51': 'VA', '53': 'WA', '54': 'WV',
-    '55': 'WI', '56': 'WY', '72': 'PR'
-};
-
-function _format_outage_count(n) {
-    var v = Number(n);
-    if (!Number.isFinite(v)) return '0';
-    return Math.round(v).toLocaleString();
-}
-
-function _fetch_power_outage_snapshot() {
-    var now = Date.now();
-    if (_powerOutageSnapshotCache && (now - _powerOutageSnapshotCacheAt) < 120000) {
-        return Promise.resolve(_powerOutageSnapshotCache);
-    }
-    function _fetch_json(url) {
-        return fetch(url, { cache: 'no-store' }).then(function (res) {
-            if (!res.ok) throw new Error('Bad response');
-            return res.json();
-        });
-    }
-    return _fetch_json(ODI_PUBLIC_OUTAGE_SUMMARY_URL)
-        .catch(function () {
-            var proxyUrl = SPC_REPORTS_PROXY_PREFIX + encodeURIComponent(ODI_PUBLIC_OUTAGE_SUMMARY_URL);
-            return _fetch_json(proxyUrl);
-        })
-        .then(function (json) {
-            var outages = Array.isArray(json?.outage) ? json.outage : [];
-            var byState = Object.create(null);
-            var byCounty = Object.create(null);
-            var byUtility = Object.create(null);
-            var totalMetersOut = 0;
-            var totalEvents = 0;
-
-            for (var i = 0; i < outages.length; i++) {
-                var out = outages[i] || {};
-                var meters = Number(out.metersAffected || out.originalMetersAffected || 0);
-                if (!Number.isFinite(meters) || meters <= 0) continue;
-                var descriptor = String(out.communityDescriptor || '').trim();
-                if (!descriptor) continue;
-                var stateFips = descriptor.length >= 2 ? descriptor.slice(0, 2) : descriptor.padStart(2, '0');
-                var abbr = _STATE_FIPS_TO_ABBR[stateFips] || stateFips;
-                if (!byState[abbr]) byState[abbr] = { state: abbr, metersOut: 0, events: 0 };
-                byState[abbr].metersOut += meters;
-                byState[abbr].events += 1;
-                if (descriptor.length >= 5) {
-                    var countyFips = descriptor.slice(0, 5);
-                    if (!byCounty[countyFips]) {
-                        byCounty[countyFips] = {
-                            countyFips: countyFips,
-                            stateFips: countyFips.slice(0, 2),
-                            metersOut: 0,
-                            events: 0
-                        };
-                    }
-                    byCounty[countyFips].metersOut += meters;
-                    byCounty[countyFips].events += 1;
-                }
-                var utilityName = '';
-                var names = Array.isArray(out.names) ? out.names : [];
-                for (var n = 0; n < names.length; n++) {
-                    var item = names[n] || {};
-                    if (String(item.nameType || '').toLowerCase() === 'utilityname') {
-                        utilityName = String(item.name || '').trim();
-                        break;
-                    }
-                }
-                if (utilityName) {
-                    if (!byUtility[utilityName]) byUtility[utilityName] = { utility: utilityName, metersOut: 0, events: 0 };
-                    byUtility[utilityName].metersOut += meters;
-                    byUtility[utilityName].events += 1;
-                }
-                totalMetersOut += meters;
-                totalEvents += 1;
-            }
-
-            var rows = Object.keys(byState).map(function (k) { return byState[k]; })
-                .sort(function (a, b) { return b.metersOut - a.metersOut; });
-            var utilityRows = Object.keys(byUtility).map(function (k) { return byUtility[k]; })
-                .sort(function (a, b) { return b.metersOut - a.metersOut; });
-            var snapshot = {
-                updatedAt: now,
-                sourceUrl: POWER_OUTAGE_US_URL,
-                totalMetersOut: totalMetersOut,
-                totalEvents: totalEvents,
-                topStates: rows.slice(0, 10),
-                stateTotals: rows,
-                countyTotals: Object.keys(byCounty).map(function (k) { return byCounty[k]; })
-                    .sort(function (a, b) { return b.metersOut - a.metersOut; }),
-                topUtilities: utilityRows.slice(0, 12)
-            };
-            _powerOutageSnapshotCache = snapshot;
-            _powerOutageSnapshotCacheAt = now;
-            return snapshot;
-        })
-        .catch(function () {
-            return {
-                updatedAt: now,
-                sourceUrl: POWER_OUTAGE_US_URL,
-                totalMetersOut: 0,
-                totalEvents: 0,
-                topStates: [],
-                stateTotals: [],
-                countyTotals: [],
-                topUtilities: []
-            };
-        });
-}
-
-function _normalize_power_outage_geometry(geom) {
-    if (!geom || !Array.isArray(geom.coordinates)) return null;
-    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') return geom;
-    var coords = geom.coordinates;
-    var isMulti = Array.isArray(coords[0]) &&
-        Array.isArray(coords[0][0]) &&
-        Array.isArray(coords[0][0][0]) &&
-        Array.isArray(coords[0][0][0][0]);
-    return {
-        type: isMulti ? 'MultiPolygon' : 'Polygon',
-        coordinates: coords
-    };
-}
-
-function _fetch_power_outage_map_geometry(type, countyCodes) {
-    var mapType = String(type || '').toUpperCase();
-    if (!mapType) return Promise.resolve([]);
-    var cacheKey = mapType;
-    if (Array.isArray(countyCodes) && countyCodes.length) cacheKey += ':' + countyCodes.join(',');
-    if (_powerOutageMapGeometryCache[cacheKey]) return Promise.resolve(_powerOutageMapGeometryCache[cacheKey]);
-    var url = ODI_PUBLIC_OUTAGE_MAP_URL + encodeURIComponent(mapType);
-    if (mapType === 'COUNTY' && Array.isArray(countyCodes) && countyCodes.length) {
-        for (var i = 0; i < countyCodes.length; i++) {
-            var c = String(countyCodes[i] || '').trim();
-            if (!c) continue;
-            url += '&countyCd=' + encodeURIComponent(c);
-        }
-    }
-    function _fetch_json(rawUrl) {
-        return fetch(rawUrl, { cache: 'no-store' }).then(function (res) {
-            if (!res.ok) throw new Error('Bad response');
-            return res.json();
-        });
-    }
-    return _fetch_json(url)
-        .catch(function () {
-            var proxyUrl = SPC_REPORTS_PROXY_PREFIX + encodeURIComponent(url);
-            return _fetch_json(proxyUrl);
-        })
-        .then(function (arr) {
-            var normalized = Array.isArray(arr) ? arr : [];
-            _powerOutageMapGeometryCache[cacheKey] = normalized;
-            return normalized;
-        })
-        .catch(function () {
-            return [];
-        });
-}
-
-function _build_power_outage_state_geojson(stateTotals, stateGeometryRows) {
-    var byStateFips = Object.create(null);
-    (Array.isArray(stateTotals) ? stateTotals : []).forEach(function (row) {
-        var abbr = String(row?.state || '').trim();
-        if (!abbr) return;
-        var fips = null;
-        Object.keys(_STATE_FIPS_TO_ABBR).some(function (k) {
-            if (_STATE_FIPS_TO_ABBR[k] === abbr) {
-                fips = k;
-                return true;
-            }
-            return false;
-        });
-        if (!fips) return;
-        byStateFips[fips] = Number(row?.metersOut || 0);
-    });
-    var features = [];
-    (Array.isArray(stateGeometryRows) ? stateGeometryRows : []).forEach(function (row) {
-        var stateFips = String(row?.id || '').padStart(2, '0');
-        var geom = _normalize_power_outage_geometry(row?.feature);
-        if (!geom) return;
-        features.push({
-            type: 'Feature',
-            properties: {
-                stateFips: stateFips,
-                metersOut: Number(byStateFips[stateFips] || 0)
-            },
-            geometry: geom
-        });
-    });
-    return { type: 'FeatureCollection', features: features };
-}
-
-function _build_power_outage_county_geojson(countyTotals, countyGeometryRows) {
-    var byCountyFips = Object.create(null);
-    (Array.isArray(countyTotals) ? countyTotals : []).forEach(function (row) {
-        var fips = String(row?.countyFips || '').trim();
-        if (!fips) return;
-        byCountyFips[fips] = Number(row?.metersOut || 0);
-    });
-    var features = [];
-    (Array.isArray(countyGeometryRows) ? countyGeometryRows : []).forEach(function (row) {
-        var countyFips = String(row?.id || '').trim();
-        var metersOut = Number(byCountyFips[countyFips] || 0);
-        if (metersOut <= 0) return;
-        var geom = _normalize_power_outage_geometry(row?.feature);
-        if (!geom) return;
-        features.push({
-            type: 'Feature',
-            properties: {
-                countyFips: countyFips,
-                metersOut: metersOut
-            },
-            geometry: geom
-        });
-    });
-    return { type: 'FeatureCollection', features: features };
-}
-
-function _build_power_outage_legend_bins(countyTotals) {
-    var defaultBins = {
-        thresholds: [10000, 50000, 100000, 500000],
-        labels: ['< 10K', '10K-50K', '50K-100K', '100K-500K', '500K+'],
-        isLowActivity: false,
-        maxValue: 0
-    };
-    var vals = (Array.isArray(countyTotals) ? countyTotals : [])
-        .map(function (r) { return Number(r?.metersOut || 0); })
-        .filter(function (v) { return Number.isFinite(v) && v > 0; })
-        .sort(function (a, b) { return a - b; });
-    if (!vals.length) return defaultBins;
-    var max = vals[vals.length - 1];
-    if (max >= 10000) {
-        defaultBins.maxValue = max;
-        return defaultBins;
-    }
-
-    function _q(p) {
-        var idx = Math.max(0, Math.min(vals.length - 1, Math.floor((vals.length - 1) * p)));
-        return vals[idx];
-    }
-    function _nice(v) {
-        if (v <= 0) return 0;
-        if (v < 100) return Math.ceil(v / 5) * 5;
-        if (v < 1000) return Math.ceil(v / 25) * 25;
-        return Math.ceil(v / 100) * 100;
-    }
-    function _fmt(v) {
-        if (v >= 1000) {
-            var k = (v / 1000);
-            var txt = (Math.round(k * 10) / 10).toString();
-            if (txt.endsWith('.0')) txt = txt.slice(0, -2);
-            return txt + 'K';
-        }
-        return String(Math.round(v));
-    }
-
-    var t1 = _nice(Math.max(1, _q(0.50)));
-    var t2 = _nice(Math.max(t1 + 1, _q(0.75)));
-    var t3 = _nice(Math.max(t2 + 1, _q(0.90)));
-    var t4 = _nice(Math.max(t3 + 1, _q(0.97)));
-    var labels = [
-        '< ' + _fmt(t1),
-        _fmt(t1) + '-' + _fmt(t2),
-        _fmt(t2) + '-' + _fmt(t3),
-        _fmt(t3) + '-' + _fmt(t4),
-        _fmt(t4) + '+'
-    ];
-    return { thresholds: [t1, t2, t3, t4], labels: labels, isLowActivity: true, maxValue: max };
-}
-
-function _render_power_outage_main_view(snapshot) {
-    if (!_trafficCamMainViewEl) return;
-    _destroy_traffic_camera_player();
-    var updated = new Date(snapshot?.updatedAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    var shell = document.createElement('div');
-    var mapId = 'liveModePowerOutageMap-' + String(Date.now()) + '-' + String(Math.round(Math.random() * 1000));
-    var listId = mapId + '-list';
-    shell.style.width = '100%';
-    shell.style.height = '100%';
-    shell.style.position = 'relative';
-    shell.style.background = 'radial-gradient(120% 120% at 80% 10%, rgba(56, 189, 248, 0.12), transparent 48%), linear-gradient(180deg, rgba(15,24,39,0.96), rgba(3,7,18,0.98))';
-    var stateRows = Array.isArray(snapshot?.topStates) ? snapshot.topStates : [];
-    var countyTotalsAll = Array.isArray(snapshot?.countyTotals) ? snapshot.countyTotals : [];
-    var legendBins = _build_power_outage_legend_bins(countyTotalsAll);
-    var legendLabels = legendBins.labels;
-    var legendThresholds = legendBins.thresholds;
-    var lowActivityLegendHtml = legendBins.isLowActivity
-        ? ('<div style="margin-top:6px;opacity:0.86;color:#93c5fd;font-size:10px;">Low activity scale active (max county: ' +
-            _escape_html(_format_outage_count(legendBins.maxValue || 0)) + ')</div>')
-        : '';
-    function _render_list_rows(rows, keyField) {
-        if (!Array.isArray(rows) || !rows.length) {
-            return '<div style="padding:10px 0;opacity:0.74;">No active outage rows available.</div>';
-        }
-        var html = '';
-        for (var i = 0; i < Math.min(8, rows.length); i++) {
-            var row = rows[i] || {};
-            var label = String(row[keyField] || '').trim() || '--';
-            if (keyField === 'utility' && label.length > 26) label = label.slice(0, 26) + '...';
-            html +=
-                '<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(148,163,184,0.18);">' +
-                    '<div style="font-weight:700;letter-spacing:0.01em;">' + _escape_html(label) + '</div>' +
-                    '<div style="padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.34);font-weight:700;">' + _escape_html(_format_outage_count(row.metersOut || 0)) + '</div>' +
-                '</div>';
-        }
-        return html;
-    }
-    shell.innerHTML =
-        '<div style="position:absolute;left:18px;right:18px;top:10px;bottom:16px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.14);background:rgba(4,9,20,0.68);overflow:hidden;">' +
-            '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">' +
-                '<div style="font-size:16px;font-weight:700;letter-spacing:0.02em;">County Outage Map (Lower 48)</div>' +
-                '<div style="font-size:11px;opacity:0.78;">Updated ' + _escape_html(updated) + '</div>' +
-            '</div>' +
-            '<div style="margin-top:4px;font-size:12px;opacity:0.82;">Total customers out: <b>' + _escape_html(_format_outage_count(snapshot?.totalMetersOut || 0)) + '</b> · Active outage events: <b>' + _escape_html(String(snapshot?.totalEvents || 0)) + '</b> · Counties shown: <b>' + _escape_html(String(Math.min(160, Array.isArray(snapshot?.countyTotals) ? snapshot.countyTotals.length : 0))) + '</b></div>' +
-            '<div id="' + _escape_html(mapId) + '" style="position:absolute;left:10px;right:320px;top:56px;bottom:10px;border-radius:10px;border:1px solid rgba(148,163,184,0.24);overflow:hidden;background:rgba(2,6,23,0.92);"></div>' +
-            '<div style="position:absolute;left:22px;bottom:26px;z-index:4;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.4);background:rgba(2,6,23,0.84);font-size:11px;">' +
-                '<div style="margin-bottom:6px;font-weight:700;">Customers Out</div>' +
-                '<div style="display:flex;gap:0;">' +
-                    '<span style="padding:3px 7px;background:#0ea5e9;color:#fff;border-radius:4px 0 0 4px;">' + _escape_html(legendLabels[0]) + '</span>' +
-                    '<span style="padding:3px 7px;background:#3b82f6;color:#fff;">' + _escape_html(legendLabels[1]) + '</span>' +
-                    '<span style="padding:3px 7px;background:#facc15;color:#111;">' + _escape_html(legendLabels[2]) + '</span>' +
-                    '<span style="padding:3px 7px;background:#fb7185;color:#111;">' + _escape_html(legendLabels[3]) + '</span>' +
-                    '<span style="padding:3px 7px;background:#dc2626;color:#fff;border-radius:0 4px 4px 0;">' + _escape_html(legendLabels[4]) + '</span>' +
-                '</div>' +
-                lowActivityLegendHtml +
-            '</div>' +
-            '<div style="position:absolute;right:10px;top:56px;bottom:10px;width:300px;border-radius:10px;border:1px solid rgba(148,163,184,0.24);background:rgba(2,6,23,0.86);padding:12px;display:flex;flex-direction:column;z-index:4;">' +
-                '<div style="font-size:34px;font-weight:800;line-height:1;">' + _escape_html(_format_outage_count(snapshot?.totalMetersOut || 0)) + '</div>' +
-                '<div style="font-size:12px;opacity:0.84;margin-top:2px;">Total US Customers Out</div>' +
-                '<div id="' + _escape_html(listId) + '" style="margin-top:10px;overflow:auto;flex:1;font-size:14px;">' + _render_list_rows(stateRows, 'state') + '</div>' +
-                '<div style="font-size:11px;opacity:0.72;margin-top:8px;">Source: <a href="' + _escape_html(POWER_OUTAGE_US_URL) + '" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:none;">poweroutage.us</a></div>' +
-            '</div>' +
-        '</div>';
-    var playerRef = { type: 'outage', el: shell };
-    _mount_traffic_camera_player(playerRef);
-
-    if (typeof mapboxgl === 'undefined') return;
-    if (!mapboxgl.accessToken) mapboxgl.accessToken = MAPBOX_TOKEN;
-
-    var stateTotals = Array.isArray(snapshot?.stateTotals) ? snapshot.stateTotals : [];
-    var countyTotals = (Array.isArray(snapshot?.countyTotals) ? snapshot.countyTotals : []).slice(0, 160);
-    var countyCodes = countyTotals.map(function (row) { return String(row?.countyFips || '').trim(); }).filter(Boolean);
-
-    Promise.all([
-        _fetch_power_outage_map_geometry('STATE'),
-        _fetch_power_outage_map_geometry('COUNTY', countyCodes)
-    ]).then(function (results) {
-        if (!_active || _currentSegmentType !== 'power_outage' || _trafficCameraPlayer !== playerRef) return;
-        var stateGeo = _build_power_outage_state_geojson(stateTotals, results[0] || []);
-        var countyGeo = _build_power_outage_county_geojson(countyTotals, results[1] || []);
-        var mapEl = document.getElementById(mapId);
-        if (!mapEl) return;
-
-        var outageMap = new mapboxgl.Map({
-            container: mapEl,
-            style: 'mapbox://styles/mapbox/dark-v11',
-            center: [-98.5, 39.8],
-            zoom: 3.9,
-            attributionControl: false,
-            preserveDrawingBuffer: false
-        });
-        playerRef.map = outageMap;
-
-        outageMap.on('load', function () {
-            try { outageMap.fitBounds(LOWER_48_BOUNDS, { padding: 20, duration: 0 }); } catch (_) {}
-            try { outageMap.setMaxBounds(LOWER_48_BOUNDS); } catch (_) {}
-            if (!outageMap.getSource('po-states')) {
-                outageMap.addSource('po-states', { type: 'geojson', data: stateGeo });
-                outageMap.addLayer({
-                    id: 'po-state-line',
-                    type: 'line',
-                    source: 'po-states',
-                    paint: {
-                        'line-color': 'rgba(226,232,240,0.42)',
-                        'line-width': 0.9
-                    }
-                });
-            }
-            if (!outageMap.getSource('po-counties')) {
-                outageMap.addSource('po-counties', { type: 'geojson', data: countyGeo });
-                outageMap.addLayer({
-                    id: 'po-county-fill',
-                    type: 'fill',
-                    source: 'po-counties',
-                    paint: {
-                        'fill-color': [
-                            'step',
-                            ['coalesce', ['get', 'metersOut'], 0],
-                            '#0ea5e9',
-                            legendThresholds[0], '#3b82f6',
-                            legendThresholds[1], '#facc15',
-                            legendThresholds[2], '#fb7185',
-                            legendThresholds[3], '#dc2626'
-                        ],
-                        'fill-opacity': 0.74
-                    }
-                });
-                outageMap.addLayer({
-                    id: 'po-county-line',
-                    type: 'line',
-                    source: 'po-counties',
-                    paint: {
-                        'line-color': 'rgba(248,250,252,0.55)',
-                        'line-width': 0.45
-                    }
-                });
-            }
-        });
-    }).catch(function () {});
-}
-
-function _set_power_outage_bottom_stack(snapshot) {
-    if (_trafficCamBottomInfoEl) {
-        _trafficCamBottomInfoEl.innerHTML =
-            '<div class="liveModeTrafficCamInfoContent">' +
-                '<span class="liveModeTrafficCamInfoInline">' +
-                    _escape_html('National outage snapshot from ORNL ODIN. Tracking utility-reported customer interruptions across active severe-weather regions.') +
-                '</span>' +
-            '</div>';
-        _apply_traffic_cam_overflow_scroll(_trafficCamBottomInfoEl, '.liveModeTrafficCamInfoContent');
-    }
-    if (_trafficCamBottomAlertEl) {
-        var top = (snapshot?.topStates && snapshot.topStates[0]) ? snapshot.topStates[0] : null;
-        var text = top
-            ? ('Highest current outage load: ' + top.state + ' (' + _format_outage_count(top.metersOut) + ' customers out)')
-            : 'No significant outages reported in the latest snapshot.';
-        _trafficCamBottomAlertEl.innerHTML =
-            '<span class="liveModeTrafficCamBottomAlertContent">' +
-                '<i class="lmAlertBannerIcon fa-solid fa-bolt" aria-hidden="true"></i>' +
-                '<span class="lmAlertBannerText">' + _escape_html(text) + '</span>' +
-            '</span>';
-        _trafficCamBottomAlertEl.style.background = 'rgba(30, 64, 175, 0.86)';
-        _trafficCamBottomAlertEl.style.color = 'rgba(255,255,255,0.95)';
-        _trafficCamBottomAlertEl.classList.add('liveModeTrafficCamBottomAlert-visible');
-        _apply_traffic_cam_overflow_scroll(_trafficCamBottomAlertEl, '.liveModeTrafficCamBottomAlertContent');
-    }
-}
-
-function _run_power_outage_segment(resolve) {
-    _currentSegmentType = 'power_outage';
-    _set_segment_stage('enter');
-    _set_clock_mode('hidden');
-    _hide_header_radar_info(null);
-    _hide_all_map_overlays();
-    _remove_static_mrms_layer();
-    _remove_conditions_layer();
-    _remove_earthquake_layer();
-    _hide_storm_reports();
-    _show_radar_render();
-    _show_radar_sweep();
-    _show_alert_polygons();
-    _show_station_markers();
-    _show_lightning_overlay();
-    _show_traffic_cam_layout();
-    _focus_traffic_cam_radar_on_alert();
-
-    function _cleanup() {
-        _set_segment_stage('finish');
-        _stop_typewriter();
-        _stop_traffic_cam_alert_rotation();
-        _destroy_traffic_camera_player();
-        _hide_traffic_cam_layout();
-        _show_header_radar_info();
-        _hide_info_panel();
-        resolve();
-    }
-
-    _set_segment_stage('fetch');
-    _fetch_power_outage_snapshot().then(function (snapshot) {
-        if (!_active || _currentSegmentType !== 'power_outage') return _cleanup();
-        _record_segment('power_outage', 'snapshot');
-        _set_segment_stage('render');
-        _render_power_outage_main_view(snapshot);
-        _stop_traffic_cam_alert_rotation();
-        _refresh_traffic_cam_bottom_alert_bars();
-        _trafficCamBottomAlertRotateTimer = _trackAlertTimer(function _outage_bottom_tick() {
-            if (!_active || _currentSegmentType !== 'power_outage') return;
-            _refresh_traffic_cam_bottom_alert_bars();
-            _trafficCamBottomAlertRotateTimer = _trackAlertTimer(_outage_bottom_tick, TRAFFIC_CAM_BOTTOM_ALERT_ROTATE_MS);
-        }, TRAFFIC_CAM_BOTTOM_ALERT_ROTATE_MS);
-        _typewrite(_pick_random([
-            'Here is a live utility outage snapshot, highlighting states with the most customers currently without power.',
-            'Now showing a national outage check from ODIN with the highest-impact states at the top.',
-            'Utility outage reports are flowing in live. This view ranks the largest current customer interruptions.'
-        ]), 650);
-        _segmentTimer = setTimeout(_cleanup, POWER_OUTAGE_SEGMENT_DURATION_MS);
-    }).catch(function () {
-        _cleanup();
-    });
-}
-
-function _destroy_traffic_camera_player() {
-    if (_trafficCameraPlayer && _trafficCameraPlayer.el) {
-        if (_trafficCameraPlayer.map) {
-            try { _trafficCameraPlayer.map.remove(); } catch (_) {}
-            _trafficCameraPlayer.map = null;
-        }
-        if (_trafficCameraPlayer.imageRefreshTimer) {
-            try { clearInterval(_trafficCameraPlayer.imageRefreshTimer); } catch (_) {}
-            _trafficCameraPlayer.imageRefreshTimer = null;
-        }
-        if (_trafficCameraPlayer.embedAutoplayKickTimer) {
-            try { clearInterval(_trafficCameraPlayer.embedAutoplayKickTimer); } catch (_) {}
-            _trafficCameraPlayer.embedAutoplayKickTimer = null;
-        }
-        try { _trafficCameraPlayer.el.remove(); } catch (_) {}
-    }
-    _trafficCameraPlayer = null;
-    var host = document.getElementById('liveModeTrafficCameraPlayerHost');
-    if (host) host.innerHTML = '';
-}
-
-function _clear_traffic_camera_preload() {
-    if (_trafficCameraPreloader && typeof _trafficCameraPreloader.cleanup === 'function') {
-        try { _trafficCameraPreloader.cleanup(); } catch (_) {}
-    }
-    _trafficCameraPreloader = null;
-    _trafficCameraPreloadKey = '';
-}
-
-function _build_traffic_cam_embed_autoplay_url(embedUrl) {
-    var url = String(embedUrl || '').trim();
-    if (!url) return '';
-    var sep = url.indexOf('?') === -1 ? '?' : '&';
-    return url + sep + 'autoplay=1&muted=1&mute=1&playsinline=1&controls=0';
-}
-
-function _is_wetmet_frame_url(url) {
-    var u = String(url || '').toLowerCase();
-    return u.indexOf('api.wetmet.net/widgets/stream/frame.php?uid=') !== -1;
-}
-
-function _resolve_wetmet_stream_url(frameUrl) {
-    var url = String(frameUrl || '').trim();
-    if (!url) return Promise.resolve('');
-    var now = Date.now();
-    var cached = _trafficCamWetmetStreamCache[url];
-    if (cached && cached.streamUrl && cached.expiresAtMs > (now + 60 * 1000)) {
-        return Promise.resolve(cached.streamUrl);
-    }
-    function _extractStream(html) {
-            var source = String(html || '');
-            var m = source.match(/var\s+vurl\s*=\s*'([^']+)'/i);
-            var streamUrl = m && m[1] ? String(m[1]).trim() : '';
-            if (!streamUrl) return '';
-            _trafficCamWetmetStreamCache[url] = {
-                streamUrl: streamUrl,
-                expiresAtMs: Date.now() + (25 * 60 * 1000)
-            };
-            return streamUrl;
-    }
-    function _fetchText(u) {
-        return fetch(u, { cache: 'no-store' }).then(function (res) {
-            if (!res.ok) throw new Error('Bad response');
-            return res.text();
-        });
-    }
-    return _fetchText(url)
-        .then(_extractStream)
-        .catch(function () {
-            var proxyUrl = 'https://corsproxy.io/?url=' + encodeURIComponent(url);
-            return _fetchText(proxyUrl).then(_extractStream);
-        })
-        .catch(function () {
-            return '';
-        });
-}
-
-function _resolve_camera_stream_url(camera) {
-    var streamUrl = String(camera?.streamUrl || '').trim();
-    if (!streamUrl) return Promise.resolve('');
-    if (_is_wetmet_frame_url(streamUrl)) {
-        return _resolve_wetmet_stream_url(streamUrl).catch(function () { return ''; });
-    }
-    return Promise.resolve(streamUrl);
-}
-
-function _is_viaero_embed_url(url) {
-    var u = String(url || '').toLowerCase();
-    return u.indexOf('links.viaero.media') !== -1 || u.indexOf('dacast.com') !== -1;
-}
-
-function _extract_dacast_content_id_from_embed_html(html) {
-    var source = String(html || '');
-    if (!source) return '';
-    var scriptMatch = source.match(/player\.js\?contentId=([^"'&\s<>]+)/i);
-    if (scriptMatch && scriptMatch[1]) return String(scriptMatch[1]).trim();
-
-    var b64Match = source.match(/contentMetadata=\"base64:\/\/([^"]+)\"/i);
-    if (b64Match && b64Match[1]) {
-        try {
-            var decoded = decodeURIComponent(atob(b64Match[1]));
-            var cidMatch = decoded.match(/"contentId":"([^"]+)"/i);
-            if (cidMatch && cidMatch[1]) return String(cidMatch[1]).trim();
-        } catch (_) {}
-    }
-    return '';
-}
-
-function _resolve_dacast_content_id(embedUrl) {
-    var url = String(embedUrl || '').trim();
-    if (!url) return Promise.resolve('');
-    if (_trafficCamDacastContentIdCache[url] !== undefined) {
-        return Promise.resolve(_trafficCamDacastContentIdCache[url] || '');
-    }
-    return fetch(url, { cache: 'no-store' })
-        .then(function (res) {
-            if (!res.ok) throw new Error('Bad response');
-            return res.text();
-        })
-        .then(function (html) {
-            var contentId = _extract_dacast_content_id_from_embed_html(html);
-            _trafficCamDacastContentIdCache[url] = contentId || '';
-            return contentId || '';
-        })
-        .catch(function () {
-            _trafficCamDacastContentIdCache[url] = '';
-            return '';
-        });
-}
-
-function _build_traffic_cam_overlay_html(feedLabel, title, area, agency, cycleText) {
-    return '' +
-        '<div class="liveModeTrafficCamOverlay">' +
-            '<div class="liveModeTrafficCamOverlayTop">' +
-                '<span class="liveModeTrafficCamLiveBadge"><span class="liveModeTrafficCamLiveDot"></span>LIVE</span>' +
-                '<span class="liveModeTrafficCamTopTag">' + _escape_html(feedLabel) + '</span>' +
-            '</div>' +
-            '<div class="liveModeTrafficCamOverlayTitle">' + _escape_html(title) + '</div>' +
-            '<div class="liveModeTrafficCamOverlayMeta">' + _escape_html(area) + ' · ' + _escape_html(agency) + ' · ' + _escape_html(cycleText) + '</div>' +
-        '</div>';
-}
-
-function _mount_traffic_camera_player(player) {
-    var host = _trafficCamMainViewEl;
-    if (!host || !player || !player.el) return false;
-    var nextEl = player.el;
-    var prev = _trafficCameraPlayer;
-
-    if (!prev || !prev.el || prev.el.parentElement !== host) {
-        host.innerHTML = '';
-    }
-    if (prev && prev.imageRefreshTimer) {
-        try { clearInterval(prev.imageRefreshTimer); } catch (_) {}
-        prev.imageRefreshTimer = null;
-    }
-    if (prev && prev.embedAutoplayKickTimer) {
-        try { clearInterval(prev.embedAutoplayKickTimer); } catch (_) {}
-        prev.embedAutoplayKickTimer = null;
-    }
-
-    nextEl.style.position = 'absolute';
-    nextEl.style.top = '0';
-    nextEl.style.left = '0';
-    nextEl.style.width = '100%';
-    nextEl.style.height = '100%';
-    nextEl.style.opacity = '0';
-    nextEl.style.transition = 'opacity 180ms ease-out';
-    nextEl.style.zIndex = '2';
-
-    host.appendChild(nextEl);
-    _trackAlertTimer(function () {
-        nextEl.style.opacity = '1';
-    }, 0);
-
-    if (prev && prev.el && prev.el.parentElement === host) {
-        prev.el.style.transition = 'opacity 140ms ease-out';
-        prev.el.style.opacity = '0';
-        _trackAlertTimer(function () {
-            if (prev.el && prev.el.parentElement === host) {
-                try { prev.el.remove(); } catch (_) {}
-            }
-        }, 180);
-    }
-
-    _trafficCameraPlayer = player;
-    return true;
-}
-
-function _kick_embed_autoplay(frame, playerRef) {
-    if (!frame) return;
-    var attempts = 0;
-    function postPlayMessages() {
-        try { frame.contentWindow?.postMessage('play', '*'); } catch (_) {}
-        try { frame.contentWindow?.postMessage({ type: 'play' }, '*'); } catch (_) {}
-        try { frame.contentWindow?.postMessage({ method: 'play' }, '*'); } catch (_) {}
-        try { frame.contentWindow?.postMessage({ event: 'command', func: 'playVideo', args: [] }, '*'); } catch (_) {}
-        try { frame.contentWindow?.postMessage({ action: 'play' }, '*'); } catch (_) {}
-        try { frame.contentWindow?.postMessage({ command: 'play' }, '*'); } catch (_) {}
-    }
-    function clickFrameCenter() {
-        try { frame.focus(); } catch (_) {}
-        try { frame.click(); } catch (_) {}
-        try {
-            frame.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-            frame.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-            frame.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-        } catch (_) {}
-    }
-    function tryKick() {
-        if (!_active || _currentSegmentType !== 'traffic_cams') {
-            if (playerRef && playerRef.embedAutoplayKickTimer) {
-                clearInterval(playerRef.embedAutoplayKickTimer);
-                playerRef.embedAutoplayKickTimer = null;
-            }
-            return;
-        }
-        postPlayMessages();
-        clickFrameCenter();
-        attempts++;
-        if (attempts >= 12 && playerRef && playerRef.embedAutoplayKickTimer) {
-            clearInterval(playerRef.embedAutoplayKickTimer);
-            playerRef.embedAutoplayKickTimer = null;
-        }
-    }
-    tryKick();
-    if (playerRef) {
-        playerRef.embedAutoplayKickTimer = setInterval(tryKick, 700);
-    }
-}
-
-function _kick_dacast_autoplay(contentId, playerRef) {
-    if (!contentId || !playerRef) return;
-    var attempts = 0;
-    function kick() {
-        if (!_active || _currentSegmentType !== 'traffic_cams' || _trafficCameraPlayer !== playerRef) {
-            if (playerRef.embedAutoplayKickTimer) {
-                clearInterval(playerRef.embedAutoplayKickTimer);
-                playerRef.embedAutoplayKickTimer = null;
-            }
-            return;
-        }
-        attempts++;
-        var player = null;
-        try { player = window.dacast?.players?.[contentId] || null; } catch (_) { player = null; }
-        if (player) {
-            try {
-                if (typeof player.volume === 'function') player.volume(0);
-            } catch (_) {}
-            try {
-                if (typeof player.play === 'function') player.play();
-            } catch (_) {}
-        }
-        try { playerRef.dacastHost?.click(); } catch (_) {}
-        if (attempts >= 22 && playerRef.embedAutoplayKickTimer) {
-            clearInterval(playerRef.embedAutoplayKickTimer);
-            playerRef.embedAutoplayKickTimer = null;
-        }
-    }
-    kick();
-    playerRef.embedAutoplayKickTimer = setInterval(kick, 500);
-}
-
-function _render_traffic_camera_viaero_dacast_preview(camera, cycleIndex, totalCycles, embedAutoplayUrl) {
-    var title = camera?.name || 'Weather Camera';
-    var area = camera?.area || 'United States';
-    var agency = camera?.agency || 'Public Camera Network';
-    var cycleText = 'Camera ' + (cycleIndex + 1) + ' / ' + totalCycles;
-
-    var box = document.createElement('div');
-    box.style.width = '100%';
-    box.style.height = '100%';
-    box.style.position = 'relative';
-    box.style.background = '#02060c';
-    box.innerHTML =
-        '<div style="width:100%;height:100%;background:#02060c;"></div>' +
-        _build_traffic_cam_overlay_html('TRAFFIC CAMERAS', title, area, agency, cycleText);
-
-    var host = box.firstElementChild;
-    if (!host) return false;
-
-    var playerRef = {
-        type: 'embed',
-        el: box,
-        frame: null,
-        embedAutoplayKickTimer: null,
-        dacastHost: host
-    };
-    if (!_mount_traffic_camera_player(playerRef)) return false;
-
-    _resolve_dacast_content_id(camera?.embedUrl).then(function (contentId) {
-        if (!_active || _currentSegmentType !== 'traffic_cams' || _trafficCameraPlayer !== playerRef) return;
-        if (!contentId) {
-            host.innerHTML = '';
-            var fallbackFrame = document.createElement('iframe');
-            fallbackFrame.title = 'Weather camera stream';
-            fallbackFrame.referrerPolicy = 'no-referrer-when-downgrade';
-            fallbackFrame.allow = 'autoplay; fullscreen; picture-in-picture';
-            fallbackFrame.style.width = '100%';
-            fallbackFrame.style.height = '100%';
-            fallbackFrame.style.border = '0';
-            fallbackFrame.style.display = 'block';
-            fallbackFrame.style.background = '#02060c';
-            fallbackFrame.src = embedAutoplayUrl;
-            host.appendChild(fallbackFrame);
-            playerRef.frame = fallbackFrame;
-            _kick_embed_autoplay(fallbackFrame, playerRef);
-            return;
-        }
-
-        host.innerHTML = '';
-        var script = document.createElement('script');
-        script.src = 'https://player.dacast.com/js/player.js?contentId=' + encodeURIComponent(contentId) + '&autoplay=true&muted=true';
-        script.id = 'lm-dacast-' + String(contentId).replace(/[^a-zA-Z0-9_-]/g, '-');
-        script.className = 'dacast-video';
-        script.setAttribute('width', '100%');
-        script.setAttribute('height', '100%');
-        host.appendChild(script);
-        _kick_dacast_autoplay(contentId, playerRef);
-    }).catch(function () {
-        if (!_active || _currentSegmentType !== 'traffic_cams' || _trafficCameraPlayer !== playerRef) return;
-        host.innerHTML = '';
-        var frame = document.createElement('iframe');
-        frame.title = 'Weather camera stream';
-        frame.referrerPolicy = 'no-referrer-when-downgrade';
-        frame.allow = 'autoplay; fullscreen; picture-in-picture';
-        frame.style.width = '100%';
-        frame.style.height = '100%';
-        frame.style.border = '0';
-        frame.style.display = 'block';
-        frame.style.background = '#02060c';
-        frame.src = embedAutoplayUrl;
-        host.appendChild(frame);
-        playerRef.frame = frame;
-        _kick_embed_autoplay(frame, playerRef);
-    });
-
-    return true;
-}
-
-function _preload_traffic_camera(camera) {
-    if (!camera) return;
-    var key = String(camera.id || camera.streamUrl || camera.embedUrl || camera.imageUrl || '');
-    if (!key || key === _trafficCameraPreloadKey) return;
-    _clear_traffic_camera_preload();
-    _trafficCameraPreloadKey = key;
-
-    var streamUrl = String(camera.streamUrl || '').trim();
-    if (streamUrl) {
-        if (_is_wetmet_frame_url(streamUrl)) {
-            _resolve_wetmet_stream_url(streamUrl).then(function (resolved) {
-                if (!resolved) return;
-                if (key !== _trafficCameraPreloadKey) return;
-                var preVideo = document.createElement('video');
-                preVideo.muted = true;
-                preVideo.defaultMuted = true;
-                preVideo.preload = 'auto';
-                preVideo.setAttribute('muted', 'muted');
-                preVideo.setAttribute('playsinline', 'playsinline');
-                preVideo.src = resolved;
-                try { preVideo.load(); } catch (_) {}
-                _trafficCameraPreloader = {
-                    cleanup: function () {
-                        try { preVideo.pause(); } catch (_) {}
-                        try { preVideo.removeAttribute('src'); preVideo.load(); } catch (_) {}
-                    }
-                };
-            }).catch(function () {});
-            return;
-        }
-        var v = document.createElement('video');
-        v.muted = true;
-        v.defaultMuted = true;
-        v.preload = 'auto';
-        v.setAttribute('muted', 'muted');
-        v.setAttribute('playsinline', 'playsinline');
-        v.src = streamUrl;
-        try { v.load(); } catch (_) {}
-        _trafficCameraPreloader = {
-            cleanup: function () {
-                try { v.pause(); } catch (_) {}
-                try { v.removeAttribute('src'); v.load(); } catch (_) {}
-            }
-        };
-        return;
-    }
-}
-
-function _normalize_traffic_camera(raw, stateMeta) {
-    if (!raw || typeof raw !== 'object') return null;
-    if (!raw.id || !raw.name) return null;
-    var state = stateMeta?.state || raw.state || 'Unknown State';
-    var abbr = stateMeta?.abbr || raw.abbr || '';
-    return {
-        id: String(raw.id),
-        name: String(raw.name),
-        area: String(raw.area || state),
-        agency: String(raw.agency || stateMeta?.agency || 'DOT'),
-        type: String(raw.type || 'unknown'),
-        streamUrl: raw.streamUrl ? String(raw.streamUrl) : '',
-        embedUrl: raw.embedUrl ? String(raw.embedUrl) : '',
-        imageUrl: raw.imageUrl ? String(raw.imageUrl) : '',
-        imageRefreshMs: Number.isFinite(Number(raw.imageRefreshMs)) ? Number(raw.imageRefreshMs) : null,
-        center: Array.isArray(raw.center) ? raw.center : null,
-        zoom: Number.isFinite(Number(raw.zoom)) ? Number(raw.zoom) : null,
-        state: state,
-        abbr: abbr,
-        enabled: raw.enabled !== false,
-    };
-}
-
-function _fetch_json_safe(url) {
-    return fetch(url, { cache: 'no-store' })
-        .then(function (res) {
-            if (!res.ok) throw new Error('Bad response');
-            return res.json();
-        });
-}
-
-function _load_traffic_camera_catalog() {
-    if (Array.isArray(_trafficCameraCatalogCache)) {
-        return Promise.resolve(_trafficCameraCatalogCache);
-    }
-    if (_trafficCameraCatalogPromise) {
-        return _trafficCameraCatalogPromise;
-    }
-    _trafficCameraCatalogPromise = _fetch_json_safe(STATE_CAMERA_INDEX_URL + '?_=' + Date.now())
-        .then(function (indexJson) {
-            var stateEntries = Array.isArray(indexJson?.states) ? indexJson.states : [];
-            var fetches = stateEntries.map(function (entry) {
-                if (!entry || !entry.camsFile) return Promise.resolve([]);
-                return _fetch_json_safe(String(entry.camsFile) + '?_=' + Date.now())
-                    .then(function (stateJson) {
-                        var cams = Array.isArray(stateJson?.cams) ? stateJson.cams : [];
-                        return cams
-                            .map(function (cam) { return _normalize_traffic_camera(cam, stateJson); })
-                            .filter(function (cam) {
-                                if (!(cam && cam.enabled)) return false;
-                                // Strict mode: allow only direct live video feeds.
-                                return !!String(cam.streamUrl || '').trim();
-                            });
-                    })
-                    .catch(function () {
-                        return [];
-                    });
-            });
-            return Promise.all(fetches).then(function (groups) {
-                return groups.reduce(function (all, cams) {
-                    return all.concat(cams);
-                }, []);
-            });
-        })
-        .catch(function () {
-            return [];
-        })
-        .then(function (catalog) {
-            _trafficCameraCatalogCache = Array.isArray(catalog) ? catalog : [];
-            _trafficCameraCatalogPromise = null;
-            return _trafficCameraCatalogCache;
-        });
-    return _trafficCameraCatalogPromise;
-}
-
-function _ensure_traffic_cam_layout_el() {
-    if (_trafficCamLayoutEl) return;
-    var root = document.createElement('div');
-    root.id = 'liveModeTrafficCamLayout';
-    root.className = 'liveModeTrafficCamLayout';
-    root.innerHTML =
-        '<div id="liveModeTrafficCamMainView" class="liveModeTrafficCamMainView"></div>' +
-        '<div id="liveModeTrafficCamMiniRadarFrame" class="liveModeTrafficCamMiniRadarFrame">' +
-            '<div class="liveModeTrafficCamMiniRadarLabel">LIVE RADAR</div>' +
-        '</div>' +
-        '<div id="liveModeTrafficCamBottomStack" class="liveModeTrafficCamBottomStack">' +
-            '<div id="liveModeTrafficCamBottomInfo" class="liveModeTrafficCamBottomInfo"></div>' +
-            '<div id="liveModeTrafficCamBottomAlert" class="liveModeTrafficCamBottomAlert"></div>' +
-        '</div>';
-    var host = document.getElementById('bodyDiv') || document.body;
-    host.appendChild(root);
-    _trafficCamLayoutEl = root;
-    _trafficCamMainViewEl = root.querySelector('#liveModeTrafficCamMainView');
-    _trafficCamMiniRadarFrameEl = root.querySelector('#liveModeTrafficCamMiniRadarFrame');
-    _trafficCamBottomStackEl = root.querySelector('#liveModeTrafficCamBottomStack');
-    _trafficCamBottomInfoEl = root.querySelector('#liveModeTrafficCamBottomInfo');
-    _trafficCamBottomAlertEl = root.querySelector('#liveModeTrafficCamBottomAlert');
-}
-
-function _stop_traffic_cam_alert_rotation() {
-    if (_trafficCamAlertRotateTimer) {
-        clearTimeout(_trafficCamAlertRotateTimer);
-        _trafficCamAlertRotateTimer = null;
-    }
-    if (_trafficCamBottomAlertRotateTimer) {
-        clearTimeout(_trafficCamBottomAlertRotateTimer);
-        _trafficCamBottomAlertRotateTimer = null;
-    }
-    if (_trafficCamInfoFadeTimer) {
-        clearTimeout(_trafficCamInfoFadeTimer);
-        _trafficCamInfoFadeTimer = null;
-    }
-    if (_trafficCamPlaybackRetryTimer) {
-        clearTimeout(_trafficCamPlaybackRetryTimer);
-        _trafficCamPlaybackRetryTimer = null;
-    }
-    if (_trafficCamPlaybackCutoffTimer) {
-        clearTimeout(_trafficCamPlaybackCutoffTimer);
-        _trafficCamPlaybackCutoffTimer = null;
-    }
-    _stop_traffic_cam_frame_color_sync();
-    _trafficCamAlertRotateIndex = 0;
-    _trafficCamAlertRotationActive = false;
-    _trafficCamFallbackStationInFlight = false;
-    _trafficCamFallbackStation = null;
-    _trafficCamRotationTickToken++;
-    _trafficCamLastBottomAlertId = '';
-}
-
-function _refresh_traffic_cam_bottom_alert_bars() {
-    if (!_active || (_currentSegmentType !== 'traffic_cams' && _currentSegmentType !== 'power_outage')) return;
-    _update_traffic_cam_mini_radar_frame_color();
-    var allAlerts = _get_active_alerts_unfiltered();
-    var severeAll = _get_unfiltered_severe_alerts();
-    var bottomFeature = _pick_random_traffic_cam_bottom_alert(allAlerts, severeAll);
-    if (bottomFeature) {
-        var bottomEvent = bottomFeature?.properties?.event || 'Weather Alert';
-        var bottomStates = _extract_alert_location_tokens(bottomFeature);
-        _update_traffic_cam_alert_info(bottomEvent, bottomStates, bottomFeature);
-        _set_traffic_cam_bottom_alert(bottomEvent, bottomStates, { prefix: '' });
-    } else {
-        _update_traffic_cam_alert_info('', [], null);
-        _set_traffic_cam_bottom_alert('No Active Alerts', [], { prefix: '' });
-        if (_trafficCamBottomAlertEl) {
-            _trafficCamBottomAlertEl.style.background = 'rgba(10, 16, 26, 0.88)';
-            _trafficCamBottomAlertEl.style.color = 'rgba(255, 255, 255, 0.9)';
-        }
-    }
-}
-
-function _ensure_traffic_cam_alert_style_playback(stopAtMs) {
-    if (!_active || _currentSegmentType !== 'traffic_cams') return;
-    var controller = window.stormTrackData?.radarLoopController;
-    if (!controller) return;
-    if (Number.isFinite(stopAtMs) && Date.now() >= stopAtMs) {
-        _stop_traffic_cam_playback_for_handoff();
-        return;
-    }
-
-    try {
-        controller.state.speedMultiplier = PLAYBACK_SPEED;
-        controller.state.frameCount = PLAYBACK_FRAME_COUNT;
-    } catch (_) {}
-
-    if (!controller.current_station) return;
-    try { controller.refresh_frames(); } catch (_) {}
-
-    var loopState = window.stormTrackData?.loopPlayback;
-    if (!loopState || !loopState.active || !loopState.supported) return;
-    if (loopState.preloading || !Array.isArray(loopState.frames) || loopState.frames.length === 0) {
-        if (_trafficCamPlaybackRetryTimer) clearTimeout(_trafficCamPlaybackRetryTimer);
-        var retryDelay = TRAFFIC_CAM_PLAYBACK_RETRY_MS;
-        if (Number.isFinite(stopAtMs)) {
-            var remaining = stopAtMs - Date.now();
-            if (remaining <= 0) {
-                _stop_traffic_cam_playback_for_handoff();
-                return;
-            }
-            retryDelay = Math.min(retryDelay, Math.max(120, remaining));
-        }
-        _trafficCamPlaybackRetryTimer = _trackAlertTimer(function () {
-            _trafficCamPlaybackRetryTimer = null;
-            _ensure_traffic_cam_alert_style_playback(stopAtMs);
-        }, retryDelay);
-        return;
-    }
-    try {
-        if (!loopState.playing) controller.play();
-    } catch (_) {}
-}
-
-function _format_traffic_cam_station_location(station) {
-    if (!station) return '';
-    var loc = nexrad_locations[station] || {};
-    var city = String(loc.name || station || '').trim();
-    var st = String(get_station_state(station) || '').trim();
-    if (city && st) return city + ', ' + st;
-    return city || station;
-}
-
-function _format_traffic_cam_alert_location(feature, station) {
-    var stationLabel = _format_traffic_cam_station_location(station);
-    if (stationLabel) return stationLabel;
-    return 'Alert Area';
-}
-
-function _set_traffic_cam_mini_radar_location(text) {
-    if (_trafficCamMiniRadarFrameEl) {
-        var labelEl = _trafficCamMiniRadarFrameEl.querySelector('.liveModeTrafficCamMiniRadarLabel');
-        if (labelEl) labelEl.textContent = 'LIVE RADAR';
-    }
-}
-
-function _pick_highest_priority_enabled_alert_feature() {
-    var alerts = _get_active_display_alerts();
-    if (!Array.isArray(alerts) || !alerts.length) return null;
-    var bestFeature = null;
-    var bestPriority = Infinity;
-    for (var i = 0; i < alerts.length; i++) {
-        var feature = alerts[i];
-        var eventName = String(feature?.properties?.event || '');
-        var colorInfo = get_polygon_colors(eventName);
-        var priority = Number(colorInfo?.priority);
-        if (!Number.isFinite(priority)) priority = 9999;
-        if (!bestFeature || priority < bestPriority) {
-            bestFeature = feature;
-            bestPriority = priority;
-        }
-    }
-    return bestFeature;
-}
-
-function _update_traffic_cam_mini_radar_frame_color() {
-    if (!_trafficCamMiniRadarFrameEl) return;
-    var rawColor = '';
-    var headerEl = document.getElementById('radarHeader');
-    if (headerEl && window.getComputedStyle) {
-        try {
-            rawColor = String(window.getComputedStyle(headerEl).getPropertyValue('--header-highest-alert-color') || '').trim();
-        } catch (_) {
-            rawColor = '';
-        }
-    }
-    if (!rawColor) {
-        var bestFeature = _pick_highest_priority_enabled_alert_feature();
-        if (!bestFeature) {
-            _trafficCamMiniRadarFrameEl.style.borderColor = '';
-            _trafficCamMiniRadarFrameEl.style.boxShadow = '';
-            return;
-        }
-        var eventName = String(bestFeature?.properties?.event || '');
-        var colorInfo = get_polygon_colors(eventName);
-        rawColor = colorInfo?.color || 'rgb(255, 255, 255)';
-    }
-    try {
-        var borderColor = chroma(rawColor).alpha(0.92).css();
-        var glowColor = chroma(rawColor).alpha(0.38).css();
-        var insetColor = chroma(rawColor).alpha(0.28).css();
-        _trafficCamMiniRadarFrameEl.style.borderColor = borderColor;
-        _trafficCamMiniRadarFrameEl.style.boxShadow =
-            '0 18px 30px rgba(0, 0, 0, 0.46), 0 0 16px ' + glowColor + ', inset 0 0 0 1px ' + insetColor;
-    } catch (_) {
-        _trafficCamMiniRadarFrameEl.style.borderColor = '';
-        _trafficCamMiniRadarFrameEl.style.boxShadow = '';
-    }
-}
-
-function _stop_traffic_cam_frame_color_sync() {
-    if (_trafficCamFrameColorSyncTimer) {
-        try { clearInterval(_trafficCamFrameColorSyncTimer); } catch (_) {}
-        _trafficCamFrameColorSyncTimer = null;
-    }
-}
-
-function _start_traffic_cam_frame_color_sync() {
-    _update_traffic_cam_mini_radar_frame_color();
-    if (_trafficCamFrameColorSyncTimer) return;
-    _trafficCamFrameColorSyncTimer = setInterval(function () {
-        if (!_active || _currentSegmentType !== 'traffic_cams' || !_trafficCamMiniMapModeActive) {
-            _stop_traffic_cam_frame_color_sync();
-            return;
-        }
-        _update_traffic_cam_mini_radar_frame_color();
-    }, TRAFFIC_CAM_FRAME_COLOR_SYNC_MS);
-}
-
-function _set_traffic_cam_spotlight_info(station) {
-    if (!_trafficCamBottomInfoEl) return;
-    var label = _format_traffic_cam_station_location(station) || 'Regional Radar';
-    _trafficCamBottomInfoEl.innerHTML =
-        '<div class="liveModeTrafficCamInfoContent">' +
-            '<span class="liveModeTrafficCamInfoInline">' +
-                _escape_html('Radar spotlight focused near ' + label + '. Waiting for updated reflectivity scans.') +
-            '</span>' +
-        '</div>';
-    _apply_traffic_cam_overflow_scroll(_trafficCamBottomInfoEl, '.liveModeTrafficCamInfoContent');
-}
-
-function _start_traffic_cam_playback_window(stopAtMs) {
-    if (!_active || _currentSegmentType !== 'traffic_cams') return;
-    if (_trafficCamPlaybackCutoffTimer) {
-        clearTimeout(_trafficCamPlaybackCutoffTimer);
-        _trafficCamPlaybackCutoffTimer = null;
-    }
-    var cutoffDelay = Math.max(0, Math.floor(stopAtMs - Date.now()));
-    _trafficCamPlaybackCutoffTimer = _trackAlertTimer(function () {
-        _trafficCamPlaybackCutoffTimer = null;
-        _stop_traffic_cam_playback_for_handoff();
-    }, cutoffDelay);
-    _ensure_traffic_cam_alert_style_playback(stopAtMs);
-}
-
-function _enter_traffic_cam_minimap_mode() {
-    if (_trafficCamMiniMapModeActive) return;
-    _trafficCamMiniMapModeActive = true;
-    document.body.classList.add('liveModeTrafficCams-active');
-    var bodyDiv = document.getElementById('bodyDiv');
-    if (bodyDiv) bodyDiv.classList.add('liveModeTrafficCams-miniMapMode');
-    var mapEl = document.getElementById('map');
-    if (mapEl) mapEl.removeAttribute('data-live-radar-label');
-    _set_traffic_cam_mini_radar_location('Scanning...');
-    _start_traffic_cam_frame_color_sync();
-    // Drop any stale full-screen popups before mini-map interactions begin.
-    try { $('.map-popup').remove(); } catch (_) {}
-}
-
-function _exit_traffic_cam_minimap_mode() {
-    if (!_trafficCamMiniMapModeActive) return;
-    _trafficCamMiniMapModeActive = false;
-    document.body.classList.remove('liveModeTrafficCams-active');
-    var bodyDiv = document.getElementById('bodyDiv');
-    if (bodyDiv) bodyDiv.classList.remove('liveModeTrafficCams-miniMapMode');
-    _set_traffic_cam_mini_radar_location('');
-    _stop_traffic_cam_frame_color_sync();
-    if (_trafficCamMiniRadarFrameEl) {
-        _trafficCamMiniRadarFrameEl.style.borderColor = '';
-        _trafficCamMiniRadarFrameEl.style.boxShadow = '';
-    }
-    var mapEl = document.getElementById('map');
-    if (mapEl) mapEl.removeAttribute('data-live-radar-label');
-    try { $('.map-popup').remove(); } catch (_) {}
-}
-
-function _extract_alert_location_tokens(feature) {
-    var areaDesc = String(feature?.properties?.areaDesc || '').trim();
-    if (!areaDesc) return [];
-    var parts = areaDesc
-        .split(/\s*;\s*/)
-        .map(function (p) { return String(p || '').trim(); })
-        .filter(Boolean);
-    return parts;
-}
-
-function _set_traffic_cam_bottom_alert(eventName, states, options) {
-    if (!_trafficCamBottomAlertEl) return;
-    options = options || {};
-    var prefix = options.prefix || '';
-    var colorInfo = get_polygon_colors(eventName);
-    var bgColor = colorInfo ? colorInfo.color : 'rgb(255, 0, 255)';
-    var category = _get_alert_category_for_banner(eventName);
-    var iconClass = (ALERT_CATEGORY_ICON_META[category] || ALERT_CATEGORY_ICON_META.Other).icon;
-    var text = (prefix ? (prefix + ' ') : '') + String(eventName || 'Weather Alert');
-    var locationList = _format_alert_banner_locations(states);
-    if (locationList) text += ' in ' + locationList;
-    _trafficCamBottomAlertEl.innerHTML =
-        '<span class="liveModeTrafficCamBottomAlertContent">' +
-            '<i class="lmAlertBannerIcon fa-solid ' + iconClass + '" aria-hidden="true"></i>' +
-            '<span class="lmAlertBannerText">' + _escape_html(text) + '</span>' +
-        '</span>';
-    _trafficCamBottomAlertEl.style.background = bgColor;
-    _trafficCamBottomAlertEl.style.color = '#000';
-    _trafficCamBottomAlertEl.classList.add('liveModeTrafficCamBottomAlert-visible');
-    _apply_traffic_cam_overflow_scroll(_trafficCamBottomAlertEl, '.liveModeTrafficCamBottomAlertContent');
-}
-
-function _stop_traffic_cam_playback_for_handoff() {
-    if (!_active || _currentSegmentType !== 'traffic_cams') return;
-    var controller = window.stormTrackData?.radarLoopController;
-    if (!controller) return;
-    try {
-        controller.stop();
-        var frames = controller.state.frames;
-        if (frames && frames.length > 0) {
-            controller.plot_frame(frames.length - 1);
-        }
-    } catch (_) {}
-}
-
-function _start_traffic_cam_alert_rotation(seedEventName, options) {
-    options = options || {};
-    if (_trafficCamAlertRotationActive && !options.forceRestart) return;
-    _stop_traffic_cam_alert_rotation();
-    if (!_active || _currentSegmentType !== 'traffic_cams') return;
-    _trafficCamAlertRotationActive = true;
-    _start_traffic_cam_frame_color_sync();
-    var seedEvent = String(seedEventName || '').trim().toLowerCase();
-
-    function _bottom_tick() {
-        if (!_active || _currentSegmentType !== 'traffic_cams') return;
-        _refresh_traffic_cam_bottom_alert_bars();
-        _trafficCamBottomAlertRotateTimer = _trackAlertTimer(_bottom_tick, TRAFFIC_CAM_BOTTOM_ALERT_ROTATE_MS);
-    }
-
-    function _tick() {
-        if (!_active || _currentSegmentType !== 'traffic_cams') {
-            _stop_traffic_cam_alert_rotation();
-            return;
-        }
-        var tickToken = ++_trafficCamRotationTickToken;
-        var cycleStartedMs = Date.now();
-        var playbackStopAtMs = cycleStartedMs + TRAFFIC_CAM_ALERT_PLAYBACK_CUTOFF_MS;
-        _trafficCamAlertRotateTimer = _trackAlertTimer(_tick, TRAFFIC_CAM_ALERT_ROTATE_MS);
-        _stop_traffic_cam_playback_for_handoff();
-
-        var radarAlerts = _get_active_severe_alerts().slice();
-        if (seedEvent) {
-            radarAlerts.sort(function (a, b) {
-                var ae = String(a?.properties?.event || '').toLowerCase() === seedEvent ? 0 : 1;
-                var be = String(b?.properties?.event || '').toLowerCase() === seedEvent ? 0 : 1;
-                return ae - be;
-            });
-            seedEvent = '';
-        }
-
-        if (radarAlerts.length) {
-            var idx = _trafficCamAlertRotateIndex % radarAlerts.length;
-            var radarFeature = radarAlerts[idx];
-            _trafficCamAlertRotateIndex++;
-            _focus_traffic_cam_radar_on_alert(radarFeature, {
-                immediate: true,
-                onFocused: function (meta) {
-                    if (!_active || _currentSegmentType !== 'traffic_cams') return;
-                    if (tickToken !== _trafficCamRotationTickToken) return;
-                    _set_traffic_cam_mini_radar_location(meta?.location || 'Alert Focus');
-                    _start_traffic_cam_playback_window(playbackStopAtMs);
-                }
-            });
-            return;
-        }
-
-        _pick_spotlight_station(function (station) {
-            if (!_active || _currentSegmentType !== 'traffic_cams') return;
-            if (tickToken !== _trafficCamRotationTickToken) return;
-            if (!station || !nexrad_locations[station]) {
-                _set_traffic_cam_mini_radar_location('Scanning...');
-                return;
-            }
-            try {
-                station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D', { persist: false });
-            } catch (_) {}
-            var loc = nexrad_locations[station];
-            if (loc) {
-                try {
-                    map.flyTo({
-                        center: [loc.lon, loc.lat],
-                        zoom: 7,
-                        speed: 1.2,
-                        essential: true
-                    });
-                } catch (_) {}
-            }
-            _remove_focus_glow();
-            _set_traffic_cam_mini_radar_location(_format_traffic_cam_station_location(station));
-            _start_traffic_cam_playback_window(playbackStopAtMs);
-        });
-    }
-
-    _bottom_tick();
-    _tick();
-}
-
-function _show_traffic_cam_layout() {
-    _ensure_traffic_cam_layout_el();
-    if (_trafficCamLayoutTeardownTimer) {
-        clearTimeout(_trafficCamLayoutTeardownTimer);
-        _trafficCamLayoutTeardownTimer = null;
-    }
-    if (_trafficCamLayoutEl) _trafficCamLayoutEl.classList.add('liveModeTrafficCamLayout-visible');
-    if (_trafficCamBottomAlertEl) _trafficCamBottomAlertEl.classList.add('liveModeTrafficCamBottomAlert-visible');
-    if (_trafficCamBottomInfoEl) _trafficCamBottomInfoEl.classList.remove('liveModeTrafficCamBottomInfo-fading');
-    _enter_traffic_cam_minimap_mode();
-    _trackAlertTimer(function () {
-        try { map.resize(); } catch (_) {}
-    }, 0);
-}
-
-function _hide_traffic_cam_layout() {
-    if (_trafficCamLayoutEl) _trafficCamLayoutEl.classList.remove('liveModeTrafficCamLayout-visible');
-    _destroy_traffic_camera_player();
-    if (_trafficCamBottomAlertEl) {
-        _trafficCamBottomAlertEl.classList.remove('liveModeTrafficCamBottomAlert-visible');
-        _trafficCamBottomAlertEl.classList.remove('liveModeTrafficCamBottomAlert-fading');
-    }
-    if (_trafficCamBottomInfoEl) _trafficCamBottomInfoEl.classList.remove('liveModeTrafficCamBottomInfo-fading');
-    if (_trafficCamLayoutTeardownTimer) {
-        clearTimeout(_trafficCamLayoutTeardownTimer);
-        _trafficCamLayoutTeardownTimer = null;
-    }
-    _trafficCamLayoutTeardownTimer = _trackAlertTimer(function () {
-        _trafficCamLayoutTeardownTimer = null;
-        if (_trafficCamLayoutEl && _trafficCamLayoutEl.classList.contains('liveModeTrafficCamLayout-visible')) return;
-        if (_trafficCamMainViewEl) _trafficCamMainViewEl.innerHTML = '';
-        if (_trafficCamBottomInfoEl) _trafficCamBottomInfoEl.innerHTML = '';
-        if (_trafficCamBottomAlertEl) _trafficCamBottomAlertEl.innerHTML = '';
-    }, 240);
-    _clear_traffic_camera_preload();
-    _stop_traffic_cam_alert_rotation();
-    _exit_traffic_cam_minimap_mode();
-    _trackAlertTimer(function () {
-        try { map.resize(); } catch (_) {}
-    }, 0);
-}
-
-function _render_traffic_camera_layout_preview(camera, cycleIndex, totalCycles, isLayoutOnly) {
-    var host = _trafficCamMainViewEl;
-    if (!host) return;
-    _destroy_traffic_camera_player();
-    var title = camera?.name || 'DOT Traffic Camera';
-    var area = camera?.area || 'United States';
-    var agency = camera?.agency || 'DOT';
-    var cycleText = 'Camera ' + (cycleIndex + 1) + ' / ' + totalCycles;
-    var box = document.createElement('div');
-    box.className = 'liveModeTrafficCamPlaceholder';
-    box.innerHTML =
-        '<div class="liveModeTrafficCamTopTag">Live · Traffic Cameras</div>' +
-        '<div class="liveModeTrafficCamTitle">' + _escape_html(title) + '</div>' +
-        '<div class="liveModeTrafficCamMeta">' + _escape_html(area) + ' · ' + _escape_html(agency) + '</div>' +
-        '<div class="liveModeTrafficCamCycle">' + _escape_html(cycleText) + '</div>' +
-        '<div class="liveModeTrafficCamHint">' + (isLayoutOnly
-            ? 'Layout preview mode. Add state camera stream URLs to enable live video.'
-            : 'Live camera feed unavailable. Rendering layout preview.') + '</div>';
-    host.appendChild(box);
-    _trafficCameraPlayer = { type: 'layout', el: box };
-}
-
-function _render_traffic_camera_embed_preview(camera, cycleIndex, totalCycles) {
-    var host = _trafficCamMainViewEl;
-    if (!host) return false;
-    var embedUrl = String(camera?.embedUrl || '').trim();
-    if (!embedUrl) return false;
-    var embedAutoplayUrl = _build_traffic_cam_embed_autoplay_url(embedUrl);
-
-    if (_is_viaero_embed_url(embedUrl)) {
-        return _render_traffic_camera_viaero_dacast_preview(camera, cycleIndex, totalCycles, embedAutoplayUrl);
-    }
-
-    var title = camera?.name || 'Weather Camera';
-    var area = camera?.area || 'United States';
-    var agency = camera?.agency || 'Public Camera Network';
-    var cycleText = 'Camera ' + (cycleIndex + 1) + ' / ' + totalCycles;
-
-    var box = document.createElement('div');
-    box.style.width = '100%';
-    box.style.height = '100%';
-    box.style.position = 'relative';
-    box.style.background = '#02060c';
-    box.innerHTML =
-        '<iframe title="Weather camera stream" referrerpolicy="no-referrer-when-downgrade" allow="autoplay; fullscreen; picture-in-picture" style="width:100%;height:100%;border:0;display:block;background:#02060c;"></iframe>' +
-        _build_traffic_cam_overlay_html('TRAFFIC CAMERAS', title, area, agency, cycleText);
-
-    var frame = box.querySelector('iframe');
-    if (!frame) return false;
-    frame.src = embedAutoplayUrl;
-    var playerRef = { type: 'embed', el: box, frame: frame, embedAutoplayKickTimer: null };
-    if (!_mount_traffic_camera_player(playerRef)) return false;
-    _kick_embed_autoplay(frame, playerRef);
-    return true;
-}
-
-function _render_traffic_camera_stream_preview(camera, cycleIndex, totalCycles, streamUrlOverride) {
-    var host = _trafficCamMainViewEl;
-    if (!host) return false;
-    var streamUrl = String(streamUrlOverride || camera?.streamUrl || '').trim();
-    if (!streamUrl) return false;
-
-    var title = camera?.name || 'DOT Traffic Camera';
-    var area = camera?.area || 'United States';
-    var agency = camera?.agency || 'DOT';
-    var cycleText = 'Camera ' + (cycleIndex + 1) + ' / ' + totalCycles;
-
-    var box = document.createElement('div');
-    box.style.width = '100%';
-    box.style.height = '100%';
-    box.style.position = 'relative';
-    box.style.background = '#02060c';
-    box.innerHTML =
-        '<video autoplay muted playsinline preload="auto" style="width:100%;height:100%;display:block;object-fit:cover;background:#02060c;"></video>' +
-        _build_traffic_cam_overlay_html('TRAFFIC CAMERAS', title, area, agency, cycleText);
-
-    var video = box.querySelector('video');
-    if (!video) return false;
-    video.defaultMuted = true;
-    video.muted = true;
-    video.volume = 0;
-    video.playsInline = true;
-    video.setAttribute('muted', 'muted');
-    video.setAttribute('playsinline', 'playsinline');
-    video.setAttribute('autoplay', 'autoplay');
-    if (!_mount_traffic_camera_player({ type: 'video', el: box, video: video })) return false;
-
-    var fallbackArmed = true;
-    var fallbackTimer = setTimeout(function () {
-        if (!fallbackArmed || !_active || _currentSegmentType !== 'traffic_cams') return;
-        _render_traffic_camera_layout_preview(camera, cycleIndex, totalCycles, false);
-    }, 7000);
-
-    function clearFallback() {
-        fallbackArmed = false;
-        clearTimeout(fallbackTimer);
-    }
-    function fallbackToNonVideo() {
-        clearFallback();
-        if (!_active || _currentSegmentType !== 'traffic_cams') return;
-        // Strict mode: do not fall back to embed/image sources.
-        _render_traffic_camera_layout_preview(camera, cycleIndex, totalCycles, false);
-    }
-
-    video.addEventListener('loadeddata', function () {
-        clearFallback();
-    }, { once: true });
-    video.addEventListener('error', function () {
-        fallbackToNonVideo();
-    }, { once: true });
-
-    video.src = streamUrl;
-    try {
-        var maybePromise = video.play();
-        if (maybePromise && typeof maybePromise.catch === 'function') {
-            maybePromise.catch(function () {
-                fallbackToNonVideo();
-            });
-        }
-    } catch (_) {
-        fallbackToNonVideo();
-    }
-    return true;
-}
-
-function _render_traffic_camera_image_preview(camera, cycleIndex, totalCycles) {
-    var host = _trafficCamMainViewEl;
-    if (!host) return false;
-    var imageUrl = String(camera?.imageUrl || '').trim();
-    if (!imageUrl) return false;
-
-    var title = camera?.name || 'DOT Traffic Camera';
-    var area = camera?.area || 'United States';
-    var agency = camera?.agency || 'DOT';
-    var cycleText = 'Camera ' + (cycleIndex + 1) + ' / ' + totalCycles;
-    var refreshMs = Number.isFinite(Number(camera?.imageRefreshMs)) ? Math.max(1500, Number(camera.imageRefreshMs)) : 60000;
-
-    var shell = document.createElement('div');
-    shell.style.width = '100%';
-    shell.style.height = '100%';
-    shell.style.position = 'relative';
-    shell.style.background = '#02060c';
-    shell.innerHTML =
-        '<img alt="Traffic camera still" style="width:100%;height:100%;display:block;object-fit:cover;background:#02060c;" />' +
-        _build_traffic_cam_overlay_html('TRAFFIC CAMERAS', title, area, agency, cycleText);
-
-    var img = shell.querySelector('img');
-    if (!img) return false;
-
-    function refreshImage() {
-        if (!_active || _currentSegmentType !== 'traffic_cams') return;
-        var sep = imageUrl.indexOf('?') === -1 ? '?' : '&';
-        img.src = imageUrl + sep + '_=' + Date.now();
-    }
-    refreshImage();
-    var timer = setInterval(refreshImage, refreshMs);
-    return _mount_traffic_camera_player({ type: 'image', el: shell, imageRefreshTimer: timer });
-}
-
-function _format_alert_expires_text(feature) {
-    var raw = feature?.properties?.expires || feature?.properties?.ends || '';
-    if (!raw) return '';
-    var d = new Date(raw);
-    if (!Number.isFinite(d.getTime())) return '';
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
-function _pick_active_alert_for_stack(eventName) {
-    var alerts = _get_active_display_alerts();
-    if (!alerts.length) return null;
-    var target = String(eventName || '').toLowerCase();
-    if (target) {
-        for (var i = 0; i < alerts.length; i++) {
-            var e = String(alerts[i]?.properties?.event || '').toLowerCase();
-            if (e === target) return alerts[i];
-        }
-    }
-    return alerts[0];
-}
-
-function _update_traffic_cam_alert_info(eventName, states, featureOverride) {
-    if (!_trafficCamBottomInfoEl) return;
-    var feature = featureOverride || _pick_active_alert_for_stack(eventName);
-    if (!feature) {
-        _trafficCamBottomInfoEl.innerHTML =
-            '<div class="liveModeTrafficCamInfoContent">' +
-                '<div class="liveModeTrafficCamInfoLine">No active severe alerts right now.</div>' +
-            '</div>';
-        return;
-    }
-    var props = feature.properties || {};
-    var evt = props.event || eventName || 'Weather Alert';
-    var hazardText = _extract_traffic_cam_hazard_text(feature);
-    var expectText = _extract_traffic_cam_expect_text(feature);
-    var expires = _format_alert_expires_text(feature);
-    var expiresText = expires ? ('Expires: ' + expires) : 'Expires: --';
-    var nextHtml =
-        '<span class="liveModeTrafficCamInfoInline">' +
-            _escape_html(expiresText) +
-            '  •  Hazard: ' + _escape_html(hazardText || evt || 'Weather hazard') +
-            '  •  Expect: ' + _escape_html(expectText || 'Monitoring conditions and ongoing alerts.') +
-        '</span>';
-    _trafficCamBottomInfoEl.innerHTML =
-        '<div class="liveModeTrafficCamInfoContent">' + nextHtml + '</div>';
-    _apply_traffic_cam_overflow_scroll(_trafficCamBottomInfoEl, '.liveModeTrafficCamInfoContent');
-}
-
-function _extract_traffic_cam_hazard_text(feature) {
-    var props = feature?.properties || {};
-    var params = _parse_alert_params(feature);
-    var hazardParam = _fn_arr(params?.hazard) || '';
-    if (hazardParam) return hazardParam;
-    var desc = String(props.description || '');
-    var match = desc.match(/HAZARD\.\.\.\s*([\s\S]+?)(?=\n\n|SOURCE\.\.\.|IMPACT\.\.\.|$)/i);
-    if (match && match[1]) {
-        return match[1].replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
-    }
-    return props.event || 'Weather hazard';
-}
-
-function _extract_traffic_cam_expect_text(feature) {
-    var props = feature?.properties || {};
-    var desc = String(props.description || '');
-    var match = desc.match(/IMPACT\.\.\.\s*([\s\S]+?)(?=\n\n|SOURCE\.\.\.|HAZARD\.\.\.|$)/i);
-    if (match && match[1]) {
-        return match[1].replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
-    }
-    var headline = String(props.headline || '').replace(/\s+/g, ' ').trim();
-    if (headline) return headline;
-    return 'Potentially dangerous weather conditions are ongoing.';
-}
-
-function _apply_traffic_cam_overflow_scroll(containerEl, contentSelector) {
-    if (!containerEl) return;
-    var contentEl = containerEl.querySelector(contentSelector);
-    if (!contentEl) return;
-    contentEl.classList.remove('liveModeTrafficCamOverflowActive');
-    contentEl.style.removeProperty('--lmTrafficOverflowX');
-    contentEl.style.removeProperty('--lmTrafficOverflowDur');
-
-    var available = Math.max(0, containerEl.clientWidth - 24);
-    var overflow = Math.ceil(contentEl.scrollWidth - available);
-    if (overflow <= 6) return;
-
-    var seconds = Math.max(8, Math.min(30, overflow / 14));
-    contentEl.style.setProperty('--lmTrafficOverflowX', overflow + 'px');
-    contentEl.style.setProperty('--lmTrafficOverflowDur', seconds.toFixed(1) + 's');
-    contentEl.classList.add('liveModeTrafficCamOverflowActive');
-}
-
-function _build_traffic_cam_cycle_list(candidates, cycles) {
-    if (!Array.isArray(candidates) || candidates.length === 0) {
-        var placeholders = [];
-        for (var p = 0; p < cycles; p++) {
-            placeholders.push({
-                id: 'layout-preview-' + p,
-                name: 'DOT Camera Placeholder',
-                area: 'United States',
-                agency: 'State DOT',
-                center: CONUS_CENTER,
-                zoom: CONUS_ZOOM
-            });
-        }
-        return placeholders;
-    }
-    function _shuffle(arr) {
-        var copy = arr.slice();
-        for (var i = copy.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var tmp = copy[i];
-            copy[i] = copy[j];
-            copy[j] = tmp;
-        }
-        return copy;
-    }
-
-    var list = [];
-    var pool = _shuffle(candidates);
-    while (list.length < cycles) {
-        if (!pool.length) pool = _shuffle(candidates);
-        list.push(pool.shift());
-    }
-    return list;
-}
-
-function _focus_traffic_cam_radar_on_alert(featureOverride, options) {
-    options = options || {};
-    var target = null;
-    var severeAlerts = _get_active_severe_alerts();
-
-    if (featureOverride && SEVERE_ALERT_EVENTS.indexOf(featureOverride?.properties?.event || '') !== -1) {
-        target = featureOverride;
-    }
-    if (!target && severeAlerts.length) target = severeAlerts[0];
-
-    if (!target) {
-        _remove_focus_glow();
-        if (_trafficCamFallbackStationInFlight) return;
-        _trafficCamFallbackStationInFlight = true;
-        _pick_spotlight_station(function (station) {
-            _trafficCamFallbackStationInFlight = false;
-            if (!_active || _currentSegmentType !== 'traffic_cams') return;
-            if (!station || !nexrad_locations[station]) return;
-            if (_trafficCamFallbackStation === station && !options.immediate) return;
-            _trafficCamFallbackStation = station;
-            try {
-                station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D', { persist: false });
-                var loc = nexrad_locations[station];
-                if (loc) {
-                    map.flyTo({
-                        center: [loc.lon, loc.lat],
-                        zoom: 7,
-                        speed: options.immediate ? 1.8 : 1.1,
-                        essential: true
-                    });
-                }
-            } catch (_) {}
-            _show_radar_sweep();
-            if (typeof options.onFocused === 'function') {
-                options.onFocused({
-                    mode: 'spotlight',
-                    station: station,
-                    location: _format_traffic_cam_station_location(station) || station
-                });
-            }
-        });
-        return;
-    }
-    _trafficCamFallbackStation = null;
-    var station = _get_station_for_alert(target);
-    if (station && nexrad_locations[station]) {
-        try {
-            station_markers.selectStation(station, nexrad_locations[station].type || 'WSR-88D', { persist: false });
-        } catch (_) {}
-    }
-    _add_focus_glow(target);
-    try {
-        _fly_to_alert(target, options || {});
-    } catch (_) {}
-    _show_radar_sweep();
-    if (typeof options.onFocused === 'function') {
-        options.onFocused({
-            mode: 'alert',
-            station: station || '',
-            location: _format_traffic_cam_alert_location(target, station)
-        });
-    }
-}
-
-function _run_traffic_cams_segment(resolve, options) {
-    options = options || {};
-    _currentSegmentType = 'traffic_cams';
-    _set_segment_stage('enter');
-    _set_clock_mode('hidden');
-    _hide_header_radar_info(null);
-    _hide_all_map_overlays();
-    _remove_static_mrms_layer();
-    _remove_conditions_layer();
-    _remove_earthquake_layer();
-    _hide_storm_reports();
-    _reset_to_reflectivity();
-
-    // Keep radar behavior close to the alert segment so mini-map remains useful.
-    var radarStation = window.stormTrackData?.currentStation || null;
-    if (!radarStation) {
-        var severeAlerts = _get_active_severe_alerts();
-        if (severeAlerts.length) {
-            radarStation = _get_station_for_alert(severeAlerts[0]);
-        }
-    }
-    if (radarStation && nexrad_locations[radarStation]) {
-        try {
-            station_markers.selectStation(radarStation, nexrad_locations[radarStation].type || 'WSR-88D', { persist: false });
-        } catch (_) {}
-    }
-    _show_radar_render();
-    _show_radar_sweep();
-    _show_alert_polygons();
-    _show_station_markers();
-    _show_lightning_overlay();
-    _show_traffic_cam_layout();
-    _start_traffic_cam_alert_rotation('', { forceRestart: true });
-
-    function _cleanup() {
-        _set_segment_stage('finish');
-        _stop_typewriter();
-        _destroy_traffic_camera_player();
-        _clear_traffic_camera_preload();
-        _stop_traffic_cam_alert_rotation();
-        _hide_traffic_cam_layout();
-        _show_header_radar_info();
-        _hide_info_panel();
-        resolve();
-    }
-
-    _set_segment_stage('fetch');
-    _load_traffic_camera_catalog().then(function (catalog) {
-        if (!_active) return _cleanup();
-        var stateFilter = String(options.state || '').trim().toLowerCase();
-        var scopedCatalog = catalog;
-        if (stateFilter) {
-            scopedCatalog = catalog.filter(function (cam) {
-                return String(cam.state || '').toLowerCase() === stateFilter ||
-                    String(cam.abbr || '').toLowerCase() === stateFilter;
-            });
-        }
-        var layoutOnly = options.layoutOnly !== false ? TRAFFIC_CAMERA_LAYOUT_ONLY_DEFAULT : false;
-        var nonRecent = scopedCatalog.filter(function (cam) { return !_was_recent('traffic_cams', cam.id); });
-        var candidates = nonRecent.length ? nonRecent : scopedCatalog.slice();
-        var cycleList = _build_traffic_cam_cycle_list(candidates, TRAFFIC_CAMERA_SEGMENT_CYCLES);
-        var cycleIndex = 0;
-
-        function _render_cycle() {
-            if (!_active) return _cleanup();
-            if (cycleIndex >= cycleList.length) return _cleanup();
-            var cam = cycleList[cycleIndex];
-            var nextCam = cycleList[cycleIndex + 1] || null;
-            _set_segment_stage('render');
-            var localCycleIndex = cycleIndex;
-            function finishCycle(rendered) {
-                if (!_active || _currentSegmentType !== 'traffic_cams') return;
-                if (!rendered) {
-                    // Strict video-only behavior: skip failed feeds immediately.
-                    cycleIndex = localCycleIndex + 1;
-                    _segmentTimer = setTimeout(_render_cycle, 250);
-                    return;
-                }
-                _preload_traffic_camera(nextCam);
-                _record_segment('traffic_cams', cam.id || ('layout-preview-' + localCycleIndex));
-                _show_radar_render();
-                _show_radar_sweep();
-                _show_alert_polygons();
-                _show_station_markers();
-                _show_lightning_overlay();
-                _focus_traffic_cam_radar_on_alert();
-                try {
-                    window.dispatchEvent(new CustomEvent('liveModeTrafficCamCycle', {
-                        detail: {
-                            index: localCycleIndex + 1,
-                            total: cycleList.length,
-                            cameraId: cam.id || '',
-                            cameraName: cam.name || ''
-                        }
-                    }));
-                } catch (_) {}
-                cycleIndex = localCycleIndex + 1;
-                _segmentTimer = setTimeout(_render_cycle, TRAFFIC_CAMERA_SEGMENT_DURATION_MS);
-            }
-
-            if (layoutOnly) {
-                finishCycle(false);
-                return;
-            }
-            _resolve_camera_stream_url(cam).then(function (resolvedStreamUrl) {
-                if (!_active || _currentSegmentType !== 'traffic_cams') return;
-                if (localCycleIndex !== cycleIndex) return;
-                var rendered = _render_traffic_camera_stream_preview(cam, localCycleIndex, cycleList.length, resolvedStreamUrl);
-                finishCycle(rendered);
-            }).catch(function () {
-                if (!_active || _currentSegmentType !== 'traffic_cams') return;
-                if (localCycleIndex !== cycleIndex) return;
-                finishCycle(false);
-            });
-        }
-
-        _typewrite(_pick_random([
-            'Switching to our live traffic camera segment while radar remains active in the mini-map.',
-            'Now rotating through DOT traffic camera views with live radar running in the corner.',
-            'Traffic cam segment is live. We will cycle through camera slots while monitoring active warnings.'
-        ]), 500);
-        _preload_traffic_camera(cycleList[0] || null);
-        _render_cycle();
-    }).catch(function () {
-        _set_segment_stage('skip-empty');
-        _cleanup();
+        _set_segment_stage('render-fallback');
+        _remove_live_storm_reports_layer();
+        _focus_storm_reports_map({ features: [] });
+        _show_info_panel(_build_storm_reports_panel_html({ tornadoCount: 0, hailCount: 0, windCount: 0, features: [], lastUpdateText: '' }));
+        _segmentTimer = setTimeout(function () {
+            _cleanup();
+        }, STORM_REPORTS_SEGMENT_DURATION_MS);
     });
 }
 
@@ -7724,7 +5674,6 @@ function _show_overlay() {
 
 function _hide_overlay() {
     $('body').removeClass('liveMode-active');
-    _hide_traffic_cam_layout();
     $('#liveModeOverlay').removeClass('liveModeOverlay-active').hide();
     _hide_info_panel();
     _hide_commentary_box();
@@ -7748,9 +5697,7 @@ var _SEGMENT_DEBUG_LABELS = {
     conus: 'CONUS',
     spotlight: 'SPOTLIGHT',
     conditions: 'CONDITIONS',
-    earthquake: 'EARTHQUAKE',
-    power_outage: 'POWER OUTAGE',
-    traffic_cams: 'TRAFFIC CAMS'
+    earthquake: 'EARTHQUAKE'
 };
 var _segmentDebugEnabled = false;
 
@@ -7808,12 +5755,6 @@ function _ensure_alert_banner_el() {
 
 function _position_alert_banner() {
     if (!_alertBannerEl) return;
-    if (_currentSegmentType === 'traffic_cams' || _currentSegmentType === 'power_outage') {
-        if (_trafficCamBottomAlertEl && _trafficCamBottomAlertEl.parentElement !== _trafficCamBottomStackEl) {
-            _trafficCamBottomStackEl.appendChild(_trafficCamBottomAlertEl);
-        }
-        return;
-    }
     var host = document.getElementById('top-right');
     var btn = document.getElementById('alertsCountBtn');
     if (!btn) return;
@@ -7870,19 +5811,13 @@ function _show_alert_banner(eventName, states) {
         '<i class="lmAlertBannerIcon fa-solid ' + iconClass + '" aria-hidden="true"></i>' +
         '<span class="lmAlertBannerText">' + _escape_html(text) + '</span>';
     _alertBannerEl.style.background = bgColor;
+
     _alertBannerEl.style.color = '#000';
-    _update_traffic_cam_alert_info(eventName, states, null);
 
     _position_alert_banner();
-    if ((_currentSegmentType === 'traffic_cams' || _currentSegmentType === 'power_outage') && _trafficCamBottomAlertEl) {
-        _set_traffic_cam_bottom_alert(eventName, states, { prefix: 'New' });
-        _focus_traffic_cam_radar_on_alert(_pick_active_alert_for_stack(eventName), { immediate: true });
-    }
     _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
     void _alertBannerEl.offsetWidth;
-    if (!(_currentSegmentType === 'traffic_cams' || _currentSegmentType === 'power_outage')) {
-        _alertBannerEl.classList.add('lmAlertBanner-visible');
-    }
+    _alertBannerEl.classList.add('lmAlertBanner-visible');
     _alertBannerShowing = true;
     _set_clock_suppressed(true);
 
@@ -7892,12 +5827,8 @@ function _show_alert_banner(eventName, states) {
 
     _alertBannerTimeout = setTimeout(function () {
         if (!_alertBannerEl) return;
-        if ((_currentSegmentType === 'traffic_cams' || _currentSegmentType === 'power_outage') && _trafficCamBottomAlertEl) {
-            // Keep traffic-cam stack static; rotation handles content updates.
-        } else {
-            _alertBannerEl.classList.remove('lmAlertBanner-visible');
-            _alertBannerEl.classList.add('lmAlertBanner-closing');
-        }
+        _alertBannerEl.classList.remove('lmAlertBanner-visible');
+        _alertBannerEl.classList.add('lmAlertBanner-closing');
         _alertBannerFadeTimeout = setTimeout(function () {
             if (_alertBannerEl) _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
             _alertBannerShowing = false;
@@ -7922,9 +5853,6 @@ function _hide_alert_banner() {
     if (_alertBannerEl) {
         _alertBannerEl.classList.remove('lmAlertBanner-visible', 'lmAlertBanner-closing');
     }
-    if (_trafficCamBottomAlertEl) {
-        _trafficCamBottomAlertEl.classList.remove('liveModeTrafficCamBottomAlert-visible');
-    }
     _set_clock_suppressed(false);
 }
 
@@ -7935,11 +5863,7 @@ function _enable_alert_banner() {
     _alertBannerListener = function (e) {
         if (!_active) return;
         var detail = e?.detail;
-        if (!detail) return;
-        var isNew = detail.type === 'new';
-        var isUpgraded = (detail.type === 'updated' || detail.type === 'new')
-            && String(detail.tornadoStatus || '').toLowerCase() === 'upgraded';
-        if (!isNew && !isUpgraded) return;
+        if (!detail || detail.type !== 'new') return;
         var eventName = detail.event || '';
         if (!eventName) return;
         var states = detail.states || [];
@@ -8030,7 +5954,6 @@ function _pick_next_segment() {
     options.push({ type: 'conditions', weight: 3 });
     options.push({ type: 'storm_reports', weight: 3 });
     options.push({ type: 'earthquake', weight: 2 });
-    options.push({ type: 'power_outage', weight: 2 });
 
     if (hasAnySevere) {
         var alertWeight = 5 + alerts.length * 2;
@@ -8136,8 +6059,6 @@ function _full_segment_cleanup(options) {
     _remove_conditions_layer();
     _remove_earthquake_layer();
     _remove_live_storm_reports_layer();
-    _destroy_traffic_camera_player();
-    _hide_traffic_cam_layout();
     _hide_radar_render();
     _hide_station_markers();
     _hide_radar_sweep();
@@ -8193,10 +6114,6 @@ function _run_next() {
         _run_storm_reports_segment(advance);
     } else if (type === 'earthquake') {
         _run_earthquake_segment(advance);
-    } else if (type === 'power_outage') {
-        _run_power_outage_segment(advance);
-    } else if (type === 'traffic_cams') {
-        _run_traffic_cams_segment(advance);
     } else {
         _run_conus_segment(advance);
     }
@@ -8515,8 +6432,6 @@ function forceSegment(type, options) {
     else if (type === 'conditions') _run_conditions_segment(advance);
     else if (type === 'storm_reports') _run_storm_reports_segment(advance);
     else if (type === 'earthquake') _run_earthquake_segment(advance);
-    else if (type === 'power_outage') _run_power_outage_segment(advance);
-    else if (type === 'traffic_cams') _run_traffic_cams_segment(advance, options || {});
     else if (type === 'conus') _run_conus_segment(advance);
     else return false;
     return true;

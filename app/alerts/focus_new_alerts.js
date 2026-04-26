@@ -25,6 +25,7 @@ const _STATE_TO_FIPS = {
 const FOCUS_DURATION_MS = 30000;
 const FADE_DURATION_MS = 600;
 const RADAR_RANGE_KM = 230;
+const ALERT_FOCUS_MAX_ZOOM = 9;
 
 const _CONVECTIVE_EVENTS = [
     'Tornado Emergency', 'PDS Tornado Warning', 'Tornado Warning',
@@ -213,7 +214,7 @@ function _fly_to_alerts(features) {
     try {
         const collection = turf.featureCollection(geoms.map((g) => turf.feature(g)));
         const bbox = turf.bbox(collection);
-        map.fitBounds(bbox, { padding: 40, maxZoom: 8, duration: 800 });
+        map.fitBounds(bbox, { padding: 40, maxZoom: ALERT_FOCUS_MAX_ZOOM, duration: 800 });
     } catch (_) {}
 }
 
@@ -352,7 +353,7 @@ function _build_panel_html(feature) {
 
     let html = `<div class="fnAlert" style="--fn-accent:${hexColor}">`;
     html += '<div class="fnAlertShine"></div>';
-    html += '<button type="button" class="fnAlertClose"><i class="fa fa-xmark"></i></button>';
+    html += '<button type="button" class="fnAlertClose"><i class="fa-solid fa-xmark"></i></button>';
     html += '<div class="fnAlertBody">';
 
     html += `<div class="fnAlertEventName">${event}</div>`;

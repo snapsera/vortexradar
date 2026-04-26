@@ -316,7 +316,7 @@ function _render_keybinds_dialog_body() {
 
             <div id="keybindCaptureHint" class="keybindCaptureHint" style="margin:10px 6px 8px;color:#9ec0dd;font-size:12px;line-height:1.35;">Click a shortcut to rebind it.</div>
             <div class="menu-row devtools-action-row" id="keybindsResetDefaultsBtn">
-                <i class="armrIcon armrIcon-Blue fa-solid fa-rotate"></i>
+                <i class="armrIcon armrIcon-Blue fa-solid fa-circle"></i>
                 Reset to Defaults
             </div>
         </div>

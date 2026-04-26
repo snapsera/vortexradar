@@ -2,37 +2,46 @@ const RadarLoopController = require('./RadarLoopController');
 const radar_scan_animation = require('../station_markers/radar_scan_animation');
 const settings_store = require('../../core/menu/settings_store');
 const { get_station_timezone } = require('../libnexrad/nexrad_locations');
+const PRELOAD_UI_RENDER_MIN_MS = 100;
+const IDLE_UI_RENDER_MIN_MS = 16;
+
+function _format_frame_time(dateValue, includeTz) {
+    if (!dateValue) return '--:--';
+    const js_date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    if (Number.isNaN(js_date.getTime())) return '--:--';
+    const station = window.stormTrackData?.currentStation;
+    const tz = station ? get_station_timezone(station) : undefined;
+    const opts = { hour: 'numeric', minute: '2-digit' };
+    if (includeTz) opts.timeZoneName = 'short';
+    if (tz) opts.timeZone = tz;
+    return js_date.toLocaleTimeString([], opts);
+}
 
 function _render_status(state) {
     const status_elem = $('#radarLoopStatus');
+    const idle_meta_elem = $('#radarLoopIdleMeta');
     const frames = state.frames || [];
     if (!state.active || !state.supported) {
         status_elem.text('--/--');
+        idle_meta_elem.text('Scan: --:--:--');
         return;
     }
     if (!frames.length) {
         status_elem.text('--/--');
+        idle_meta_elem.text('Scan: --:--:--');
         return;
     }
     if (state.preloading && state.preloadTotal > 0) {
         const pct = Math.min(100, Math.round((state.preloadLoaded / state.preloadTotal) * 100));
         status_elem.text(`Loading ${pct}%`);
+        idle_meta_elem.text(`Loading ${pct}%`);
         return;
     }
     const frame_num = (state.currentFrameIndex || 0) + 1;
     const current_date = state.currentFrameDate || frames[state.currentFrameIndex]?.date;
-    let formatted_time = '--:--';
-    if (current_date) {
-        const js_date = current_date instanceof Date ? current_date : new Date(current_date);
-        if (!Number.isNaN(js_date.getTime())) {
-            const station = window.stormTrackData?.currentStation;
-            const tz = station ? get_station_timezone(station) : undefined;
-            const opts = { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' };
-            if (tz) opts.timeZone = tz;
-            formatted_time = js_date.toLocaleTimeString([], opts);
-        }
-    }
+    const formatted_time = _format_frame_time(current_date, true);
     status_elem.text(`${frame_num}/${frames.length} ${formatted_time}`);
+    idle_meta_elem.text(`Scan: ${_format_frame_time(current_date, false)}`);
 }
 
 function _position_preload_bar() {
@@ -61,6 +70,26 @@ function _render_preload_bar(state) {
 }
 
 var _sweepHiddenForPlayback = false;
+var _pendingStateForRender = null;
+var _renderControlsTimer = null;
+var _lastRenderControlsMs = 0;
+var _playbackSessionActive = false;
+
+function _close_quick_menus() {
+    $('#radarLoopSpeedMenu, #radarLoopFrameCountMenu').hide();
+    $('#radarLoopSpeedBtn, #radarLoopFrameCountBtn').attr('aria-expanded', 'false');
+}
+
+function _toggle_quick_menu(menuId, buttonId) {
+    const menu = $(menuId);
+    const btn = $(buttonId);
+    const isOpen = menu.is(':visible');
+    _close_quick_menus();
+    if (!isOpen) {
+        menu.show();
+        btn.attr('aria-expanded', 'true');
+    }
+}
 
 function _render_controls(state) {
     const is_supported = !!(state.active && state.supported);
@@ -71,6 +100,14 @@ function _render_controls(state) {
     const is_preview_mode = !!(window?.stormTrackData?.radarPreviewMode);
     const station = window?.stormTrackData?.currentStation;
     const keepSweepVisibleForLiveMode = !!(window?.stormTrackData?.liveModeActive && station);
+    const can_use_playback = is_supported && has_frames;
+
+    if (state.playing || is_preloading) {
+        _playbackSessionActive = true;
+    }
+    if (!can_use_playback) {
+        _playbackSessionActive = false;
+    }
 
     if (!is_preview_mode && is_playing_or_preloading && !_sweepHiddenForPlayback && !keepSweepVisibleForLiveMode) {
         _sweepHiddenForPlayback = true;
@@ -85,17 +122,47 @@ function _render_controls(state) {
         radar_scan_animation.update(station);
     }
 
-    $('#radarLoopPanel').toggleClass('radarLoopPanel-disabled', !is_supported);
-    if (is_preloading) {
-        $('#radarLoopPlayBtn').html('<i class="fa fa-stop"></i>');
-        $('#radarLoopPlayBtn').toggleClass('radarLoopBtn-playing', true);
-    } else {
-        $('#radarLoopPlayBtn').html(state.playing ? '<i class="fa fa-stop"></i>' : '<i class="fa fa-play"></i>');
-        $('#radarLoopPlayBtn').toggleClass('radarLoopBtn-playing', !!state.playing);
-    }
-    $('#radarLoopPlayBtn, #radarLoopBackBtn, #radarLoopForwardBtn').prop('disabled', !is_supported || !has_frames);
+    $('#radarLoopPanel').toggleClass('radarLoopPanel-disabled', !can_use_playback);
+    $('#radarLoopIdleUI').toggle(!_playbackSessionActive);
+    $('#radarLoopPlaybackUI').toggle(_playbackSessionActive);
+
+    $('#radarLoopPlayStartBtn').prop('disabled', !can_use_playback || is_preloading);
     $('#radarLoopSpeedSelect').val(String(state.speedMultiplier || 5));
     $('#radarLoopFrameCountSelect').val(String(state.frameCount || 14));
+    $('#radarLoopSpeedValue').text(`${state.speedMultiplier || 5}x`);
+    $('#radarLoopFrameCountValue').text(`${state.frameCount || 14}`);
+    $('#radarLoopSpeedBtn').attr('title', 'Playback Speed');
+    $('#radarLoopFrameCountBtn').attr('title', `Load previous ${state.frameCount || 14} frames`);
+    $('#radarLoopSpeedBtn, #radarLoopFrameCountBtn').prop('disabled', !is_supported || is_preloading);
+    if (!is_supported || is_preloading) {
+        _close_quick_menus();
+    }
+
+    if (is_preloading) {
+        $('#radarLoopPauseBtn').html('<i class="fa-solid fa-spinner"></i>');
+        $('#radarLoopPauseBtn').prop('disabled', true);
+        $('#radarLoopPauseBtn').toggleClass('radarLoopBtn-playing', true);
+    } else {
+        $('#radarLoopPauseBtn').html(state.playing ? '<i class="fa-solid fa-pause"></i>' : '<i class="fa-solid fa-play"></i>');
+        $('#radarLoopPauseBtn').prop('disabled', !can_use_playback);
+        $('#radarLoopPauseBtn').toggleClass('radarLoopBtn-playing', !!state.playing);
+    }
+    $('#radarLoopStopBtn').prop('disabled', !_playbackSessionActive);
+
+    const max_idx = Math.max((state.frames || []).length - 1, 0);
+    const current_idx = Math.max(0, Math.min(max_idx, state.currentFrameIndex || 0));
+    $('#radarLoopFrameSlider')
+        .attr('max', String(max_idx))
+        .val(String(current_idx))
+        .prop('disabled', !can_use_playback || is_preloading);
+    const frames = state.frames || [];
+    const first_time = frames.length ? _format_frame_time(frames[0]?.date, false) : '--:--';
+    const current_time = frames.length ? _format_frame_time(state.currentFrameDate || frames[current_idx]?.date, false) : '--:--';
+    const last_time = frames.length ? _format_frame_time(frames[frames.length - 1]?.date, false) : '--:--';
+    $('#radarLoopTimelineStart').text(first_time);
+    $('#radarLoopTimelineCurrent').text(current_time);
+    $('#radarLoopTimelineEnd').text(last_time);
+
     if (is_loop_visible) {
         $('#radarDateTime').hide();
     } else {
@@ -103,6 +170,34 @@ function _render_controls(state) {
     }
     _render_preload_bar(state);
     _render_status(state);
+    if (window?.stormTrackData) {
+        const perf = window.stormTrackData.perf = window.stormTrackData.perf || {};
+        perf.radarLoopUiRenders = (perf.radarLoopUiRenders || 0) + 1;
+        perf.radarLoopUiPreloading = !!state.preloading;
+        perf.radarLoopSessionActive = !!_playbackSessionActive;
+    }
+}
+
+function _schedule_render_controls(state) {
+    _pendingStateForRender = state || {};
+    const minInterval = _pendingStateForRender.preloading ? PRELOAD_UI_RENDER_MIN_MS : IDLE_UI_RENDER_MIN_MS;
+    const elapsed = performance.now() - _lastRenderControlsMs;
+    if (_renderControlsTimer) return;
+
+    const run = () => {
+        _renderControlsTimer = null;
+        _lastRenderControlsMs = performance.now();
+        _render_controls(_pendingStateForRender || {});
+    };
+
+    if (elapsed >= minInterval) {
+        requestAnimationFrame(run);
+        return;
+    }
+
+    _renderControlsTimer = setTimeout(() => {
+        requestAnimationFrame(run);
+    }, Math.max(0, minInterval - elapsed));
 }
 
 function init() {
@@ -126,19 +221,55 @@ function init() {
     });
 
     window.addEventListener('radarLoopStateChanged', (event) => {
-        _render_controls(event.detail || {});
+        _schedule_render_controls(event.detail || {});
     });
 
-    $('#radarLoopPlayBtn').on('click', () => controller.toggle_play_stop());
-    $('#radarLoopBackBtn').on('click', () => controller.step_back());
-    $('#radarLoopForwardBtn').on('click', () => controller.step_forward());
-    $('#radarLoopSpeedSelect').on('change', function() {
-        controller.set_speed($(this).val());
-        settings_store.saveFromDom();
+    $('#radarLoopPlayStartBtn').on('click', () => {
+        _playbackSessionActive = true;
+        controller.play();
     });
-    $('#radarLoopFrameCountSelect').on('change', function() {
-        controller.set_frame_count($(this).val());
-        settings_store.saveFromDom();
+    $('#radarLoopPauseBtn').on('click', () => controller.toggle_play());
+    $('#radarLoopStopBtn').on('click', () => {
+        _playbackSessionActive = false;
+        _close_quick_menus();
+        controller.stop_and_reset_to_latest();
+    });
+    $('#radarLoopFrameSlider').on('input change', function() {
+        controller.set_frame_index($(this).val());
+    });
+    $('#radarLoopSpeedBtn').on('click', function(e) {
+        e.stopPropagation();
+        if ($(this).prop('disabled')) return;
+        _toggle_quick_menu('#radarLoopSpeedMenu', '#radarLoopSpeedBtn');
+    });
+    $('#radarLoopFrameCountBtn').on('click', function(e) {
+        e.stopPropagation();
+        if ($(this).prop('disabled')) return;
+        _toggle_quick_menu('#radarLoopFrameCountMenu', '#radarLoopFrameCountBtn');
+    });
+    $('#radarLoopSpeedMenu').on('click', '.radarLoopQuickMenuItem', function(e) {
+        e.stopPropagation();
+        const speed = $(this).data('speed');
+        controller.set_speed(speed);
+        $('#radarLoopSpeedSelect').val(String(speed));
+        const saved = settings_store.load();
+        saved.radarLoopSpeed = parseFloat(speed) || saved.radarLoopSpeed;
+        settings_store.save(saved);
+        _close_quick_menus();
+    });
+    $('#radarLoopFrameCountMenu').on('click', '.radarLoopQuickMenuItem', function(e) {
+        e.stopPropagation();
+        const frameCount = $(this).data('frame-count');
+        controller.set_frame_count(frameCount);
+        $('#radarLoopFrameCountSelect').val(String(frameCount));
+        const saved = settings_store.load();
+        saved.radarLoopFrameCount = parseInt(frameCount, 10) || saved.radarLoopFrameCount;
+        settings_store.save(saved);
+        _close_quick_menus();
+    });
+    $(document.body).on('click.radarLoopQuickMenus', function(e) {
+        const isQuickMenuTarget = $(e.target).closest('#radarLoopSpeedBtn, #radarLoopFrameCountBtn, #radarLoopSpeedMenu, #radarLoopFrameCountMenu').length > 0;
+        if (!isQuickMenuTarget) _close_quick_menus();
     });
 
     window.addEventListener('radarScanUpdated', () => {
@@ -161,7 +292,7 @@ function init() {
         controller.on_base_radar_changed(current_factory.station, current_factory.product_abbv, current_factory);
     }
 
-    _render_controls(window.stormTrackData.loopPlayback || {});
+    _schedule_render_controls(window.stormTrackData.loopPlayback || {});
 }
 
 module.exports = { init };

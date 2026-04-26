@@ -37,10 +37,10 @@ function _build_overlay() {
     header.className = 'changelog-header';
     header.innerHTML =
         '<div class="changelog-header-left">' +
-            '<i class="fa fa-clock-rotate-left changelog-header-icon"></i>' +
+            '<i class="changelog-header-icon fa-solid fa-clock-rotate-left"></i>' +
             '<span class="changelog-header-title">Change Log</span>' +
         '</div>' +
-        '<button type="button" class="changelog-close-btn" aria-label="Close"><i class="fa fa-xmark"></i></button>';
+        '<button type="button" class="changelog-close-btn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
 
     var tabs = document.createElement('div');
     tabs.className = 'changelog-tabs';
@@ -106,7 +106,7 @@ function _render_day(container, day) {
 
         var timeLabel = document.createElement('div');
         timeLabel.className = 'changelog-time';
-        timeLabel.innerHTML = '<i class="fa fa-clock"></i> ' + time;
+        timeLabel.innerHTML = '<i class="fa-solid fa-clock"></i> ' + time;
         group.appendChild(timeLabel);
 
         var list = document.createElement('ul');

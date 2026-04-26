@@ -25,7 +25,7 @@ function click_listener(e) {
 
     var popup_html =
 `<div style="font-weight: bold; font-size: 13px;">Mesoscale Discussion ${properties.id}</div>
-<i id="${divid}" class="alert_popup_info icon-blue fa fa-circle-info" style="color: rgb(255, 255, 255);"></i>`;
+<i id="${divid}" class="alert_popup_info icon-blue fa-solid fa-circle-info" style="color: rgb(255, 255, 255);"></i>`;
 
     const popup = new MapPopup(e.lngLat, popup_html);
     popup.add_to_map();

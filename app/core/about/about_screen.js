@@ -4,7 +4,7 @@ const X_SVG = '<svg class="about_xSvg" viewBox="0 0 24 24" fill="currentColor"><
 const DISCORD_BUTTON_ENABLED = false;
 const DISCORD_SOCIAL_LINK_HTML = `
         <a class="about_socialLink about_socialLink--discord" href="https://discord.gg/wn8FMHC26v">
-            <i class="fa-brands fa-discord"></i>
+            <i class="fa-solid fa-circle"></i>
             Discord
         </a>`;
 

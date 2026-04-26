@@ -21,9 +21,46 @@ var _sweepRevealState = {
 };
 var TWO_PI = Math.PI * 2;
 var _pendingBufferUpdate = null;
+var _REF_PRODUCTS = { 'REF':1, 'N0B':1, 'N1B':1, 'N2B':1, 'N3B':1, 'N0Q':1, 'N1Q':1, 'TZL':1, 'TZ0':1, 'TZ1':1, 'TZ2':1, 'TZ3':1 };
+var COLOR_PICKER_SELECTOR = '#colorPickerItemClass';
+var SWEEP_TRAIL_RAD = 22 * Math.PI / 180;
+var _colorPickerSelected = false;
+var _colorPickerObserver = null;
+
+function _sync_color_picker_state() {
+    var elem = document.querySelector(COLOR_PICKER_SELECTOR);
+    _colorPickerSelected = !!(elem && elem.classList && elem.classList.contains('menu_item_selected'));
+}
+
+function _setup_color_picker_observer() {
+    if (_colorPickerObserver || typeof MutationObserver === 'undefined') return;
+    _sync_color_picker_state();
+    var elem = document.querySelector(COLOR_PICKER_SELECTOR);
+    if (!elem) return;
+    _colorPickerObserver = new MutationObserver(_sync_color_picker_state);
+    _colorPickerObserver.observe(elem, { attributes: true, attributeFilter: ['class'] });
+}
+
+function _record_radar_render_perf(frameMs) {
+    if (!window.stormTrackData) return;
+    var perf = window.stormTrackData.perf = window.stormTrackData.perf || {};
+    perf.radarRenderLastMs = frameMs;
+    perf.radarRenderFrameSamples = (perf.radarRenderFrameSamples || 0) + 1;
+    var samples = perf.radarRenderRecentMs;
+    if (!Array.isArray(samples)) samples = [];
+    samples.push(frameMs);
+    if (samples.length > 180) samples.shift();
+    perf.radarRenderRecentMs = samples;
+    if (samples.length >= 30) {
+        var sorted = samples.slice().sort(function(a, b) { return a - b; });
+        var idx = Math.floor(0.95 * (sorted.length - 1));
+        perf.radarRenderP95Ms = sorted[idx];
+    }
+}
 
 function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
     _pendingBufferUpdate = null;
+    _setup_color_picker_observer();
     var color_scale_data = product_colors[product];
     var colors = [...color_scale_data.colors];
     var values = [...color_scale_data.values];
@@ -174,6 +211,9 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
             this.sweepProgressLocation = gl.getUniformLocation(this.program, 'u_sweepProgress');
             this.gateFilterMinLocation = gl.getUniformLocation(this.program, 'u_gateFilterMin');
             this.gateFilterMaxLocation = gl.getUniformLocation(this.program, 'u_gateFilterMax');
+            this.sweepGlowEnabledLocation = gl.getUniformLocation(this.program, 'u_sweepGlowEnabled');
+            this.sweepGlowAngleLocation = gl.getUniformLocation(this.program, 'u_sweepGlowAngle');
+            this.sweepGlowTrailLocation = gl.getUniformLocation(this.program, 'u_sweepGlowTrail');
 
 
             // retrieve the framebuffer program's uniforms
@@ -238,6 +278,7 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
         },
         render: function (gl, matrix) {
             const renderStart = performance.now();
+            var sweepVisualActive = radar_scan_animation.is_active();
 
             if (_pendingBufferUpdate) {
                 vertexF32 = _pendingBufferUpdate.vertices;
@@ -261,7 +302,7 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
             gl.bindTexture(gl.TEXTURE_2D, imagetexture);
 
             // framebuffer pass (color picker) — always uses new data, no sweep mask
-            if ($('#colorPickerItemClass').hasClass('menu_item_selected')) {
+            if (_colorPickerSelected) {
                 renderToFramebuffer.apply(this, [gl, matrix]);
             }
 
@@ -274,7 +315,6 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
             var radarOpacity = window.stormTrackData?.radarOpacity != null ? window.stormTrackData.radarOpacity : 0.85;
             gl.uniform1f(this.opacityLocation, radarOpacity);
 
-            var _REF_PRODUCTS = { 'REF':1, 'N0B':1, 'N1B':1, 'N2B':1, 'N3B':1, 'N0Q':1, 'N1Q':1, 'TZL':1, 'TZ0':1, 'TZ1':1, 'TZ2':1, 'TZ3':1 };
             var isRefProduct = !!_REF_PRODUCTS[product];
             var gateFilterMin, gateFilterMax;
             if (isRefProduct && window.stormTrackData?.gateFilterMin != null) {
@@ -290,12 +330,22 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
             gl.uniform1f(this.gateFilterMinLocation, gateFilterMin);
             gl.uniform1f(this.gateFilterMaxLocation, gateFilterMax);
 
+            var sweepGlowEnabled = sweepVisualActive ? 1.0 : 0.0;
+            var sweepGlowAngle = 0.0;
+            var sweepPeriod = radar_scan_animation.get_sweep_period_ms();
+            if (sweepGlowEnabled > 0.5 && sweepPeriod > 0) {
+                sweepGlowAngle = (performance.now() % sweepPeriod) / sweepPeriod * TWO_PI;
+            }
+            gl.uniform1f(this.sweepGlowEnabledLocation, sweepGlowEnabled);
+            gl.uniform1f(this.sweepGlowAngleLocation, sweepGlowAngle);
+            gl.uniform1f(this.sweepGlowTrailLocation, SWEEP_TRAIL_RAD);
+
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
             var isSweepRevealActive = _sweepRevealState.active;
 
-            if (isSweepRevealActive && !radar_scan_animation.is_active()) {
+            if (isSweepRevealActive && !sweepVisualActive) {
                 _sweepRevealState.active = false;
                 isSweepRevealActive = false;
             }
@@ -335,7 +385,6 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
                     gl.uniform1f(this.sweepModeLocation, 1.0);
                     gl.drawArrays(gl.TRIANGLES, 0, vertexF32.length / 2);
 
-                    map.triggerRepaint();
                 }
             }
 
@@ -350,8 +399,10 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
             }
 
             if (window.stormTrackData) {
+                var frameMs = performance.now() - renderStart;
+                _record_radar_render_perf(frameMs);
                 _renderFrameCount += 1;
-                _renderAccumMs += (performance.now() - renderStart);
+                _renderAccumMs += frameMs;
                 if (_renderFrameCount >= 120) {
                     const perf = window.stormTrackData.perf = window.stormTrackData.perf || {};
                     perf.radarRenderFrames = _renderFrameCount;
@@ -359,6 +410,12 @@ function plot_to_map(verticies_arr, colors_arr, product, nexrad_factory) {
                     _renderFrameCount = 0;
                     _renderAccumMs = 0;
                 }
+            }
+
+            // Keep custom-layer uniforms (including sweep glow angle) in sync
+            // with the sweep animation by requesting continuous repaints.
+            if (sweepVisualActive || isSweepRevealActive) {
+                map.triggerRepaint();
             }
         }
     }

@@ -699,22 +699,22 @@
     <!-- Floating circular buttons above footer (Station, Alert, Color, Draw) -->
     <div id="floatingToolbar" class="floatingToolbar">
         <div id="stationMenuItemDiv" class="floatingToolBtn" title="Radar Stations">
-            <span id="stationMenuItemIcon" class="fa fa-satellite-dish icon-grey menu_item_not_selected"></span>
+            <span id="stationMenuItemIcon" class="icon-grey menu_item_not_selected fa-solid fa-satellite-dish"></span>
         </div>
         <div id="alertMenuItemDiv" class="floatingToolBtn" title="Alerts">
-            <span id="alertMenuItemIcon" class="fa fa-circle-exclamation icon-grey menu_item_not_selected"></span>
+            <span id="alertMenuItemIcon" class="icon-grey menu_item_not_selected fa-solid fa-circle-exclamation"></span>
         </div>
         <div id="colorPickerItemDiv" class="floatingToolBtn" title="Radar Inspector">
-            <span id="colorPickerItemClass" class="fa fa-crosshairs icon-grey menu_item_not_selected"></span>
+            <span id="colorPickerItemClass" class="icon-grey menu_item_not_selected fa-solid fa-crosshairs"></span>
         </div>
         <div id="screenshotMenuItemDiv" class="floatingToolBtn" title="Screenshot">
-            <span id="screenshotMenuItemIcon" class="fa fa-camera icon-grey menu_item_not_selected"></span>
+            <span id="screenshotMenuItemIcon" class="icon-grey menu_item_not_selected fa-solid fa-camera"></span>
         </div>
         <div id="impactTimelineMenuItemDiv" class="floatingToolBtn" title="Distance Tracker">
-            <span id="impactTimelineMenuItemIcon" class="fa-solid fa-ruler icon-grey menu_item_not_selected"></span>
+            <span id="impactTimelineMenuItemIcon" class="icon-grey menu_item_not_selected fa-solid fa-ruler"></span>
         </div>
         <div id="drawMenuItemDiv" class="floatingToolBtn" title="Draw">
-            <span id="drawMenuItemIcon" class="fa fa-pencil icon-grey menu_item_not_selected"></span>
+            <span id="drawMenuItemIcon" class="icon-grey menu_item_not_selected fa-solid fa-pencil"></span>
         </div>
     </div>
 
@@ -777,7 +777,7 @@
     <!-- Audio permission prompt -->
     <div id="lmAudioPrompt" class="lmAudioPrompt" style="display:none;">
         <div class="lmAudioPromptCard">
-            <i class="fa-solid fa-volume-high lmAudioPromptIcon"></i>
+            <i class="lmAudioPromptIcon fa-solid fa-circle"></i>
             <div class="lmAudioPromptTitle">Enable Background Music?</div>
             <div class="lmAudioPromptDesc">Live Mode has background music enabled. Your browser requires a click to start audio playback.</div>
             <div class="lmAudioPromptActions">
@@ -807,7 +807,7 @@
 
     <!-- Right-side alerts panel (RadarOmega-style) -->
     <div id="alertsPanel" class="alertsPanel alertsPanel-closed">
-        <button type="button" id="alertsPanelClose" class="alertsPanelClose" aria-label="Close alerts"><span class="fa fa-xmark"></span></button>
+        <button type="button" id="alertsPanelClose" class="alertsPanelClose" aria-label="Close alerts"><span class="fa-solid fa-xmark"></span></button>
         <div class="alertsPanelHeader">
             <div class="alertsPanelHeaderTop">
                 <span class="alertsPanelTitle">Active Weather Alerts</span>
@@ -843,11 +843,11 @@
 
     <!-- METAR button (disabled, hidden in floating toolbar) -->
     <div id="metarStationMenuItemDiv" class="floatingToolBtn floatingToolBtn-disabled" title="Temperature (disabled)" style="display: none">
-        <span id="metarStationMenuItemIcon" class="fa fa-temperature-half icon-grey menu_item_not_selected"></span>
+        <span id="metarStationMenuItemIcon" class="icon-grey menu_item_not_selected fa-solid fa-temperature-half"></span>
     </div>
 
     <div id="leftPanel" class="leftPanel leftPanel-closed">
-        <button type="button" id="leftPanelToggle" class="leftPanelToggle" aria-label="Toggle menu"><span class="leftPanelToggleInner"><span class="leftPanelToggleLabel">Menu</span><span class="fa fa-chevron-right leftPanelToggleIcon"></span></span></button>
+        <button type="button" id="leftPanelToggle" class="leftPanelToggle" aria-label="Toggle menu"><span class="leftPanelToggleInner"><span class="leftPanelToggleLabel">Menu</span><span class="leftPanelToggleIcon fa-solid fa-chevron-right"></span></span></button>
         <div id="leftPanelContent" class="leftPanelContent"></div>
     </div>
 
@@ -856,45 +856,90 @@
 
     <!-- Product bar at bottom (Products, Date/Time) -->
     <div id="productMapFooter" style="display: none">
-        <div id="productsDropdownTrigger" class="noselect pdt"><div id="productsDropdownTriggerText" class="icon-blue pdt">Products</div>
-            <div id="extraProductInfo" class="noselect" style="display: none">Info</div>
-        </div>
         <div id="radarLoopPanel" class="noselect">
             <div class="radarLoopGlassCard">
-                <div class="radarLoopTransport">
-                    <button type="button" id="radarLoopBackBtn" class="radarLoopBtn" title="Previous frame"><i class="fa fa-backward-step"></i></button>
-                    <button type="button" id="radarLoopPlayBtn" class="radarLoopBtn radarLoopBtn-main" title="Play / Stop"><i class="fa fa-play"></i></button>
-                    <button type="button" id="radarLoopForwardBtn" class="radarLoopBtn" title="Next frame"><i class="fa fa-forward-step"></i></button>
+                <div id="radarLoopIdleUI" class="radarLoopMode radarLoopMode-idle">
+                    <div class="radarLoopIdleInfo">
+                        <div id="productsDropdownTrigger" class="noselect pdt">
+                            <div id="productsDropdownTriggerText" class="icon-blue pdt">Products</div>
+                            <div id="extraProductInfo" class="noselect" style="display: none">Info</div>
+                        </div>
+                        <div id="radarLoopIdleMeta">Scan: --:--:--</div>
+                    </div>
+                    <button type="button" id="radarLoopPlayStartBtn" class="radarLoopBtn radarLoopBtn-main" title="Play"><i class="fa-solid fa-play"></i></button>
+                    <div class="radarLoopControlGroup radarLoopControlGroup-idle">
+                        <button type="button" id="radarLoopSpeedBtn" class="radarLoopQuickBtn" aria-haspopup="true" aria-expanded="false" aria-label="Playback speed">
+                            <span class="radarLoopQuickBtnIcon"><i class="fa-solid fa-gauge-high"></i></span>
+                            <span id="radarLoopSpeedValue" class="radarLoopQuickBtnValue">5x</span>
+                            <i class="radarLoopQuickBtnChevron fa-solid fa-chevron-down"></i>
+                        </button>
+                        <div id="radarLoopSpeedMenu" class="radarLoopQuickMenu" style="display:none;">
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="1">1x</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="2">2x</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="3">3x</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="4">4x</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="5">5x</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="6">6x</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="8">8x</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-speed="10">10x</button>
+                        </div>
+                    </div>
+                    <div class="radarLoopControlGroup radarLoopControlGroup-idle">
+                        <button type="button" id="radarLoopFrameCountBtn" class="radarLoopQuickBtn" aria-haspopup="true" aria-expanded="false" aria-label="Frame count">
+                            <span class="radarLoopQuickBtnIcon"><i class="fa-solid fa-layer-group"></i></span>
+                            <span id="radarLoopFrameCountValue" class="radarLoopQuickBtnValue">14</span>
+                            <i class="radarLoopQuickBtnChevron fa-solid fa-chevron-down"></i>
+                        </button>
+                        <div id="radarLoopFrameCountMenu" class="radarLoopQuickMenu" style="display:none;">
+                            <button type="button" class="radarLoopQuickMenuItem" data-frame-count="7">7</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-frame-count="14">14</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-frame-count="21">21</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-frame-count="30">30</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-frame-count="50">50</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-frame-count="75">75</button>
+                            <button type="button" class="radarLoopQuickMenuItem" data-frame-count="100">100</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="radarLoopControlGroup">
-                    <span class="radarLoopLabel">Speed</span>
-                    <select id="radarLoopSpeedSelect">
-                        <option value="1">1x</option>
-                        <option value="2">2x</option>
-                        <option value="3">3x</option>
-                        <option value="4">4x</option>
-                        <option value="5" selected>5x</option>
-                        <option value="6">6x</option>
-                        <option value="8">8x</option>
-                        <option value="10">10x</option>
-                    </select>
+                <div id="radarLoopPlaybackUI" class="radarLoopMode radarLoopMode-playback" style="display:none;">
+                    <div class="radarLoopPlaybackTimeline">
+                        <div class="radarLoopSliderWrap">
+                            <input type="range" id="radarLoopFrameSlider" min="0" max="0" value="0" step="1" aria-label="Radar loop frame slider">
+                        </div>
+                        <div class="radarLoopTimelineLabels">
+                            <span id="radarLoopTimelineStart">--:--</span>
+                            <span id="radarLoopTimelineCurrent">--:--</span>
+                            <span id="radarLoopTimelineEnd">--:--</span>
+                        </div>
+                    </div>
+                    <div class="radarLoopTransport">
+                        <button type="button" id="radarLoopPauseBtn" class="radarLoopBtn radarLoopBtn-main" title="Pause"><i class="fa-solid fa-pause"></i></button>
+                        <button type="button" id="radarLoopStopBtn" class="radarLoopBtn radarLoopBtn-stop" title="Stop"><i class="fa-solid fa-stop"></i></button>
+                    </div>
+                    <div id="radarLoopStatus">--/--</div>
                 </div>
-                <div class="radarLoopControlGroup">
-                    <span class="radarLoopLabel">Frames</span>
-                    <select id="radarLoopFrameCountSelect">
-                        <option value="7">7</option>
-                        <option value="14" selected>14</option>
-                        <option value="21">21</option>
-                        <option value="30">30</option>
-                        <option value="50">50</option>
-                        <option value="75">75</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-                <div id="radarLoopStatus">--/--</div>
             </div>
         </div>
         <div id="radarDateTime" class="noselect" style="display: none">Date & Time</div>
+        <select id="radarLoopSpeedSelect" style="display:none;">
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+            <option value="4">4x</option>
+            <option value="5" selected>5x</option>
+            <option value="6">6x</option>
+            <option value="8">8x</option>
+            <option value="10">10x</option>
+        </select>
+        <select id="radarLoopFrameCountSelect" style="display:none;">
+            <option value="7">7</option>
+            <option value="14" selected>14</option>
+            <option value="21">21</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+            <option value="75">75</option>
+            <option value="100">100</option>
+        </select>
     </div>
 
     <!-- Bottom alert ticker -->
@@ -955,7 +1000,7 @@
                     <span id="appDialogHeaderText">header</span>
                     <span id="appDialogHeaderSub">National Weather Service</span>
                 </div>
-                <button type="button" id="appDialogClose" class="appDialogCloseBtn" aria-label="Close"><i class="fa fa-xmark"></i></button>
+                <button type="button" id="appDialogClose" class="appDialogCloseBtn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="appDialogBody">body</div>
         </div>
@@ -968,16 +1013,16 @@
                     <span class="colortablesModalTitle">Colortables</span>
                     <span class="colortablesModalBeta">BETA</span>
                 </div>
-                <button type="button" class="colortablesModalClose" id="colortablesModalClose" aria-label="Close"><i class="fa fa-xmark"></i></button>
+                <button type="button" class="colortablesModalClose" id="colortablesModalClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="colortablesModalBody" id="colortablesModalBody">
                 <div class="ctableSection">
-                    <div class="ctableSectionHeader">Reflectivity <i name="REF" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableSectionHeader">Reflectivity <i name="REF" class="colortable_upload_btn icon-green fa-solid fa-square-plus"></i></div>
                     <div class="ctableGrid" id="REF_ctable_options">
                         <div class="ctableOption ctableOption-selected" id="armrREF1ColortableBtn" name="REF1">
                             <div class="ctablePreview" id="REF1_colortable_preview"></div>
                             <span class="ctableLabel">Default</span>
-                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                            <span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>
                         </div>
                         <div class="ctableOption" id="armrREF2ColortableBtn" name="REF2">
                             <div class="ctablePreview" id="REF2_colortable_preview"></div>
@@ -998,12 +1043,12 @@
                     </div>
                 </div>
                 <div class="ctableSection">
-                    <div class="ctableSectionHeader">Velocity <i name="VEL" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableSectionHeader">Velocity <i name="VEL" class="colortable_upload_btn icon-green fa-solid fa-square-plus"></i></div>
                     <div class="ctableGrid" id="VEL_ctable_options">
                         <div class="ctableOption ctableOption-selected" id="armrVEL1ColortableBtn" name="VEL1">
                             <div class="ctablePreview" id="VEL1_colortable_preview"></div>
                             <span class="ctableLabel">Default</span>
-                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                            <span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>
                         </div>
                         <div class="ctableOption" id="armrVEL2ColortableBtn" name="VEL2">
                             <div class="ctablePreview" id="VEL2_colortable_preview"></div>
@@ -1012,42 +1057,42 @@
                     </div>
                 </div>
                 <div class="ctableSection">
-                    <div class="ctableSectionHeader">Correlation Coefficient <i name="RHO" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableSectionHeader">Correlation Coefficient <i name="RHO" class="colortable_upload_btn icon-green fa-solid fa-square-plus"></i></div>
                     <div class="ctableGrid" id="RHO_ctable_options">
                         <div class="ctableOption ctableOption-selected" id="armrRHO1ColortableBtn" name="RHO1">
                             <div class="ctablePreview" id="RHO1_colortable_preview"></div>
                             <span class="ctableLabel">Default</span>
-                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                            <span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>
                         </div>
                     </div>
                 </div>
                 <div class="ctableSection">
-                    <div class="ctableSectionHeader">Differential Reflectivity <i name="ZDR" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableSectionHeader">Differential Reflectivity <i name="ZDR" class="colortable_upload_btn icon-green fa-solid fa-square-plus"></i></div>
                     <div class="ctableGrid" id="ZDR_ctable_options">
                         <div class="ctableOption ctableOption-selected" id="armrZDR1ColortableBtn" name="ZDR1">
                             <div class="ctablePreview" id="ZDR1_colortable_preview"></div>
                             <span class="ctableLabel">Default</span>
-                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                            <span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>
                         </div>
                     </div>
                 </div>
                 <div class="ctableSection">
-                    <div class="ctableSectionHeader">Specific Differential Phase <i name="KDP" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableSectionHeader">Specific Differential Phase <i name="KDP" class="colortable_upload_btn icon-green fa-solid fa-square-plus"></i></div>
                     <div class="ctableGrid" id="KDP_ctable_options">
                         <div class="ctableOption ctableOption-selected" id="armrKDP1ColortableBtn" name="KDP1">
                             <div class="ctablePreview" id="KDP1_colortable_preview"></div>
                             <span class="ctableLabel">Default</span>
-                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                            <span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>
                         </div>
                     </div>
                 </div>
                 <div class="ctableSection">
-                    <div class="ctableSectionHeader">Vertically Integrated Liquid <i name="DVL" class="colortable_upload_btn fa fa-square-plus icon-green"></i></div>
+                    <div class="ctableSectionHeader">Vertically Integrated Liquid <i name="DVL" class="colortable_upload_btn icon-green fa-solid fa-square-plus"></i></div>
                     <div class="ctableGrid" id="DVL_ctable_options">
                         <div class="ctableOption ctableOption-selected" id="armrDVL1ColortableBtn" name="DVL1">
                             <div class="ctablePreview" id="DVL1_colortable_preview"></div>
                             <span class="ctableLabel">Default</span>
-                            <span class="ctableCheck"><i class="fa fa-circle-check"></i></span>
+                            <span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>
                         </div>
                     </div>
                 </div>
@@ -1132,7 +1177,7 @@
                     <div class="menu-category" id="menuCategoryOverlays">
                         <div class="menu-category-header">
                             <span class="menu-category-title">Overlays</span>
-                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                            <i class="menu-category-chevron fa-solid fa-chevron-down"></i>
                         </div>
                         <div class="menu-category-body" style="display: none;">
                             <div class="menu-row armrTop" id="armrSettingsBtn">
@@ -1190,7 +1235,7 @@
                     <div class="menu-category" id="menuCategoryAlerts">
                         <div class="menu-category-header">
                             <span class="menu-category-title">Alerts</span>
-                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                            <i class="menu-category-chevron fa-solid fa-chevron-down"></i>
                         </div>
                         <div class="menu-category-body" style="display: none;">
                             <div class="menu-row armrTop" id="armrAlertsDisplayBtn">
@@ -1211,7 +1256,7 @@
                     <div class="menu-category" id="menuCategoryAppSettings">
                         <div class="menu-category-header">
                             <span class="menu-category-title">App Settings</span>
-                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                            <i class="menu-category-chevron fa-solid fa-chevron-down"></i>
                         </div>
                         <div class="menu-category-body" style="display: none;">
                             <div class="menu-row armrTop menu-row--disabled" id="armrTTSAlertsBtn">
@@ -1221,7 +1266,7 @@
                                 <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                             </div>
                             <div class="menu-row armrMiddle" id="armrAudibleAlertsBtn">
-                                <i class="armrIcon armrIcon-Blue fa-solid fa-volume-high"></i>
+                                <i class="armrIcon armrIcon-Blue fa-solid fa-circle"></i>
                                 Audible Alerts
                                 <i class="armrIconArrowRight fa-solid fa-chevron-right"></i>
                             </div>
@@ -1245,7 +1290,7 @@
                             </div>
                             <div class="lmMusicSubMenu" id="lmMusicSubMenu" style="display:none;">
                                 <div class="lmMusicSubRow">
-                                    <i class="fa-solid fa-music" style="opacity:0.5;margin-right:6px;font-size:11px;"></i>
+                                    <i style="opacity:0.5;margin-right:6px;font-size:11px;" class="fa-solid fa-music"></i>
                                     Background Music
                                     <div class="form-check form-switch" style="margin-left:auto;">
                                         <input class="form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="lmMusicToggle">
@@ -1269,7 +1314,7 @@
                     <div class="menu-category" id="menuCategoryDeveloper">
                         <div class="menu-category-header">
                             <span class="menu-category-title">Developer</span>
-                            <i class="fa fa-chevron-down menu-category-chevron"></i>
+                            <i class="menu-category-chevron fa-solid fa-chevron-down"></i>
                         </div>
                         <div class="menu-category-body" style="display: none;">
                             <div class="menu-row armrTop" id="armrDevToolsBtn">
@@ -1293,7 +1338,7 @@
 
                 </div>
                 <div id="appMenuSettingsScreen" class="armScreen">
-                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsSettingsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Radar Settings</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsSettingsBackBtn"><i class="fa-solid fa-chevron-left"></i></div><span class="armsHeaderTitle">Radar Settings</span><div class="armsHeaderExitBtn"><i class="fa-solid fa-xmark"></i></div></div>
                     <br>
 
                     <div class="armrHeader">RADAR</div>
@@ -1389,7 +1434,7 @@
 
                 </div>
                 <div id="appMenuTTSAlertsScreen" class="armScreen">
-                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsTTSAlertsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">TTS Alerts</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsTTSAlertsBackBtn"><i class="fa-solid fa-chevron-left"></i></div><span class="armsHeaderTitle">TTS Alerts</span><div class="armsHeaderExitBtn"><i class="fa-solid fa-xmark"></i></div></div>
                     <br>
 
                     <div class="armrHeader">TEXT-TO-SPEECH</div>
@@ -1408,7 +1453,7 @@
                     </div>
                 </div>
                 <div id="appMenuThemeScreen" class="armScreen">
-                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsThemeBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Theme</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsThemeBackBtn"><i class="fa-solid fa-chevron-left"></i></div><span class="armsHeaderTitle">Theme</span><div class="armsHeaderExitBtn"><i class="fa-solid fa-xmark"></i></div></div>
                     <br>
 
                     <div class="armrHeader">MAP STYLE</div>
@@ -1420,7 +1465,7 @@
                         </div>
                     </div>
                     <div class="menu-row armrBottom" id="armrSatelliteMapBtn">
-                        <i class="armrIcon armrIcon-Blue fa-solid fa-earth-americas"></i>
+                        <i class="armrIcon armrIcon-Blue fa-solid fa-globe"></i>
                         Satellite
                         <div class="form-check form-switch">
                             <input class="map_style_button form-check-input toggleSwitchContainter" onfocus="this.blur();" type="checkbox" role="switch" id="armrSatelliteMapBtnSwitchElem">
@@ -1428,7 +1473,7 @@
                     </div>
                 </div>
                 <div id="appMenuAudibleAlertsScreen" class="armScreen">
-                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsAudibleAlertsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Audible Alerts</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsAudibleAlertsBackBtn"><i class="fa-solid fa-chevron-left"></i></div><span class="armsHeaderTitle">Audible Alerts</span><div class="armsHeaderExitBtn"><i class="fa-solid fa-xmark"></i></div></div>
                     <br>
 
                     <div class="armrHeader">TORNADO WARNING</div>
@@ -1451,7 +1496,7 @@
                     </div>
                 </div>
                 <div id="appMenuDevToolsScreen" class="armScreen">
-                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsDevToolsBackBtn"><i class="fa fa-chevron-left"></i></div><span class="armsHeaderTitle">Developer Tools</span><div class="armsHeaderExitBtn"><i class="fa fa-xmark"></i></div></div>
+                    <div class="armsHeader armsHeader--sub"><div class="armsHeaderBackBtn" id="armsDevToolsBackBtn"><i class="fa-solid fa-chevron-left"></i></div><span class="armsHeaderTitle">Developer Tools</span><div class="armsHeaderExitBtn"><i class="fa-solid fa-xmark"></i></div></div>
                     <br>
 
                     <div class="armrHeader">TEST ALERTS</div>
@@ -1520,12 +1565,12 @@
                         <i class="fa-solid fa-xmark"></i>&nbsp;&nbsp;Dealias
                     </div>
                 </div>
-                <i id="dealiasSettingsIcon" class="fa-solid fa-gear l2ElevationBtn l2elev-nonstandard"></i>
+                <i id="dealiasSettingsIcon" class="l2ElevationBtn l2elev-nonstandard fa-solid fa-gear"></i>
                 <br><br>
             </div>
             <!-- <div id="l2ElevButtonsExpander" style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Elevations</span>
-                <span id="l2ElevButtonsExpanderIcon" class="fa fa-chevron-right" style="font-size: 18px"></span>
+                <span id="l2ElevButtonsExpanderIcon" style="font-size: 18px" class="fa-solid fa-chevron-right"></span>
             </div>
             <div id="l2ElevButtons" class="l2ElevButtons" class="container" style="display: none"></div> -->
             <!-- <span class="l2ElevBtn">0.5</span>
@@ -1585,10 +1630,10 @@
 
     <!-- Fullscreen toggle button (bottom-right, outside bodyDiv for z-index) -->
     <button type="button" id="devConsoleQuickBtn" class="fullscreenToggleBtn fullscreenToggleBtn--devConsole" title="Developer Console" style="display:none">
-        <i class="fa fa-terminal"></i>
+        <i class="fa-solid fa-terminal"></i>
     </button>
     <button type="button" id="fullscreenToggleBtn" class="fullscreenToggleBtn" title="Toggle fullscreen">
-        <i class="fa fa-expand" id="fullscreenToggleIcon"></i>
+        <i id="fullscreenToggleIcon" class="fa-solid fa-expand"></i>
     </button>
 
     <!-- Google tag (gtag.js) -->
@@ -2273,10 +2318,10 @@
     <div id="devConsolePanel" class="devConsolePanel">
         <div class="devConsoleHeader">
             <div class="devConsoleHeaderLeft">
-                <i class="fa-solid fa-terminal devConsoleHeaderIcon"></i>
+                <i class="devConsoleHeaderIcon fa-solid fa-terminal"></i>
                 <span class="devConsoleTitle">Developer Console</span>
             </div>
-            <button id="devConsoleClose" class="devConsoleCloseBtn"><i class="fa fa-xmark"></i></button>
+            <button id="devConsoleClose" class="devConsoleCloseBtn"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div id="devConsoleBody" class="devConsoleBody"></div>
         <div class="devConsoleInputRow">

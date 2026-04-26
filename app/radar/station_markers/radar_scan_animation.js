@@ -20,10 +20,10 @@ var MAX_CANVAS_DIM = 2048;
 var _MASK = 'conic-gradient(from ' + (360 - TRAIL_DEG) + 'deg at 50% 50%,' +
     'transparent 0deg,' +
     'rgba(255,255,255,0.01) 6deg,' +
-    'rgba(255,255,255,0.04) 11deg,' +
-    'rgba(255,255,255,0.14) 16deg,' +
-    'rgba(255,255,255,0.40) 19deg,' +
-    'rgba(255,255,255,0.75) 21deg,' +
+    'rgba(255,255,255,0.06) 11deg,' +
+    'rgba(255,255,255,0.18) 16deg,' +
+    'rgba(255,255,255,0.52) 19deg,' +
+    'rgba(255,255,255,0.88) 21deg,' +
     'white ' + TRAIL_DEG + 'deg,' +
     'white ' + (TRAIL_DEG + 0.3) + 'deg,' +
     'transparent ' + (TRAIL_DEG + 0.5) + 'deg,' +
@@ -126,11 +126,11 @@ function _draw_beam() {
         grad.addColorStop(0.80, 'rgba(210, 232, 248, 0.05)');
         grad.addColorStop(1, 'rgba(210, 232, 248, 0)');
     } else {
-        grad.addColorStop(0, 'rgba(195, 215, 230, 0.26)');
-        grad.addColorStop(0.12, 'rgba(195, 215, 230, 0.18)');
-        grad.addColorStop(0.30, 'rgba(195, 215, 230, 0.10)');
-        grad.addColorStop(0.55, 'rgba(195, 215, 230, 0.04)');
-        grad.addColorStop(0.80, 'rgba(195, 215, 230, 0.01)');
+        grad.addColorStop(0, 'rgba(195, 215, 230, 0.34)');
+        grad.addColorStop(0.12, 'rgba(195, 215, 230, 0.24)');
+        grad.addColorStop(0.30, 'rgba(195, 215, 230, 0.14)');
+        grad.addColorStop(0.55, 'rgba(195, 215, 230, 0.06)');
+        grad.addColorStop(0.80, 'rgba(195, 215, 230, 0.02)');
         grad.addColorStop(1, 'rgba(195, 215, 230, 0)');
     }
     ctx.fillStyle = grad;
@@ -162,9 +162,9 @@ function _draw_beam() {
         lineGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.55)');
         lineGrad.addColorStop(0.60, 'rgba(255, 255, 255, 0.18)');
     } else {
-        lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
-        lineGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.16)');
-        lineGrad.addColorStop(0.60, 'rgba(255, 255, 255, 0.04)');
+        lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.52)');
+        lineGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.24)');
+        lineGrad.addColorStop(0.60, 'rgba(255, 255, 255, 0.08)');
     }
     lineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.strokeStyle = lineGrad;
@@ -196,6 +196,9 @@ function _create_elements() {
     if (isPreviewMode) {
         _container.style.mixBlendMode = 'screen';
         _container.style.filter = 'brightness(1.35) saturate(1.15)';
+    } else {
+        _container.style.mixBlendMode = 'screen';
+        _container.style.filter = 'brightness(1.08) saturate(1.05)';
     }
 
     _canvas = document.createElement('canvas');

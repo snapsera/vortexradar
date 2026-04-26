@@ -3075,31 +3075,26 @@ a:hover { color: var(--color-accent-hover); }
   left: 50%;
   transform: translateX(-50%);
   right: auto;
-  height: 48px;
+  height: auto;
+  min-height: 56px;
   width: fit-content;
   max-width: calc(100% - 120px);
-  background: rgba(12, 14, 20, 0.7);
+  background: transparent;
   backdrop-filter: var(--backdrop-blur);
   -webkit-backdrop-filter: var(--backdrop-blur);
   color: var(--color-text-primary);
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0 calc(var(--space-3) + 16px) 0 var(--space-3);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 3px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   gap: var(--space-3);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--footer-chamfer)),
-    calc(100% - var(--footer-chamfer)) 100%,
-    0 100%
-  );
+  clip-path: none;
 }
 #productMapFooter::before {
-  content: '';
+  content: none;
   position: absolute;
   top: -1px;
   left: -1px;
@@ -3111,7 +3106,7 @@ a:hover { color: var(--color-accent-hover); }
   z-index: 2;
 }
 #productMapFooter::after {
-  content: '';
+  content: none;
   position: absolute;
   bottom: 0;
   right: 0;
@@ -3144,87 +3139,146 @@ a:hover { color: var(--color-accent-hover); }
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 10px;
   min-width: 0;
-  width: fit-content;
+  width: min(640px, calc(100vw - 140px));
   max-width: 100%;
-  height: 36px;
-  padding: 0 var(--space-2);
+  min-height: 48px;
+  padding: 6px 10px;
   border-radius: 0;
   border: none;
-  background: transparent;
-  white-space: nowrap;
+  background: rgba(12, 20, 32, 0.92);
+  box-shadow: none;
+  color: #d6e5f8;
+}
+.radarLoopMode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.radarLoopMode-playback {
+  min-width: 0;
+}
+.radarLoopIdleInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
 }
 .radarLoopTransport {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 8px;
 }
 .radarLoopPanel-disabled { opacity: 0.4; }
 .radarLoopBtn {
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-bg-elevated);
-  color: var(--color-text-primary);
-  min-width: 30px;
-  height: 28px;
-  border-radius: var(--radius-pill);
+  border: 1px solid #2b5fd7;
+  background: #2f6eff;
+  color: #ffffff;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 10px;
   cursor: pointer;
   transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
-  font-size: var(--font-size-sm);
+  font-size: 15px;
+  box-shadow: 0 4px 12px rgba(47, 110, 255, 0.35);
 }
 .radarLoopBtn:hover {
-  border-color: var(--color-accent);
-  background: var(--color-bg-surface);
+  border-color: #1f4fbf;
+  background: #235fe9;
 }
 .radarLoopBtn-main {
-  min-width: 32px;
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  min-width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #2196f3;
+  border-color: #197fd1;
   color: #fff;
 }
 .radarLoopBtn-main.radarLoopBtn-playing {
-  background: var(--color-danger);
-  border-color: var(--color-danger);
+  background: #2563eb;
+  border-color: #1e4ec2;
+}
+.radarLoopBtn-stop {
+  background: #2f6eff;
+  border-color: #2b5fd7;
 }
 .radarLoopBtn:disabled {
   cursor: default;
   opacity: 0.3;
   transform: none;
 }
-.radarLoopControlGroup {
+.radarLoopPlaybackTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.radarLoopSliderWrap {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  min-width: 0;
+  width: 100%;
+}
+#radarLoopFrameSlider {
+  width: 100%;
+  height: 7px;
+  accent-color: #2f6eff;
+  cursor: pointer;
+}
+#radarLoopFrameSlider:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+.radarLoopTimelineLabels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgba(214, 229, 248, 0.72);
+  font-family: var(--font-mono);
+}
+#productsDropdownTrigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #d6e5f8;
+  min-width: 0;
+  overflow: hidden;
+}
+#productsDropdownTriggerText {
+  color: #3aa7ff;
+  font-size: 16px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#extraProductInfo {
+  font-size: 12px;
+  color: rgba(214, 229, 248, 0.78);
   white-space: nowrap;
 }
-.radarLoopLabel {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-#radarLoopSpeedSelect,
-#radarLoopFrameCountSelect {
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border-strong);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-pill);
-  height: 26px;
-  padding: 0 8px;
-  font-size: var(--font-size-sm);
+#radarLoopIdleMeta {
+  color: rgba(214, 229, 248, 0.82);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.1;
 }
 #radarLoopStatus {
   min-width: 0;
-  color: var(--color-text-primary);
+  color: #d6e5f8;
   text-align: right;
   white-space: nowrap;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  font-size: 12px;
+  font-weight: 700;
   font-family: var(--font-mono);
-}
-#productsDropdownTrigger, #productsDropdown {
-  font-size: var(--font-size-md);
-  cursor: pointer;
-  position: relative;
-  left: auto;
 }
 #radarDateTime {
   font-size: var(--font-size-md);
@@ -3235,16 +3289,156 @@ a:hover { color: var(--color-accent-hover); }
   right: auto;
 }
 #extraProductInfo {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
+  font-size: 12px;
+  color: rgba(214, 229, 248, 0.78);
+}
+.radarLoopControlGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.radarLoopControlGroup-idle {
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+}
+.radarLoopLabel {
+  font-size: 10px;
+  color: rgba(188, 212, 238, 0.78);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+#radarLoopSpeedSelect,
+#radarLoopFrameCountSelect {
+  background: linear-gradient(180deg, rgba(10, 21, 37, 0.98) 0%, rgba(7, 15, 27, 0.98) 100%);
+  border: 1px solid rgba(97, 154, 224, 0.5);
+  color: #d6e5f8;
+  border-radius: 9px;
+  height: 32px;
+  min-width: 68px;
+  padding: 0 30px 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8fc6ff 50%),
+    linear-gradient(135deg, #8fc6ff 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 13px,
+    calc(100% - 9px) 13px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+#radarLoopSpeedSelect:hover,
+#radarLoopFrameCountSelect:hover {
+  border-color: rgba(130, 186, 255, 0.75);
+}
+#radarLoopSpeedSelect:focus,
+#radarLoopFrameCountSelect:focus {
+  outline: none;
+  border-color: #73b8ff;
+  box-shadow: 0 0 0 2px rgba(53, 132, 229, 0.28);
+}
+#radarLoopSpeedSelect:disabled,
+#radarLoopFrameCountSelect:disabled {
+  opacity: 0.45;
+}
+.radarLoopQuickBtn {
+  background: linear-gradient(180deg, rgba(10, 21, 37, 0.98) 0%, rgba(7, 15, 27, 0.98) 100%);
+  border: 1px solid rgba(97, 154, 224, 0.5);
+  color: #d6e5f8;
+  border-radius: 9px;
+  height: 32px;
+  min-width: 92px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.radarLoopQuickBtn:hover {
+  border-color: rgba(130, 186, 255, 0.75);
+}
+.radarLoopQuickBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.radarLoopQuickBtnLabel {
+  color: rgba(188, 212, 238, 0.78);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+.radarLoopQuickBtnIcon {
+  color: rgba(171, 205, 243, 0.92);
+  font-size: 12px;
+  width: 12px;
+  text-align: center;
+}
+.radarLoopQuickBtnValue {
+  color: #d6e5f8;
+  font-size: 13px;
+}
+.radarLoopQuickBtnChevron {
+  margin-left: auto;
+  color: #8fc6ff;
+  font-size: 11px;
+}
+.radarLoopQuickMenu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 118px;
+  background: rgba(8, 14, 24, 0.98);
+  border: 1px solid rgba(120, 170, 220, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+  padding: 4px;
+  z-index: 15;
+}
+.radarLoopQuickMenuItem {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #d6e5f8;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.radarLoopQuickMenuItem:hover {
+  background: rgba(58, 127, 210, 0.22);
 }
 @media (max-width: 980px) {
   #radarLoopPanel { left: auto; right: auto; }
-  .radarLoopGlassCard { max-width: 100%; gap: 4px; }
+  .radarLoopGlassCard { max-width: 100%; gap: 6px; width: min(560px, calc(100vw - 60px)); }
+  #productsDropdownTrigger,
+  #productsDropdownTriggerText { font-size: 16px; }
+  #radarLoopIdleMeta,
+  #extraProductInfo { font-size: 11px; }
   #radarLoopStatus { min-width: 44px; }
   .radarLoopLabel { display: none; }
   #radarLoopSpeedSelect,
-  #radarLoopFrameCountSelect { max-width: 58px; }
+  #radarLoopFrameCountSelect {
+    width: 56px;
+    padding: 0 4px;
+    font-size: 11px;
+  }
+  .radarLoopQuickBtn {
+    min-width: 86px;
+    padding: 0 8px;
+  }
   #productMapFooter { max-width: calc(100% - 60px); }
 }
 @media (max-width: 760px) {
@@ -3258,11 +3452,26 @@ a:hover { color: var(--color-accent-hover); }
   }
   #radarLoopPanel { left: auto; right: auto; top: auto; height: auto; }
   .radarLoopGlassCard {
-    height: 32px;
-    padding: 0;
+    min-height: 44px;
+    padding: 6px 8px;
     width: 100%;
     max-width: none;
-    justify-content: center;
+    justify-content: stretch;
+  }
+  #productsDropdownTrigger,
+  #productsDropdownTriggerText { font-size: 14px; }
+  #radarLoopIdleMeta,
+  #extraProductInfo { font-size: 10px; }
+  .radarLoopControlGroup-idle {
+    display: none;
+  }
+  .radarLoopBtn {
+    min-width: 34px;
+    height: 34px;
+  }
+  .radarLoopBtn-main {
+    min-width: 36px;
+    height: 36px;
   }
 }
 #cursorCoords {

@@ -25,6 +25,7 @@
     "bufferpack": "^0.0.6",
     "cheap-ruler": "^4.0.0",
     "chroma-js": "^2.4.2",
+    "compression": "^1.8.1",
     "electron-updater": "^6.8.3",
     "express": "^4.22.1",
     "luxon": "^3.0.3",

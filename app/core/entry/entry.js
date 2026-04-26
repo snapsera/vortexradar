@@ -82,6 +82,14 @@ function _seed_site_defaults_if_needed(done) {
         });
 }
 
+function _run_when_idle(callback) {
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(function() { callback(); }, { timeout: 1500 });
+        return;
+    }
+    setTimeout(callback, 300);
+}
+
 function load() {
     window.stormTrackData = {};
     window.stormTrackData.map_type = 'dark';
@@ -114,9 +122,6 @@ function load() {
         require('../../hurricanes/menu_item');
         require('../../timezones/menu_item');
         require('../about/about_screen');
-        require('../../devtools/test_alerts');
-        require('../../devtools/accent_tester');
-        require('../../devtools/dev_console').init();
         require('../../screenshot/menu_item');
         require('../../impact_timeline/menu_item');
         require('../../draw/menu_item');
@@ -138,6 +143,12 @@ function load() {
         require('../../radar/preview_embed_mode').init();
         require('../../lightning/menu_item');
         require('../../storm_reports/menu_item');
+
+        _run_when_idle(function() {
+            require('../../devtools/test_alerts');
+            require('../../devtools/accent_tester');
+            require('../../devtools/dev_console').init();
+        });
 
         window.dispatchEvent(new CustomEvent('stormTrackModulesLoaded'));
     });

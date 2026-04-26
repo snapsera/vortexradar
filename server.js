@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const { Readable } = require('stream');
@@ -8,6 +9,9 @@ const DEFAULT_PORT = Number(process.env.PORT) || 3000;
 const BUNDLED_SITE_DEFAULTS_FILE = path.join(__dirname, 'site_defaults.json');
 const liveModeViewerStreams = new Map();
 let liveModeViewerSeq = 0;
+const apiCache = new Map();
+const EARTHQUAKE_TTL_MS = 60 * 1000;
+const METAR_TTL_MS = 30 * 1000;
 
 function getLocalLaunchTimestamp() {
     const now = new Date();
@@ -21,9 +25,27 @@ function getLocalLaunchTimestamp() {
 }
 
 app.use(express.json());
+app.use(compression());
 
 function getSiteDefaultsFile() {
     return process.env.SITE_DEFAULTS_PATH || BUNDLED_SITE_DEFAULTS_FILE;
+}
+
+function _cache_get(key) {
+    const entry = apiCache.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+        apiCache.delete(key);
+        return null;
+    }
+    return entry.value;
+}
+
+function _cache_set(key, value, ttlMs) {
+    apiCache.set(key, {
+        value,
+        expiresAt: Date.now() + ttlMs
+    });
 }
 
 app.post('/api/save-defaults', (req, res) => {
@@ -66,11 +88,19 @@ app.get('/site_defaults.json', (req, res) => {
 app.get('/api/metar', async (req, res) => {
     const ids = req.query.ids || '';
     if (!ids) return res.status(400).json({ error: 'Missing ids parameter' });
+    const cacheKey = `metar:${ids}`;
+    const cached = _cache_get(cacheKey);
+    if (cached) {
+        res.set('Cache-Control', 'public, max-age=15');
+        return res.json(cached);
+    }
     try {
         const url = 'https://aviationweather.gov/api/data/metar?ids=' + encodeURIComponent(ids) + '&format=json';
         const resp = await fetch(url);
         if (!resp.ok) return res.status(resp.status).json({ error: 'Upstream error' });
         const data = await resp.json();
+        _cache_set(cacheKey, data, METAR_TTL_MS);
+        res.set('Cache-Control', 'public, max-age=15');
         res.json(data);
     } catch (e) {
         console.error('[METAR proxy]', e.message);
@@ -79,11 +109,18 @@ app.get('/api/metar', async (req, res) => {
 });
 
 app.get('/api/earthquakes', async (req, res) => {
+    const cached = _cache_get('earthquakes');
+    if (cached) {
+        res.set('Cache-Control', 'public, max-age=30');
+        return res.json(cached);
+    }
     try {
         const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
         const resp = await fetch(url);
         if (!resp.ok) return res.status(resp.status).json({ error: 'Upstream error' });
         const data = await resp.json();
+        _cache_set('earthquakes', data, EARTHQUAKE_TTL_MS);
+        res.set('Cache-Control', 'public, max-age=30');
         res.json(data);
     } catch (e) {
         console.error('[Earthquake proxy]', e.message);

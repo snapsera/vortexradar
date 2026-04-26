@@ -9,9 +9,14 @@ const metar_info_lookup = Papa.parse(metar_station_info, {
     header: true,
     dynamicTyping: true,
 }).data;
+const metar_info_by_station = new Map();
+for (const row of metar_info_lookup) {
+    if (row && row.station_id) {
+        metar_info_by_station.set(row.station_id, row);
+    }
+}
 function _get_metar_station_info(station_id) {
-    const result = metar_info_lookup.find(obj => obj.station_id === station_id);
-    return result;
+    return metar_info_by_station.get(station_id);
 }
 
 function xhrGzipFile(url, cb) {

@@ -6,6 +6,7 @@ const DEFAULT_SPEED_MULTIPLIER = 5;
 const DEFAULT_FRAME_COUNT = 14;
 const BASE_FRAME_MS = 600;
 const ENDPOINT_DWELL_MS = 1100;
+const PRELOAD_EMIT_MIN_INTERVAL_MS = 100;
 
 function _ensure_state() {
     if (!window.stormTrackData) window.stormTrackData = {};
@@ -34,6 +35,8 @@ class RadarLoopController {
         this.current_product = null;
         this.current_render_token = 0;
         this._resume_after_switch = false;
+        this._pending_emit_timeout = null;
+        this._last_emit_at = 0;
     }
 
     is_supported_loop_product(product, base_factory = null) {
@@ -213,7 +216,8 @@ class RadarLoopController {
             }
         };
 
-        const CONCURRENCY = 8;
+        const hw = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 8;
+        const CONCURRENCY = Math.max(3, Math.min(6, Math.floor(hw / 2)));
         var queue_idx = 0;
         const process_next = () => {
             if (preload_token !== this.current_render_token) return;
@@ -259,6 +263,10 @@ class RadarLoopController {
     stop() {
         this._cancel_preload();
         this.pause();
+        if (this._pending_emit_timeout) {
+            clearTimeout(this._pending_emit_timeout);
+            this._pending_emit_timeout = null;
+        }
         if (this.fetch_controller) {
             this.fetch_controller.abort();
             this.fetch_controller = null;
@@ -362,6 +370,9 @@ class RadarLoopController {
     }
 
     stop_and_reset_to_latest() {
+        // If stop is pressed while preload is active, cancel all pending
+        // preload callbacks so the loop can be started cleanly again.
+        this._cancel_preload();
         this.pause();
         if (window?.stormTrackData?.current_RadarUpdater && !window?.stormTrackData?.liveModeActive) {
             window.stormTrackData.current_RadarUpdater.enable();
@@ -473,6 +484,32 @@ class RadarLoopController {
     }
 
     _emit_state() {
+        const is_preloading = !!this.state.preloading;
+        const min_interval = is_preloading ? PRELOAD_EMIT_MIN_INTERVAL_MS : 0;
+        const now = performance.now();
+        const elapsed = now - this._last_emit_at;
+        if (elapsed >= min_interval) {
+            this._dispatch_state();
+            return;
+        }
+
+        if (this._pending_emit_timeout) return;
+        const wait_ms = Math.max(0, min_interval - elapsed);
+        this._pending_emit_timeout = setTimeout(() => {
+            this._pending_emit_timeout = null;
+            this._dispatch_state();
+        }, wait_ms);
+    }
+
+    _dispatch_state() {
+        this._last_emit_at = performance.now();
+        if (window?.stormTrackData) {
+            const perf = window.stormTrackData.perf = window.stormTrackData.perf || {};
+            perf.radarLoopStateEmitCalls = (perf.radarLoopStateEmitCalls || 0) + 1;
+            perf.radarLoopPreloading = !!this.state.preloading;
+            perf.radarLoopFramesLoaded = this.state.preloadLoaded || 0;
+            perf.radarLoopFramesTotal = this.state.preloadTotal || 0;
+        }
         window.dispatchEvent(new CustomEvent('radarLoopStateChanged', { detail: this.state }));
     }
 }

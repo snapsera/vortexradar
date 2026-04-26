@@ -53,7 +53,7 @@ _generate_images();
             if ($option.length && !$option.hasClass('ctableOption-selected')) {
                 var $grid = $option.closest('.ctableGrid');
                 $grid.find('.ctableOption-selected').removeClass('ctableOption-selected').find('.ctableCheck').remove();
-                $option.addClass('ctableOption-selected').append('<span class="ctableCheck"><i class="fa fa-circle-check"></i></span>');
+                $option.addClass('ctableOption-selected').append('<span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>');
                 change_colortable(ctable.slice(0, 3), ctable);
             }
         }
@@ -65,7 +65,7 @@ $(document).on('click', '.ctableOption', function() {
 
     var $grid = $(this).closest('.ctableGrid');
     $grid.find('.ctableOption-selected').removeClass('ctableOption-selected').find('.ctableCheck').remove();
-    $(this).addClass('ctableOption-selected').append('<span class="ctableCheck"><i class="fa fa-circle-check"></i></span>');
+    $(this).addClass('ctableOption-selected').append('<span class="ctableCheck"><i class="fa-solid fa-circle-check"></i></span>');
 
     var name = $(this).attr('name');
     change_colortable(name.slice(0, 3), name);

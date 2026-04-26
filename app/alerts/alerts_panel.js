@@ -416,10 +416,10 @@ function _render_alerts_list(features) {
         if (isCollapsed) card.addClass('alertsCard-collapsed');
         const header = $(`
             <div class="alertsCardHeader alertsCardHeader-clickable">
-                <span class="alertsCardIcon" style="color: ${hexColor}"><span class="fa fa-triangle-exclamation"></span></span>
+                <span class="alertsCardIcon" style="color: ${hexColor}"><span class="fa-solid fa-triangle-exclamation"></span></span>
                 <span class="alertsCardEvent">${event.toUpperCase()}</span>
                 <span class="alertsCardBadge" style="background: ${hexColor}">${items.length}</span>
-                <span class="alertsCardChevron fa fa-chevron-down"></span>
+                <span class="alertsCardChevron fa-solid fa-chevron-down"></span>
             </div>
         `);
         header.on('click', function () {
@@ -456,8 +456,8 @@ function _render_alerts_list(features) {
                         </div>
                     </div>
                     <div class="alertsDetailActions">
-                        <button type="button" class="alertsDetailBtn alertsDetailGlobe" title="Select radar and view on map"><span class="fa fa-globe"></span></button>
-                        <button type="button" class="alertsDetailBtn alertsDetailArrow" title="View full details"><span class="fa fa-chevron-right"></span></button>
+                        <button type="button" class="alertsDetailBtn alertsDetailGlobe" title="Select radar and view on map"><span class="fa-solid fa-globe"></span></button>
+                        <button type="button" class="alertsDetailBtn alertsDetailArrow" title="View full details"><span class="fa-solid fa-chevron-right"></span></button>
                     </div>
                 </div>
             `);

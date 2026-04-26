@@ -10,6 +10,8 @@ const alerts_display_state = require('../alerts_display_state');
 
 const all_watches_url = `https://www.spc.noaa.gov/products/watch/ActiveWW.kmz`; // https://www.spc.noaa.gov/products/watch/ActiveWW.kmz
 const WATCH_FILL_OPACITY = 0.15;
+const WATCH_PLOT_DEBOUNCE_MS = 120;
+let _watchPlotTimer = null;
 
 function _get_watch_event_type(eventStr) {
     // eventStr is like "Tornado Watch 123" or "Severe Thunderstorm Watch 456"
@@ -37,7 +39,7 @@ function click_listener(e) {
 
     var popup_html =
 `<div style="font-weight: bold; font-size: 13px;">${properties.event}</div>
-<i id="${divid}" class="alert_popup_info icon-blue fa fa-circle-info" style="color: rgb(255, 255, 255);"></i>`;
+<i id="${divid}" class="alert_popup_info icon-blue fa-solid fa-circle-info" style="color: rgb(255, 255, 255);"></i>`;
 
     const popup = new MapPopup(e.lngLat, popup_html);
     popup.add_to_map();
@@ -75,14 +77,16 @@ function _fetch_individual_watch(url, callback) {
 
 function _plot_watches(feature_collection) {
     const filtered = _filter_watches(feature_collection.features);
-    var duplicate_features = filtered.flatMap((element) => [element, element]);
-    duplicate_features = JSON.parse(JSON.stringify(duplicate_features));
-    for (var i = 0; i < duplicate_features.length; i++) {
-        if (i % 2 === 0) {
-            duplicate_features[i].properties.type = 'border';
-        } else {
-            duplicate_features[i].properties.type = 'outline';
-        }
+    var duplicate_features = [];
+    for (var i = 0; i < filtered.length; i++) {
+        var feature = filtered[i];
+        var baseProps = Object.assign({}, feature.properties);
+        duplicate_features.push(Object.assign({}, feature, {
+            properties: Object.assign({}, baseProps, { type: 'border' })
+        }));
+        duplicate_features.push(Object.assign({}, feature, {
+            properties: Object.assign({}, baseProps, { type: 'outline' })
+        }));
     }
     const fc = turf.featureCollection(duplicate_features);
 
@@ -121,6 +125,14 @@ function _plot_watches(feature_collection) {
 
         set_layer_order();
     }
+}
+
+function _schedule_plot_watches(feature_collection) {
+    if (_watchPlotTimer) clearTimeout(_watchPlotTimer);
+    _watchPlotTimer = setTimeout(() => {
+        _watchPlotTimer = null;
+        _plot_watches(feature_collection);
+    }, WATCH_PLOT_DEBOUNCE_MS);
 }
 
 const features = [];
@@ -173,7 +185,7 @@ function fetch_watches() {
 
                         features.push(geojson.features[0]);
                         window.stormTrackData.watches_data = turf.featureCollection([...features]);
-                        _plot_watches(window.stormTrackData.watches_data);
+                        _schedule_plot_watches(window.stormTrackData.watches_data);
                     })
                     .catch(err => console.error(`Failed to fetch watch ${id} text:`, err))
                 })
@@ -186,7 +198,7 @@ function fetch_watches() {
 function apply_watches_display() {
     const data = window.stormTrackData?.watches_data;
     if (!data || !map.getSource('watches_source')) return;
-    _plot_watches(data);
+    _schedule_plot_watches(data);
 }
 
 module.exports = fetch_watches;

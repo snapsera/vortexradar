@@ -9,6 +9,7 @@ const MapPopup = require('../core/popup/MapPopup');
 const alert_helpers = require('./alert_helpers');
 const turf = require('@turf/turf');
 const station_markers = require('../radar/station_markers/station_markers');
+const ALERT_FOCUS_MAX_ZOOM = 9;
 
 // https://stackoverflow.com/a/4878800/18758797
 function to_title_case(str) {
@@ -176,7 +177,7 @@ function _select_radar_and_fly(station, feature) {
     if (feature && feature.geometry) {
         try {
             const bbox = turf.bbox(feature.geometry);
-            map.fitBounds(bbox, { padding: 40, maxZoom: 8, duration: 800 });
+            map.fitBounds(bbox, { padding: 40, maxZoom: ALERT_FOCUS_MAX_ZOOM, duration: 800 });
         } catch (_) {}
     }
 }
@@ -230,22 +231,22 @@ function click_listener(e) {
         const cardHtml = `
 <div class="alertPopupCard" data-id="${id}" style="--alert-popup-accent: ${hexColor}">
   <div class="alertPopupCardHeader">
-    <span class="alertPopupCardIcon fa fa-triangle-exclamation"></span>
+    <span class="alertPopupCardIcon fa-solid fa-triangle-exclamation"></span>
     <span class="alertPopupCardTitle">${properties.event}</span>
-    ${shouldShowClose ? `<button type="button" class="alertPopupCloseStack" title="Close"><span class="fa fa-xmark"></span></button>` : ''}
+    ${shouldShowClose ? `<button type="button" class="alertPopupCloseStack" title="Close"><span class="fa-solid fa-xmark"></span></button>` : ''}
   </div>
   <div class="alertPopupCardDivider"></div>
   <div class="alertPopupCardBody">
     <div class="alertPopupMetrics">
       ${parameters_html}
     </div>
-    ${expiresStr ? `<div class="alertPopupExpires"><span class="fa fa-clock-o"></span><span>${expiresStr}</span></div>` : ''}
+    ${expiresStr ? `<div class="alertPopupExpires"><span class="fa-solid fa-clock"></span><span>${expiresStr}</span></div>` : ''}
     <div class="alertPopupCardActions">
       <button type="button" class="alertPopupBtn alertPopupGlobe" title="Select best radar for this alert">
-        <span class="fa fa-globe"></span>
+        <span class="fa-solid fa-globe"></span>
       </button>
       <button type="button" class="alertPopupBtn alertPopupArrow" title="View details">
-        <span class="fa fa-chevron-right"></span>
+        <span class="fa-solid fa-chevron-right"></span>
       </button>
     </div>
   </div>

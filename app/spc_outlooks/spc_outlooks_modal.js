@@ -1495,7 +1495,7 @@ function _build_overlay() {
                     '<div class="spcOutlooksDivider" aria-hidden="true"></div>' +
                     '<div class="spcOutlooksSectionLabel">Location Risk Search</div>' +
                     '<div class="spcOutlooksSearch">' +
-                        '<i class="fa-solid fa-magnifying-glass spcOutlooksSearchIcon"></i>' +
+                        '<i class="spcOutlooksSearchIcon fa-solid fa-magnifying-glass"></i>' +
                         '<div class="spcOutlooksSearchWrap">' +
                             '<input type="text" class="spcOutlooksSearchInput" id="spcOutlooksLocationInput" placeholder="Search city, state, or zip..." autocomplete="off">' +
                             '<div class="spcOutlooksSuggestions" id="spcOutlooksLocationSuggestions"></div>' +

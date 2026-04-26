@@ -21,7 +21,7 @@ function _build_mode_toolbar() {
     return '<div id="screenshotModeToolbar" class="screenshotModeToolbar">' +
         '<div class="screenshotModeToolbarInner">' +
             '<button type="button" id="ssSelectAreaBtn" class="drawToolBtn" title="Select Area">' +
-                '<i class="fa-solid fa-vector-square"></i>' +
+                '<i class="fa-solid fa-circle"></i>' +
             '</button>' +
             '<button type="button" id="ssFullScreenBtn" class="drawToolBtn" title="Full Screen">' +
                 '<i class="fa-solid fa-expand"></i>' +

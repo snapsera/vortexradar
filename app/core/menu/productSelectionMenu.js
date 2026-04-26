@@ -150,6 +150,8 @@ $('.psmRow').click(function(e) {
 
         var selectedTiltNum = $(this).find('.psmRowTiltSelect').text().split(' ')[1];
         var resultProduct = productLookup[selectedTiltNum][value];
+        // Close the product submenu as soon as a product is chosen.
+        hidePSM();
         window.dispatchEvent(new CustomEvent('radarBaseSelectionRequested', {
             detail: {
                 station: currentStation,

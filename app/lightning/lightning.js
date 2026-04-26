@@ -25,6 +25,12 @@ var animationTimer = null;
 var active = false;
 var wsServerIndex = 0;
 var reconnectTimer = null;
+var pendingWsMessages = [];
+var _lastSourceUpdateMs = 0;
+var _lastProcessedMessageMs = 0;
+var _lastRenderedStrikeCount = 0;
+var _lastRenderedFeatureCount = 0;
+var MAX_MESSAGE_QUEUE = 600;
 
 // ── LZW decoder (matches official Blitzortung map decode function) ──
 
@@ -137,6 +143,16 @@ function updateAnimation() {
     if (source) {
         source.setData({ type: 'FeatureCollection', features: features });
     }
+    _lastSourceUpdateMs = now;
+    _lastRenderedStrikeCount = strikes.length;
+    _lastRenderedFeatureCount = features.length;
+    if (window?.stormTrackData) {
+        var perf = window.stormTrackData.perf = window.stormTrackData.perf || {};
+        perf.lightningSetDataCalls = (perf.lightningSetDataCalls || 0) + 1;
+        perf.lightningRenderedFeatures = features.length;
+        perf.lightningActiveStrikes = strikes.length;
+        perf.lightningQueueDepth = pendingWsMessages.length;
+    }
 }
 
 // ── Station range filter ──
@@ -210,21 +226,10 @@ function connectWebSocket() {
 
     ws.onmessage = function(event) {
         if (!active) return;
-        try {
-            var decoded = decode(event.data);
-            var data = JSON.parse(decoded);
-
-            if (typeof data.lat === 'number' && typeof data.lon === 'number' && 'delay' in data) {
-                var lat = data.lat;
-                var lon = data.lon;
-                if (typeof data.latc === 'number') lat += data.latc;
-                if (typeof data.lonc === 'number') lon += data.lonc;
-
-                if (isWithinRadarRange(lat, lon) && !isDuplicate(lat, lon, data.time)) {
-                    strikes.push({ lt: lat, ln: lon, t: Date.now() });
-                }
-            }
-        } catch (e) { /* skip malformed messages */ }
+        pendingWsMessages.push(event.data);
+        if (pendingWsMessages.length > MAX_MESSAGE_QUEUE) {
+            pendingWsMessages.splice(0, pendingWsMessages.length - MAX_MESSAGE_QUEUE);
+        }
     };
 
     ws.onerror = function() {
@@ -248,12 +253,48 @@ function scheduleReconnect() {
 
 // ── Animation loop ──
 
-var MIN_ANIMATION_INTERVAL_MS = 50;
+var MIN_ANIMATION_INTERVAL_MS = ANIMATION_INTERVAL_MS;
 var _lastAnimTime = 0;
 var pruneTimer = null;
+var MESSAGE_BUDGET_MS = 5;
+
+function _process_pending_messages() {
+    if (!pendingWsMessages.length) return;
+    var start = performance.now();
+    var processed = 0;
+    while (pendingWsMessages.length > 0) {
+        var payload = pendingWsMessages.shift();
+        try {
+            var decoded = decode(payload);
+            var data = JSON.parse(decoded);
+
+            if (typeof data.lat === 'number' && typeof data.lon === 'number' && 'delay' in data) {
+                var lat = data.lat;
+                var lon = data.lon;
+                if (typeof data.latc === 'number') lat += data.latc;
+                if (typeof data.lonc === 'number') lon += data.lonc;
+
+                if (isWithinRadarRange(lat, lon) && !isDuplicate(lat, lon, data.time)) {
+                    strikes.push({ lt: lat, ln: lon, t: Date.now() });
+                }
+            }
+        } catch (e) { /* skip malformed messages */ }
+
+        processed++;
+        if ((performance.now() - start) >= MESSAGE_BUDGET_MS) break;
+    }
+    _lastProcessedMessageMs = performance.now() - start;
+    if (window?.stormTrackData) {
+        var perf = window.stormTrackData.perf = window.stormTrackData.perf || {};
+        perf.lightningMessagesProcessed = (perf.lightningMessagesProcessed || 0) + processed;
+        perf.lightningMessageProcessMs = _lastProcessedMessageMs;
+        perf.lightningQueueDepth = pendingWsMessages.length;
+    }
+}
 
 function _rafLoop() {
     if (!active) { animationTimer = null; return; }
+    _process_pending_messages();
     var now = performance.now();
     if (now - _lastAnimTime >= MIN_ANIMATION_INTERVAL_MS) {
         _lastAnimTime = now;
@@ -265,6 +306,7 @@ function _rafLoop() {
 function startAnimationLoop() {
     if (animationTimer) return;
     _lastAnimTime = 0;
+    _lastSourceUpdateMs = 0;
     animationTimer = requestAnimationFrame(_rafLoop);
     if (!pruneTimer) {
         pruneTimer = setInterval(pruneRecentKeys, 10000);
@@ -308,6 +350,9 @@ function stop() {
 
     strikes = [];
     recentKeys = {};
+    pendingWsMessages = [];
+    _lastRenderedFeatureCount = 0;
+    _lastRenderedStrikeCount = 0;
 
     var source = map.getSource(SOURCE_ID);
     if (source) {

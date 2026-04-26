@@ -8,6 +8,11 @@ function deg2rad(angle) { return angle * (Math.PI / 180) }
 
 var _persistent_worker = null;
 var _worker_callback_queue = [];
+var _chroma_scale_cache = {};
+var _dealias_toggle_cache = {
+    region: null,
+    tornadic: null
+};
 
 function _get_worker() {
     if (!_persistent_worker) {
@@ -18,6 +23,35 @@ function _get_worker() {
         });
     }
     return _persistent_worker;
+}
+
+function _get_checkbox_checked(id, cacheKey) {
+    var cached = _dealias_toggle_cache[cacheKey];
+    if (cached == null || !document.body.contains(cached)) {
+        cached = document.getElementById(id);
+        _dealias_toggle_cache[cacheKey] = cached;
+    }
+    return !!(cached && cached.checked);
+}
+
+function _to_float32(arr) {
+    if (arr instanceof Float32Array) return arr;
+    var len = arr ? arr.length : 0;
+    var out = new Float32Array(len);
+    for (var i = 0; i < len; i++) out[i] = arr[i];
+    return out;
+}
+
+function _flatten_data_grid(data, numAz, numRanges) {
+    var flatData = new Float32Array(numAz * numRanges);
+    for (var i = 0; i < numAz; i++) {
+        var row = data[i];
+        var base = i * numRanges;
+        for (var n = 0; n < numRanges; n++) {
+            flatData[base + n] = (row && row[n] !== null && row[n] !== undefined) ? row[n] : NaN;
+        }
+    }
+    return flatData;
 }
 
 function calculate_coordinates(nexrad_factory, options) {
@@ -35,8 +69,8 @@ function calculate_coordinates(nexrad_factory, options) {
     }
     window.stormTrackData.product = product;
 
-    const dealias_mode_region_based = $('#armrDealiasRegionBasedBtnSwitchElem').is(':checked');
-    const dealias_mode_tornadic = $('#armrDealiasTornadicBtnSwitchElem').is(':checked');
+    const dealias_mode_region_based = _get_checkbox_checked('armrDealiasRegionBasedBtnSwitchElem', 'region');
+    const dealias_mode_tornadic = _get_checkbox_checked('armrDealiasTornadicBtnSwitchElem', 'tornadic');
 
     var should_plot_dealiased;
     if (nexrad_factory.nexrad_level == 2 && product == 'VEL') {
@@ -71,25 +105,20 @@ function calculate_coordinates(nexrad_factory, options) {
     var radar_lng = deg2rad(radar_lat_lng.lng);
 
     var color_data = product_colors[product];
-    var values = [...color_data.values];
-    values = ut.scaleValues(values, product);
-    var chroma_scale = chroma.scale(color_data.colors).domain(values).mode('lab');
+    var chroma_scale = _chroma_scale_cache[product];
+    if (!chroma_scale) {
+        var values = [...color_data.values];
+        values = ut.scaleValues(values, product);
+        chroma_scale = chroma.scale(color_data.colors).domain(values).mode('lab');
+        _chroma_scale_cache[product] = chroma_scale;
+    }
     window.stormTrackData.webgl_chroma_scale = chroma_scale;
 
     var numAz = azimuths.length;
     var numRanges = ranges.length;
-    var azF32 = new Float32Array(numAz);
-    for (var i = 0; i < numAz; i++) azF32[i] = azimuths[i];
-    var rangesF32 = new Float32Array(numRanges);
-    for (var i = 0; i < numRanges; i++) rangesF32[i] = ranges[i];
-    var flatData = new Float32Array(numAz * numRanges);
-    for (var i = 0; i < numAz; i++) {
-        var row = data[i];
-        var base = i * numRanges;
-        for (var n = 0; n < numRanges; n++) {
-            flatData[base + n] = (row && row[n] !== null && row[n] !== undefined) ? row[n] : NaN;
-        }
-    }
+    var azF32 = _to_float32(azimuths);
+    var rangesF32 = _to_float32(ranges);
+    var flatData = _flatten_data_grid(data, numAz, numRanges);
 
     var w = _get_worker();
     _worker_callback_queue.push(function(result) {
@@ -116,18 +145,9 @@ function precompute_render_data(nexrad_factory, callback) {
 
     var numAz = azimuths.length;
     var numRanges = ranges.length;
-    var azF32 = new Float32Array(numAz);
-    for (var i = 0; i < numAz; i++) azF32[i] = azimuths[i];
-    var rangesF32 = new Float32Array(numRanges);
-    for (var i = 0; i < numRanges; i++) rangesF32[i] = ranges[i];
-    var flatData = new Float32Array(numAz * numRanges);
-    for (var i = 0; i < numAz; i++) {
-        var row = data[i];
-        var base = i * numRanges;
-        for (var n = 0; n < numRanges; n++) {
-            flatData[base + n] = (row && row[n] !== null && row[n] !== undefined) ? row[n] : NaN;
-        }
-    }
+    var azF32 = _to_float32(azimuths);
+    var rangesF32 = _to_float32(ranges);
+    var flatData = _flatten_data_grid(data, numAz, numRanges);
 
     var w = _get_worker();
     _worker_callback_queue.push(function(result) {

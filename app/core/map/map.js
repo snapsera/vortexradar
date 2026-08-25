@@ -1,14 +1,13 @@
-mapboxgl.accessToken = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
-const map = new mapboxgl.Map({
+const map = new maplibregl.Map({
     container: 'map',
-    style: 'mapbox://styles/twalker92/cmd90758s006r01s2df82drgf',
+    style: 'https://tiles.openfreemap.org/styles/dark',
     zoom: 4.3,
     center: [-98.5606744, 39.5],
     maxZoom: 20,
     preserveDrawingBuffer: true,
     maxPitch: 0,
     fadeDuration: 0,
-    attributionControl: false,
+    attributionControl: true,
     projection: 'mercator',
 });
 
@@ -24,7 +23,7 @@ map.touchZoomRotate.disableRotation();
 map.dragRotate.disable();
 map.keyboard.disableRotation();
 $('#map').on('contextmenu', function(e) {
-    if ($(e.target).hasClass('mapboxgl-canvas')) {
+    if ($(e.target).hasClass('maplibregl-canvas')) {
         e.preventDefault();
     }
 })

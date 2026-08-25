@@ -1857,7 +1857,7 @@
         /* ── ready signal system ── */
         /*
          * We wait for REAL completion events from the app:
-         *  - stormTrackMapLoaded    : Mapbox map 'load' event (from entry.js)
+         *  - stormTrackMapLoaded    : MapLibre map 'load' event (from entry.js)
          *  - stormTrackModulesLoaded: All require() modules initialized (entry.js)
          *  - alertsFullyReady       : Alerts fetched + zone dicts loaded + polygons
          *                             combined + plotted on map (fetch_data.js)
@@ -2130,8 +2130,7 @@
 
         function _prime_geo(doneCb) {
             _task_active('geo');
-            var styleUrl = 'https://api.mapbox.com/styles/v1/twalker92/cmd90758s006r01s2df82drgf?access_token=' +
-                'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
+            var styleUrl = 'https://tiles.openfreemap.org/styles/dark';
             _fetch_json_timeout(styleUrl, 8000).finally(function() { _mark_extra('geo', doneCb); });
         }
 
@@ -2187,8 +2186,8 @@
             ['js',  'https://code.jquery.com/jquery-3.2.1.min.js', 86659, undefined, 'Loading jQuery...'],
             ['js',  'https://code.jquery.com/ui/1.13.1/jquery-ui.min.js', 255082, undefined, 'Loading UI toolkit...'],
             ['css', 'https://code.jquery.com/ui/1.13.1/themes/base/jquery-ui.css', 36099, undefined, 'Loading UI theme...'],
-            ['css', 'https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css', 36640, undefined, 'Loading map styles...'],
-            ['js',  'https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js', 971097, undefined, 'Loading Mapbox GL...'],
+            ['css', 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css', 70000, undefined, 'Loading map styles...'],
+            ['js',  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js', 1200000, undefined, 'Loading MapLibre GL...'],
             ['css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css', 100782, undefined, 'Loading icons...'],
             ['js',  'https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js', 33871, undefined, 'Loading datepicker...'],
             ['css', 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css', 15733, undefined, 'Datepicker styles...'],

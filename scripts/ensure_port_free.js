@@ -1,7 +1,7 @@
 const { execSync } = require('child_process');
 
 const portArg = process.argv[2];
-const port = Number(portArg || 3000);
+const port = Number(portArg || 9191);
 
 if (!Number.isInteger(port) || port <= 0 || port > 65535) {
     console.error(`Invalid port: ${portArg}`);
@@ -118,4 +118,3 @@ if (remaining.length > 0) {
     console.error(`Port ${port} is still busy (PID(s): ${remaining.join(', ')})`);
     process.exit(1);
 }
-

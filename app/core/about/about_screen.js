@@ -90,7 +90,7 @@ function build_about_html() {
             <div class="about_metaCol">
                 <div class="about_sectionLabel">Built With</div>
                 <div class="about_tagRow">
-                    <span class="about_tag">Mapbox GL</span>
+                    <span class="about_tag">MapLibre GL</span>
                     <span class="about_tag">WebGL</span>
                     <span class="about_tag">Node.js</span>
                 </div>

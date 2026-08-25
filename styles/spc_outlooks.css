@@ -428,7 +428,7 @@
   border: 2px solid rgba(255, 255, 255, 0.92);
   box-shadow: 0 0 0 5px rgba(34, 211, 238, 0.28);
 }
-.spcOutlooksMapWrap .mapboxgl-marker {
+.spcOutlooksMapWrap .maplibregl-marker {
   z-index: 6 !important;
 }
 @keyframes spcOutlooksPinRipple {

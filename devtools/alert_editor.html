@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <title>Alert Polygon Editor</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet">
-<link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="https://unpkg.com/@mapbox/mapbox-gl-draw@1.5.0/dist/mapbox-gl-draw.css" rel="stylesheet">
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1118; color: #e2e8f0; display: flex; height: 100vh; overflow: hidden; }
@@ -127,8 +127,8 @@
     <div class="status-bar" id="statusBar">Ready</div>
 </div>
 
-<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@mapbox/mapbox-gl-draw@1.5.0/dist/mapbox-gl-draw.js"></script>
 <script>
 (function() {
     'use strict';
@@ -236,19 +236,24 @@
         document.getElementById('stpExpiry').value = str;
     })();
 
-    mapboxgl.accessToken = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
-    var map = new mapboxgl.Map({
+    var map = new maplibregl.Map({
         container: 'map',
-        style: 'mapbox://styles/twalker92/cmd90758s006r01s2df82drgf',
+        style: 'https://tiles.openfreemap.org/styles/dark',
         zoom: 4.3,
         center: [-98.5606744, 39.5],
         maxZoom: 20,
         preserveDrawingBuffer: true,
         maxPitch: 0,
         fadeDuration: 0,
-        attributionControl: false,
+        attributionControl: true,
         projection: 'mercator'
     });
+
+    MapboxDraw.constants.classes.CANVAS = 'maplibregl-canvas';
+    MapboxDraw.constants.classes.CONTROL_BASE = 'maplibregl-ctrl';
+    MapboxDraw.constants.classes.CONTROL_PREFIX = 'maplibregl-ctrl-';
+    MapboxDraw.constants.classes.CONTROL_GROUP = 'maplibregl-ctrl-group';
+    MapboxDraw.constants.classes.ATTRIBUTION = 'maplibregl-ctrl-attrib';
 
     var draw = new MapboxDraw({
         displayControlsDefault: false,
@@ -256,7 +261,7 @@
         defaultMode: 'draw_polygon'
     });
     map.addControl(draw, 'top-left');
-    map.addControl(new mapboxgl.NavigationControl(), 'top-left');
+    map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
     var NEXRAD_TILE_URL = 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?' + Date.now();
 

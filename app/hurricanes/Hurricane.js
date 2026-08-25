@@ -36,7 +36,7 @@ ${date_first_line}<br>
 ${date_second_line}
 </div>`
 
-    // new mapboxgl.Popup({ className: 'alertPopup', maxWidth: '1000' })
+    // new maplibregl.Popup({ className: 'alertPopup', maxWidth: '1000' })
     //     .setLngLat([properties.lon, properties.lat])
     //     .setHTML(html_contents)
     //     .addTo(map);

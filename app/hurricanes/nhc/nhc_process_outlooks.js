@@ -35,7 +35,7 @@ function _click_listener(e) {
     const popup = new MapPopup([lng, lat], popup_content);
     popup.map_popup_div.css({ 'maxWidth': '200px', 'minWidth': '200px' });
     popup.add_to_map();
-    // new mapboxgl.Popup({ className: 'alertPopup'})
+    // new maplibregl.Popup({ className: 'alertPopup'})
     //     .setLngLat([lng, lat])
     //     .setHTML(popup_content)
     //     //.setHTML(e.features[0].properties.description)

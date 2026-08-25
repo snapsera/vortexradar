@@ -10,7 +10,7 @@
   width: 100%;
   z-index: var(--z-map);
 }
-.mapboxgl-ctrl-top-center {
+.maplibregl-ctrl-top-center {
   position: relative !important;
   left: 0;
   right: 0;
@@ -20,7 +20,7 @@
   flex-direction: column;
   justify-content: center;
 }
-.mapboxgl-ctrl-bottom-center {
+.maplibregl-ctrl-bottom-center {
   position: absolute !important;
   left: 0;
   right: 0;

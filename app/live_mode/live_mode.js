@@ -143,7 +143,6 @@ const LM_TRACK_SOURCE = 'lmStormTrackSource';
 const LM_TRACK_LINE_LAYER = 'lmStormTrackLine';
 const LM_TRACK_ARROW_LAYER = 'lmStormTrackArrow';
 
-const MAPBOX_TOKEN = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
 const NWS_UA = '(Vortex Radar, https://vortexradar.snapsera.com)';
 
 const DIR_MAP = {
@@ -399,28 +398,32 @@ function _bearing_to_short(deg) {
     return dirs[Math.round(((deg % 360 + 360) % 360) / 22.5) % 16];
 }
 
-// ── City Lookup (Mapbox) ─────────────────────────────────────────────────────
+// ── City Lookup (NWS) ────────────────────────────────────────────────────────
+
+function _lookup_nearby_city(coords, callback) {
+    if (!Array.isArray(coords) || coords.length < 2) return callback(null);
+    var lng = Number(coords[0]);
+    var lat = Number(coords[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return callback(null);
+    var url = '/api/location?lat=' + encodeURIComponent(lat.toFixed(4)) +
+        '&lon=' + encodeURIComponent(lng.toFixed(4));
+    fetch(url)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (city) {
+            if (!city || !city.name || !Number.isFinite(city.lat) || !Number.isFinite(city.lng)) {
+                return callback(null);
+            }
+            callback(city);
+        })
+        .catch(function () { callback(null); });
+}
 
 function _find_major_city_in_polygon(feature, callback) {
     if (!feature || !feature.geometry) return callback(null);
     try {
         var centroid = turf.centroid(turf.feature(feature.geometry));
         var coords = centroid.geometry.coordinates;
-        var url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
-            coords[0].toFixed(4) + ',' + coords[1].toFixed(4) +
-            '.json?types=place&limit=1&access_token=' + MAPBOX_TOKEN;
-        fetch(url)
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (!data || !data.features || !data.features.length) return callback(null);
-                var place = data.features[0];
-                callback({
-                    name: place.text || place.place_name,
-                    lng: place.center[0],
-                    lat: place.center[1]
-                });
-            })
-            .catch(function () { callback(null); });
+        _lookup_nearby_city(coords, callback);
     } catch (_) { callback(null); }
 }
 
@@ -551,33 +554,15 @@ function _find_city_in_storm_path(feature, motion, callback) {
             { units: 'miles' }
         );
         var coords = target.geometry.coordinates;
-        var url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
-            coords[0].toFixed(4) + ',' + coords[1].toFixed(4) +
-            '.json?types=place&limit=5&country=us&access_token=' + MAPBOX_TOKEN;
-
-        fetch(url)
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                var places = (data && Array.isArray(data.features)) ? data.features : [];
-                for (var i = 0; i < places.length; i++) {
-                    var place = places[i];
-                    var candidate = {
-                        name: place.text || place.place_name,
-                        lng: place.center?.[0],
-                        lat: place.center?.[1]
-                    };
-                    if (!candidate.name || candidate.lng == null || candidate.lat == null) continue;
-                    var fitsPath = _is_city_in_path_corridor(motion, candidate, halfWidthMiles, 120);
-                    if (fitsPath) {
-                        candidate.etaMin = fitsPath.etaMin;
-                        candidate.alongMiles = fitsPath.alongMiles;
-                        candidate.crossMiles = fitsPath.crossMiles;
-                        return callback(candidate);
-                    }
-                }
-                queryNext();
-            })
-            .catch(function () { queryNext(); });
+        _lookup_nearby_city(coords, function(candidate) {
+            if (!candidate) return queryNext();
+            var fitsPath = _is_city_in_path_corridor(motion, candidate, halfWidthMiles, 120);
+            if (!fitsPath) return queryNext();
+            candidate.etaMin = fitsPath.etaMin;
+            candidate.alongMiles = fitsPath.alongMiles;
+            candidate.crossMiles = fitsPath.crossMiles;
+            callback(candidate);
+        });
     }
 
     queryNext();

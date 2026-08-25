@@ -1,4 +1,4 @@
-const MAPBOX_TOKEN = 'pk.eyJ1IjoidHdhbGtlcjkyIiwiYSI6ImNtZDkwaHMwdTAyazkya3BzNXphYWI3a2kifQ.sWYO653OYlYHYc_wOHsd2A';
+const OPEN_MAP_STYLE = 'https://tiles.openfreemap.org/styles/dark';
 const SOURCE_ID = 'spcOutlooksSource';
 const HATCH_SOURCE_ID = 'spcOutlooksHatchedSource';
 const FILL_LAYER_ID = 'spcOutlooksFill';
@@ -304,7 +304,13 @@ function _set_satellite_visibility(showSatellite) {
     const hasSatellite = !!_map.getLayer(SATELLITE_LAYER_ID);
     if (showSatellite && !hasSatellite) {
         if (!_map.getSource(SATELLITE_SOURCE_ID)) {
-            _map.addSource(SATELLITE_SOURCE_ID, { type: 'raster', url: 'mapbox://mapbox.satellite', tileSize: 256 });
+            _map.addSource(SATELLITE_SOURCE_ID, {
+                type: 'raster',
+                tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg'],
+                tileSize: 256,
+                maxzoom: 14,
+                attribution: 'EOxCloudless by EOX IT Services GmbH (modified Copernicus Sentinel data 2025)'
+            });
         }
         const beforeLayer = _map.getLayer('tunnel-path-trail') ? 'tunnel-path-trail' : undefined;
         _map.addLayer({ type: 'raster', id: SATELLITE_LAYER_ID, source: SATELLITE_SOURCE_ID }, beforeLayer);
@@ -1163,7 +1169,7 @@ function _submit_location_search(lat, lon, name) {
     _locationAssessName = name || `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
     $('#spcOutlooksLocationInput').val(_locationAssessName);
     $('#spcOutlooksLocationSuggestions').removeClass('spcOutlooksSuggestions-visible').html('');
-    if (_map && window.mapboxgl) {
+    if (_map && window.maplibregl) {
         if (!_locationMarker) {
             const markerEl = document.createElement('div');
             markerEl.className = 'spcOutlooksSearchPin';
@@ -1176,7 +1182,7 @@ function _submit_location_search(lat, lon, name) {
                 markerImg.remove();
             };
             markerEl.appendChild(markerImg);
-            _locationMarker = new mapboxgl.Marker({ element: markerEl, anchor: 'bottom' });
+            _locationMarker = new maplibregl.Marker({ element: markerEl, anchor: 'bottom' });
         }
         _locationMarker.setLngLat([lon, lat]).addTo(_map);
     }
@@ -1584,19 +1590,18 @@ function _build_overlay() {
 
 function _init_map() {
     if (_map) return;
-    if (typeof mapboxgl === 'undefined') return;
-    if (!mapboxgl.accessToken) mapboxgl.accessToken = MAPBOX_TOKEN;
+    if (typeof maplibregl === 'undefined') return;
 
-    _map = new mapboxgl.Map({
+    _map = new maplibregl.Map({
         container: 'spcOutlooksMap',
-        style: 'mapbox://styles/twalker92/cmd90758s006r01s2df82drgf',
+        style: OPEN_MAP_STYLE,
         zoom: 4.3,
         center: [-98.5606744, 39.5],
         maxZoom: 20,
         preserveDrawingBuffer: true,
         maxPitch: 0,
         fadeDuration: 0,
-        attributionControl: false,
+        attributionControl: true,
         projection: 'mercator'
     });
 

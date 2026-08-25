@@ -3,7 +3,7 @@ const map = require('../map/map');
 class MapPopup {
     constructor (lngLat, html_content) {
         if (Array.isArray(lngLat)) {
-            lngLat = new mapboxgl.LngLat(...lngLat);
+            lngLat = new maplibregl.LngLat(...lngLat);
         }
         this.lngLat = lngLat;
         this.html_content = html_content;

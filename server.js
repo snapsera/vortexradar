@@ -5,13 +5,14 @@ const fs = require('fs');
 const { Readable } = require('stream');
 
 const app = express();
-const DEFAULT_PORT = Number(process.env.PORT) || 3000;
+const DEFAULT_PORT = Number(process.env.PORT) || 9191;
 const BUNDLED_SITE_DEFAULTS_FILE = path.join(__dirname, 'site_defaults.json');
 const liveModeViewerStreams = new Map();
 let liveModeViewerSeq = 0;
 const apiCache = new Map();
 const EARTHQUAKE_TTL_MS = 60 * 1000;
 const METAR_TTL_MS = 30 * 1000;
+const LOCATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 function getLocalLaunchTimestamp() {
     const now = new Date();
@@ -125,6 +126,50 @@ app.get('/api/earthquakes', async (req, res) => {
     } catch (e) {
         console.error('[Earthquake proxy]', e.message);
         res.status(502).json({ error: 'Fetch failed' });
+    }
+});
+
+app.get('/api/location', async (req, res) => {
+    const lat = Number(req.query.lat);
+    const lon = Number(req.query.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+
+    const roundedLat = lat.toFixed(4);
+    const roundedLon = lon.toFixed(4);
+    const cacheKey = `location:${roundedLat},${roundedLon}`;
+    const cached = _cache_get(cacheKey);
+    if (cached) return res.json(cached);
+
+    try {
+        const url = `https://api.weather.gov/points/${roundedLat},${roundedLon}`;
+        const upstream = await fetch(url, {
+            headers: {
+                Accept: 'application/geo+json',
+                'User-Agent': 'Vortex Radar (https://vortexradar.snapsera.com)'
+            }
+        });
+        if (!upstream.ok) return res.status(upstream.status).json({ error: 'Location lookup failed' });
+
+        const data = await upstream.json();
+        const relativeLocation = data?.properties?.relativeLocation;
+        const properties = relativeLocation?.properties || {};
+        const coordinates = relativeLocation?.geometry?.coordinates;
+        if (!properties.city) return res.status(404).json({ error: 'No nearby city found' });
+
+        const result = {
+            name: properties.city,
+            state: properties.state || '',
+            lat: Array.isArray(coordinates) && Number.isFinite(Number(coordinates[1])) ? Number(coordinates[1]) : lat,
+            lng: Array.isArray(coordinates) && Number.isFinite(Number(coordinates[0])) ? Number(coordinates[0]) : lon
+        };
+        _cache_set(cacheKey, result, LOCATION_TTL_MS);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.json(result);
+    } catch (error) {
+        console.error('[Location proxy]', error.message);
+        res.status(502).json({ error: 'Location lookup unavailable' });
     }
 });
 

@@ -49,7 +49,7 @@ function _set_tiles(frameUrl) {
         return;
     }
 
-    // Some Mapbox GL versions do not expose setTiles() on raster sources.
+    // Some MapLibre GL versions do not expose setTiles() on raster sources.
     // Update the source internals in-place to avoid remove/add flicker each frame.
     if (source && Array.isArray(source.tiles) && map?.style?.sourceCaches?.[SOURCE_ID]) {
         source.tiles = [frameUrl];

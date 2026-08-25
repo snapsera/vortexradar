@@ -3,8 +3,6 @@ const set_layer_order = require('./setLayerOrder');
 const map_funcs = require('./mapFunctions');
 
 function change_map_style(style) {
-    // const base_url = 'mapbox://styles/mapbox/';
-
     // const current_map_layers = map.getStyle().layers;
     // const original_sources = map.getStyle().sources;
     // const current_map_sources = Object.keys(original_sources).map(key => ({
@@ -32,10 +30,10 @@ function change_map_style(style) {
 
     if (window.stormTrackData.default_styles == undefined) {
         window.stormTrackData.default_styles = {
-            'land': map.getPaintProperty('land', 'background-color'),
-            'national_park': map.getPaintProperty('national-park', 'fill-color'),
-            'landuse': map.getPaintProperty('landuse', 'fill-color'),
-            'water': map.getPaintProperty('water', 'fill-color'),
+            'land': map.getLayer('land') ? map.getPaintProperty('land', 'background-color') : undefined,
+            'national_park': map.getLayer('national-park') ? map.getPaintProperty('national-park', 'fill-color') : undefined,
+            'landuse': map.getLayer('landuse') ? map.getPaintProperty('landuse', 'fill-color') : undefined,
+            'water': map.getLayer('water') ? map.getPaintProperty('water', 'fill-color') : undefined,
         }
     }
     if (map.getLayer('usa-land-fill')) {
@@ -47,10 +45,10 @@ function change_map_style(style) {
     }
 
     function set_dark() {
-        map.setPaintProperty('land', 'background-color', '#2b3142');
-        map.setPaintProperty('national-park', 'fill-color', '#2e3447');
-        map.setPaintProperty('landuse', 'fill-color', '#2e3447');
-        map.setPaintProperty('water', 'fill-color', '#141722');
+        _safePaint('land', 'background-color', '#2b3142');
+        _safePaint('national-park', 'fill-color', '#2e3447');
+        _safePaint('landuse', 'fill-color', '#2e3447');
+        _safePaint('water', 'fill-color', '#141722');
 
         var darkHalo = 'rgba(27,30,43,0.8)';
         var labelColor = 'rgb(255, 255, 255)';
@@ -77,10 +75,10 @@ function change_map_style(style) {
         const white = 'rgb(246, 244, 237)';
         const blue = 'rgb(136, 190, 227)';
 
-        map.setPaintProperty('land', 'background-color', white);
-        map.setPaintProperty('national-park', 'fill-color', white);
-        map.setPaintProperty('landuse', 'fill-color', white);
-        map.setPaintProperty('water', 'fill-color', blue);
+        _safePaint('land', 'background-color', white);
+        _safePaint('national-park', 'fill-color', white);
+        _safePaint('landuse', 'fill-color', white);
+        _safePaint('water', 'fill-color', blue);
 
         var origHalo = 'rgba(255,255,255,0.75)';
         _safePaint('state-label', 'text-color', '#3d4554');
@@ -110,8 +108,14 @@ function change_map_style(style) {
 
         set_dark();
 
-        map.addSource('mapbox-satellite', { 'type': 'raster', 'url': 'mapbox://mapbox.satellite', 'tileSize': 256 });
-        map.addLayer({ 'type': 'raster', 'id': 'satellite-map', 'source': 'mapbox-satellite' }, map_funcs.get_base_layer());
+        map.addSource('satellite-imagery', {
+            'type': 'raster',
+            'tiles': ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg'],
+            'tileSize': 256,
+            'maxzoom': 14,
+            'attribution': 'EOxCloudless by EOX IT Services GmbH (modified Copernicus Sentinel data 2025)'
+        });
+        map.addLayer({ 'type': 'raster', 'id': 'satellite-map', 'source': 'satellite-imagery' }, map_funcs.get_base_layer());
     } else if (style == 'dark') {
         window.stormTrackData.map_type = 'dark';
 
@@ -119,7 +123,7 @@ function change_map_style(style) {
 
         if (map.getLayer('satellite-map')) {
             map.removeLayer('satellite-map');
-            map.removeSource('mapbox-satellite');
+            map.removeSource('satellite-imagery');
         }
     } else if (style == 'light') {
         window.stormTrackData.map_type = 'light';
@@ -128,7 +132,7 @@ function change_map_style(style) {
 
         if (map.getLayer('satellite-map')) {
             map.removeLayer('satellite-map');
-            map.removeSource('mapbox-satellite');
+            map.removeSource('satellite-imagery');
         }
     }
 

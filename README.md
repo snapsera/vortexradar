@@ -100,11 +100,11 @@ tools/              Changelog, bundle-size utils
 
 ## 🧰 Tech
 
-- **Mapbox GL JS** for the map
+- **MapLibre GL JS + OpenFreeMap** for the keyless map
 - **Browserify + brfs** for bundling
 - **WebGL** with custom GLSL shaders for radar rendering
 - All radar decoding happens client-side — bzip2 decompression, NEXRAD message parsing, the whole thing
-- **Express** serves the app (`server.js`, port 3000)
+- **Express** serves the app (`server.js`, port 9191)
 
 ## 🚀 Getting started
 
@@ -116,11 +116,11 @@ npm run build
 `npm run build` concats CSS, bundles JS with Browserify, and minifies with UglifyJS.
 
 ```bash
-npm run start          # Express server on port 3000
+npm run start          # Express server on port 9191
 npm run dev            # build + start
 ```
 
-Then open `http://localhost:3000`.
+Then open `http://localhost:9191`.
 
 ## 💻 Desktop app (super simple)
 

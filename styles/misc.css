@@ -365,20 +365,20 @@
   border-bottom-color: var(--color-border-strong);
 }
 
-.alertPopup .mapboxgl-popup-content {
+.alertPopup .maplibregl-popup-content {
   background-color: var(--color-bg-primary);
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
 }
-.alertPopup .mapboxgl-popup-close-button { display: none; }
-.alertPopup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: var(--color-bg-primary); }
-.alertPopup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: var(--color-bg-primary); }
-.alertPopup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: var(--color-bg-primary); }
-.alertPopup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: var(--color-bg-primary); }
-.alertPopup.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip { border-bottom-color: var(--color-bg-primary); }
-.alertPopup.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip { border-bottom-color: var(--color-bg-primary); }
-.alertPopup.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip { border-top-color: var(--color-bg-primary); }
-.alertPopup.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip { border-top-color: var(--color-bg-primary); }
+.alertPopup .maplibregl-popup-close-button { display: none; }
+.alertPopup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--color-bg-primary); }
+.alertPopup.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--color-bg-primary); }
+.alertPopup.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--color-bg-primary); }
+.alertPopup.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--color-bg-primary); }
+.alertPopup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip { border-bottom-color: var(--color-bg-primary); }
+.alertPopup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--color-bg-primary); }
+.alertPopup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip { border-top-color: var(--color-bg-primary); }
+.alertPopup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--color-bg-primary); }
 .alert_popup_info {
   position: absolute; right: 0; padding-right: 20px;
   top: 50%; transform: translateY(-50%);
@@ -1005,4 +1005,3 @@
     grid-template-columns: 1fr;
   }
 }
-

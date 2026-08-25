@@ -73,15 +73,16 @@ function moveMapLayer(lay) {
 }
 
 function get_base_layer() {
-    const current_style_name = window.stormTrackData.map_type; // map.getStyle().name;
-
-    if (current_style_name == 'satellite') {
-        return 'tunnel-path-trail';
-    } else if (current_style_name == 'dark') {
-        return 'land-structure-line';
-    } else if (current_style_name == 'light') {
-        return 'land-structure-line';
+    const style = map.getStyle();
+    const layers = style && Array.isArray(style.layers) ? style.layers : [];
+    const preferredLayerIds = ['tunnel-path-trail', 'land-structure-line'];
+    for (let i = 0; i < preferredLayerIds.length; i++) {
+        if (map.getLayer(preferredLayerIds[i])) return preferredLayerIds[i];
     }
+
+    // Keep weather overlays below labels for any MapLibre-compatible basemap.
+    const firstLabelLayer = layers.find((layer) => layer.type === 'symbol');
+    return firstLabelLayer ? firstLabelLayer.id : undefined;
 }
 
 module.exports = {

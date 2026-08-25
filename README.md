@@ -1,207 +1,124 @@
-# Vortex Radar 🌪️
+# Vortex Radar
 
 ![Vortex Radar](images/readmelogo.png)
 
-Browser-based weather radar and alerts. Pulls live data from the NWS and other public sources: radar, warnings, surface obs, lightning, and more.
+Vortex Radar is a browser-based weather radar built for watching live conditions across the United States. It combines NEXRAD radar, National Weather Service alerts, SPC outlooks, surface observations, storm reports, forecasts, and other weather layers in one map.
 
-> **Project rename:** This project was renamed from **StormTrack Pro** to **Vortex Radar**.
+The project was previously called StormTrack Pro.
 
-## 🌐 Website
+## Hosted preview
 
-You can view the live version here: [vortexradar.snapsera.com](https://vortexradar.snapsera.com/)
+I discontinued the hosted preview. To use Vortex Radar, you'll need to download the project and run `start-local-server.bat` on your Windows computer.
 
-## 🖼️ Showcase
+The launcher starts Vortex Radar locally at [http://localhost:9191](http://localhost:9191). Keep its Command Prompt window open while you're using the app. Closing that window stops the local server.
 
-![Vortex Radar - National Map](images/readme-screenshot-1.png)
+## Running Vortex Radar on Windows
 
-![Vortex Radar - Alerts Toggle](images/readme-screenshot-2.png)
+You'll need [Node.js](https://nodejs.org/) 18 or newer.
 
-![Vortex Radar - Focus Alerts](images/readme-screenshot-3.png)
+1. Download or clone this repository.
+2. Open the project folder.
+3. Double-click `start-local-server.bat`.
+4. Open [http://localhost:9191](http://localhost:9191) in your browser.
 
-![Vortex Radar - Location Lookup (MyCast)](images/readme-screenshot-4.gif)
+The launcher installs the required packages automatically the first time you run it. Later launches go straight to starting the server.
 
-![Vortex Radar - Live Mode Severe Line](images/readme-screenshot-5-live-mode.gif)
+Vortex Radar still needs an internet connection. The app runs on your computer, but its maps, radar scans, alerts, forecasts, and other live weather data come from online services.
 
-## ✨ Features
+## What it includes
 
-- **NEXRAD radar** — Level 2 & Level 3 from any US NEXRAD site. Reflectivity, velocity (with dealiasing), and a bunch of other products. National composite, looping, and a data inspector.
-- **24/7 Live Mode** — Autonomous weather broadcast mode that rotates between SPC outlooks, active severe warnings, CONUS radar, local spotlight segments, storm reports, and recent earthquakes.
-- **Live commentary + soundtrack** — Typewriter-style commentary with alert-first callouts, plus built-in background music controls for stream-style viewing.
-- **National MRMS radar loop** — CONUS base reflectivity from NOAA nowCOAST with multi-frame playback and smooth endpoint dwell for cleaner animation.
-- **Alerts** — Warnings, watches, advisories drawn on the map with polygons and full text. SPC watches, MDs, outlooks. Ticker along the bottom, plus audible/voice notifications.
-- **Lightning** — Real-time strike plotting.
-- **METARs** — Station models from ASOS/AWOS sites.
-- **Surface fronts** — Frontal boundaries and pressure systems.
-- **Hurricanes** — NHC tracks and forecast cones.
-- **SPC** — Outlooks, watches, mesoscale discussions.
-- **Weather stations** — Upper-air soundings and station info.
-- **Radio** — NWR and scanner streams.
-- **Drawing** — Freehand annotation on the map.
-- **Screenshots** — Save any region of the map.
-- **7-Day Forecast** — City/state/zip, current conditions, hourly out to 72h, day-by-day text forecasts.
+- **NEXRAD radar:** View Level 2 and Level 3 products from U.S. radar sites, including reflectivity and velocity. Radar decoding and rendering happen in the browser.
+- **National radar:** Follow a looping CONUS base-reflectivity mosaic when you want the wider picture.
+- **Weather alerts:** See NWS warnings, watches, and advisories on the map with polygons, alert details, a ticker, and optional audible or spoken notifications.
+- **SPC weather:** Check convective outlooks, watches, and mesoscale discussions, including location-based risk information.
+- **24/7 Live Mode:** Let the app rotate through active warnings, outlooks, radar, storm reports, recent earthquakes, commentary, and background music.
+- **Observations and overlays:** Add METAR station plots, lightning, fronts, hurricanes, time zones, weather radio streams, and storm reports.
+- **Forecasts:** Search by city, state, or ZIP code for current conditions, hourly details, and a seven-day NWS forecast.
+- **Map tools:** Inspect radar values, measure distance, draw on the map, and save screenshots.
 
-## 🗺️ Roadmap
+## Screenshots
 
-### Current App Progress
+![Vortex Radar national map](images/readme-screenshot-1.png)
 
-- Core platform maturity — **90%** `🟩🟩🟩🟩🟩🟩🟩🟩🟩⬜`
-- Live weather coverage — **85%** `🟩🟩🟩🟩🟩🟩🟩🟩⬜⬜`
-- UI/UX polish — **70%** `🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜`
-- Desktop packaging + release flow — **65%** `🟩🟩🟩🟩🟩🟩⬜⬜⬜⬜`
-- Performance and optimization pass — **60%** `🟩🟩🟩🟩🟩🟩⬜⬜⬜⬜`
+![Vortex Radar alerts](images/readme-screenshot-2.png)
 
-### Feature Completion
+![Vortex Radar focused alert](images/readme-screenshot-3.png)
 
-- NEXRAD radar + national loop — **100%** `🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩`
-- Alerts + polygons + ticker/voice — **90%** `🟩🟩🟩🟩🟩🟩🟩🟩🟩⬜`
-- 24/7 Live Mode engine — **80%** `🟩🟩🟩🟩🟩🟩🟩🟩⬜⬜`
-- Forecast experience (hourly + 7-day) — **75%** `🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜`
-- Lightning/METAR/fronts/SPC overlays — **80%** `🟩🟩🟩🟩🟩🟩🟩🟩⬜⬜`
-- Hurricanes and tropical tools — **70%** `🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜`
-- Desktop app + updater reliability — **65%** `🟩🟩🟩🟩🟩🟩⬜⬜⬜⬜`
+![Vortex Radar MyCast forecast](images/readme-screenshot-4.gif)
 
-### Future Plans (In Progress / Planned) 
+![Vortex Radar Live Mode](images/readme-screenshot-5-live-mode.gif)
 
-- Multi-region camera expansion + smarter rotation — **60%** `🟩🟩🟩🟩🟩🟩⬜⬜⬜⬜`
-- Live Mode segment customization controls — **50%** `🟩🟩🟩🟩🟩⬜⬜⬜⬜⬜`
-- Map performance tuning for low-end GPUs — **40%** `🟩🟩🟩🟩⬜⬜⬜⬜⬜⬜`
-- Mobile responsiveness improvements — **30%** `🟩🟩🟩⬜⬜⬜⬜⬜⬜⬜`
-- Better onboarding/help and discoverability — **30%** `🟩🟩🟩⬜⬜⬜⬜⬜⬜⬜`
-- Testing/QA automation coverage — **20%** `🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜`
+## Maps and data
 
-## 🗂️ Project layout
+The main map uses MapLibre GL JS with OpenFreeMap, so a Mapbox account or access token isn't required. Satellite mode uses EOxCloudless Sentinel imagery. Check the [EOX license terms](https://cloudless.eox.at/documentation/license) before using that imagery commercially.
 
-```text
-app/                Source, organized by feature
-  alerts/           Alert fetching, parsing, rendering, polygons
-  core/             App shell, map, menus, popups, clock, entry point
-  devtools/         Dev/testing tools
-  draw/             Drawing/annotation
-  forecast/         7-day forecast modal
-  hurricanes/       Tropical cyclone tracks
-  lightning/        Lightning data
-  metars/           METAR parsing and station models
-  radar/            NEXRAD decoding, plotting, colormaps, looping, inspector
-  radio/            NWR / scanner streams
-  screenshot/       Map capture
-  spc/              SPC outlooks, watches, MDs
-  surface_fronts/   Fronts overlay
-  timezones/        Timezone display
-  ui/               Shared UI (ticker, audible alerts, voice, fullscreen)
-  weather_station/  Station info, upper-air data
-data/               Static data and palettes
-dist/               Build output
-images/             Icons and SVGs
-lib/                Vendored libs (bzip2)
-scripts/            Build scripts
-styles/             CSS source (concatenated at build)
-tools/              Changelog, bundle-size utils
-```
+Live weather information comes from public sources including the National Weather Service, NOAA, the Storm Prediction Center, the National Hurricane Center, Iowa Environmental Mesonet, and the U.S. Geological Survey. Each service can occasionally be delayed or unavailable.
 
-## 🧰 Tech
+## Development
 
-- **MapLibre GL JS + OpenFreeMap** for the keyless map
-- **Browserify + brfs** for bundling
-- **WebGL** with custom GLSL shaders for radar rendering
-- All radar decoding happens client-side — bzip2 decompression, NEXRAD message parsing, the whole thing
-- **Express** serves the app (`server.js`, port 9191)
-
-## 🚀 Getting started
+Install the packages and build the browser assets:
 
 ```bash
 npm install
 npm run build
 ```
 
-`npm run build` concats CSS, bundles JS with Browserify, and minifies with UglifyJS.
+Start the Express server:
 
 ```bash
-npm run start          # Express server on port 9191
-npm run dev            # build + start
+npm start
 ```
 
-Then open `http://localhost:9191`.
+The server listens on port `9191` unless you provide a different `PORT` environment variable.
 
-## 💻 Desktop app (super simple)
-
-This project can build and publish a Windows desktop app with auto-updates through GitHub Releases.
-
-### ✅ One-time setup
-
-1. Install dependencies:
+For the local development command:
 
 ```bash
-npm install
+npm run dev
 ```
 
-1. Create a GitHub Personal Access Token (classic `repo` scope is easiest), then save it once on Windows:
+The build process combines the files in `styles/` into `index.css`, bundles the browser code into `dist/bundle.js`, and minifies the result.
 
-```powershell
-setx GH_TOKEN "YOUR_GITHUB_TOKEN"
+## Windows desktop build
+
+Run the Electron version locally:
+
+```bash
+npm run desktop:dev
 ```
 
-1. Restart Cursor/terminal after running `setx`.
-
-### 🏗️ Build desktop app locally (no publish)
+Build a Windows installer without publishing it:
 
 ```bash
 npm run desktop:dist
 ```
 
-Output goes to:
+Build output is written to `release-build/`.
 
-- `release-build/win-unpacked/` (unpacked app)
-- `release-build/Vortex Radar Setup.exe` (installer)
+## Project structure
 
-### 📦 Publish a release to GitHub (auto-update)
-
-Run this when you want users to get an update:
-
-```bash
-npm run desktop:publish
+```text
+app/        Application source organized by feature
+data/       Static radar samples, palettes, and supporting data
+devtools/   Local alert polygon editor
+dist/       Built browser bundle
+electron/   Windows desktop wrapper
+images/     Logos, icons, and screenshots
+scripts/    Build and release helpers
+styles/     Source stylesheets
+server.js   Express server and local API proxies
 ```
 
-What it does automatically:
+## Weather safety
 
-- Bumps patch version (`1.0.x -> 1.0.x+1`)
-- Builds web assets
-- Builds desktop installer
-- Uploads release artifacts to GitHub (`snapsera/vortexradar`)
+Vortex Radar is a personal weather-viewing project, not an official warning service. Don't rely on it as your only source of severe-weather information. Keep Wireless Emergency Alerts enabled and follow guidance from the National Weather Service and local emergency officials.
 
-### 🔎 Optional check before publish
+## Credits
 
-```bash
-npm run desktop:preflight
-```
+Vortex Radar builds on work from [AtticRadar](https://github.com/SteepAtticStairs/AtticRadar) by [SteepAtticStairs](https://github.com/SteepAtticStairs). Its original radar architecture, decoding work, and WebGL approach provided an important starting point for this project.
 
-This checks token + repo permissions and also bumps patch version.
+Map data is provided by [OpenStreetMap](https://www.openstreetmap.org/copyright) through [OpenFreeMap](https://openfreemap.org/).
 
-### 🧪 Quick release checklist
+## License
 
-1. Make your code changes
-2. Run `npm run desktop:publish`
-3. Verify new release appears on GitHub
-4. Open installed app and confirm update prompt appears
-
-### 🛠️ Common issues
-
-- **"GitHub Personal Access Token is not set"**
-  - Reopen terminal/Cursor after `setx`
-  - Verify token exists with:
-    - `echo $env:GH_TOKEN` (PowerShell)
-- **`EPERM ... bundle.js` build error**
-  - Close running app/build processes
-  - Delete stale temp files:
-    - `Remove-Item .\dist\bundle.js.tmp-browserify-* -Force -ErrorAction SilentlyContinue`
-  - Re-run publish
-- **Security reminder 🔐**
-  - Never paste your token in chat/screenshots/terminal logs
-  - If exposed, revoke and create a new token immediately
-
-## 🙌 Credits
-
-Built on top of [AtticRadar](https://github.com/SteepAtticStairs/AtticRadar) by [SteepAtticStairs](https://github.com/SteepAtticStairs). A lot of the core architecture, NEXRAD decoding, and WebGL rendering here started from or was heavily inspired by that project. Go check it out.
-
-## 📄 License
-
-Not currently published under an open-source license. All rights reserved.
+No open-source license has been published for this repository. All rights are reserved.
